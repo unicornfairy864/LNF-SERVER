@@ -1,0 +1,13 @@
+# Mysql
+mysql:
+  database_host: "localhost"
+  database_port: "3306"
+  database_dbname: "your_database_name"
+  database_user: "your_username"
+  database_password: "your_password"
+
+# Agent
+api:
+  openai_key: "TOKEN"
+  openai_base_url: "https://open.bigmodel.cn/api/paas/v4"
+  default_model: "glm-5.3-flash"
