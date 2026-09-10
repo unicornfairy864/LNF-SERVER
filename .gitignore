@@ -1,0 +1,10 @@
+# VsCode
+/.vscode
+
+# Environment
+/config.yaml
+
+# Golang
+/go.sum
+/go.mod
+/go.work
