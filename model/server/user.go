@@ -3,7 +3,6 @@ package server
 import "time"
 
 type UserResponse struct {
-    ID            int64     `json:"id"`
     Username      string    `json:"username"`
     RealName      string    `json:"real_name"`
     QQ            string    `json:"qq"`
@@ -32,7 +31,6 @@ type User struct {
 
 func UserToResponse(u User) UserResponse {
     return UserResponse{
-        ID:            u.ID,
         Username:      u.Username,
         RealName:      u.RealName,
         QQ:            u.QQ,
