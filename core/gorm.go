@@ -34,7 +34,7 @@ func InitDB() (*gorm.DB, error) {
     sqlDB.SetConnMaxLifetime(30 * time.Minute)
     sqlDB.SetConnMaxIdleTime(30 * time.Second)
 
-	// The program can't automatically reconnect
+	// The program can't automatically reconnect database
 
 	return db, nil
 }
