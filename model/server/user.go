@@ -30,7 +30,7 @@ type User struct {
 }
 
 func UserToResponse(u User) UserResponse {
-    return UserResponse{
+    return UserResponse {
         Username:      u.Username,
         RealName:      u.RealName,
         QQ:            u.QQ,

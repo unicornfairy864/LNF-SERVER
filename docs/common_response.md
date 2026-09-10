@@ -16,7 +16,13 @@
 | ---- | ------- |
 | 0    | Success |
 
-### Error Code
+### Server Error Code
+
+| Code | Message |
+| ---- | ------- |
+| 500  | Internal Server Error |
+
+### Auth Error Code
 
 | Code | Message |
 | ---- | ------- |
