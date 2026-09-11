@@ -32,7 +32,7 @@ type User struct {
 func UserToResponse(u User) UserResponse {
     return UserResponse {
         Username:      u.Username,
-        RealName:      u.RealName,
+        Nickname:      u.Nickname,
         QQ:            u.QQ,
         Avatar:        u.Avatar,
         Role:          u.Role,
