@@ -4,7 +4,7 @@ import "time"
 
 type UserResponse struct {
     Username      string    `json:"username"`
-    RealName      string    `json:"real_name"`
+    Nickname      string    `json:"nickname"`
     QQ            string    `json:"qq"`
     Avatar        string    `json:"avatar"`
     Role          int8      `json:"role"`
@@ -17,7 +17,7 @@ type User struct {
     ID            int64     `json:"id"`
     Username      string    `json:"username"`
     PasswordHash  string    `json:"password"`
-    RealName      string    `json:"real_name"`
+    Nickname      string    `json:"nickname"`
     QQ            string    `json:"qq"`
     Avatar        string    `json:"avatar"`
     Role          int8      `json:"role"`

@@ -8,7 +8,7 @@ CREATE TABLE `user` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `username`         VARCHAR(50)  NOT NULL                COMMENT '登录账号(学号/工号)',
     `password_hash`    VARCHAR(100) NOT NULL                COMMENT '加密密码',
-    `real_name`        VARCHAR(50)  NOT NULL                COMMENT '真实姓名',
+    `nickname`         VARCHAR(50)  NOT NULL                COMMENT '昵称',
     `qq`               VARCHAR(50)  NOT NULL                COMMENT 'qq号',
     `avatar`           VARCHAR(255) DEFAULT NULL            COMMENT '头像URL',
     `role`             TINYINT      NOT NULL DEFAULT 0      COMMENT '角色: 0普通用户 1失物招领管理员 2系统管理员',
