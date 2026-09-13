@@ -82,6 +82,11 @@ const (
 	CodeLocationDuplicate Code = 80002
 	CodeLocationDisabled  Code = 80003
 	CodeLocationInUse     Code = 80004
+
+	// ==================== 公告 9xxxx ====================
+	CodeAnnouncementNotFound     Code = 90001
+	CodeAnnouncementNoPermission Code = 90002
+	CodeAnnouncementInvalid      Code = 90003
 )
 
 var Msg = map[Code]string{
@@ -155,6 +160,10 @@ var Msg = map[Code]string{
 	CodeLocationDuplicate: "地点名称已存在",
 	CodeLocationDisabled:  "地点已被禁用",
 	CodeLocationInUse:     "地点正在被使用",
+
+	CodeAnnouncementNotFound:     "公告不存在",
+	CodeAnnouncementNoPermission: "无权操作该公告",
+	CodeAnnouncementInvalid:      "公告参数或状态错误",
 }
 
 type CommonHttpStatus struct {

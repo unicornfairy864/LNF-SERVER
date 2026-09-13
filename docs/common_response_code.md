@@ -158,3 +158,13 @@
 | 80002 | `CodeLocationDuplicate` | Location Already Exists | 地点名称已存在 | 违反地点名称唯一约束 |
 | 80003 | `CodeLocationDisabled` | Location Disabled | 地点已被禁用 | `status=0` 时尝试关联物品 |
 | 80004 | `CodeLocationInUse` | Location In Use | 地点正在被使用 | 删除地点时仍被物品关联 |
+
+## 十一、公告模块（9xxxx）
+
+> 对应 `announcements`：`admin_id`、`title`、`content`、`type`(0系统公告 1活动公告 2维护通知 3其他)、`status`(0草稿 1已发布 2已下架)、`is_top`、`published_at`、`is_deleted`。
+
+| 错误码 | 英文常量 | 英文含义 | 中文含义 | 触发场景 |
+|---|---|---|---|---|
+| 90001 | `CodeAnnouncementNotFound` | Announcement Not Found | 公告不存在 | 按 `id` 查询无记录或 `is_deleted=1` |
+| 90002 | `CodeAnnouncementNoPermission` | No Permission On Announcement | 无权操作该公告 | 当前用户非管理员或无权操作该公告 |
+| 90003 | `CodeAnnouncementInvalid` | Invalid Announcement | 公告参数或状态错误 | 标题/内容为空、类型/状态非法、标题过长、发布时间无效、公告已发布/已下架/已删除/长度超过业务限制等 |
