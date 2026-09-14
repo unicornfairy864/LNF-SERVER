@@ -1,6 +1,6 @@
 package server
 
-import "github.com/unicornfairy864/LNF-SERVER/model"
+import "github.com/unicornfairy864/LNF-SERVER/model/basic"
 
 type UserService struct{}
 

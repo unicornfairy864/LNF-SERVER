@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/unicornfairy864/LNF-SERVER/core"
+	"github.com/unicornfairy864/LNF-SERVER/initialization"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 )
 
