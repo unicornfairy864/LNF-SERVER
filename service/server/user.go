@@ -1,9 +1,9 @@
 package server
 
-import "github.com/unicornfairy864/LNF-SERVER/model/server"
+import "github.com/unicornfairy864/LNF-SERVER/model"
 
 type UserService struct{}
 
-func (userService *UserService) Register (u server.UserResponse, err error) {
+func (userService *UserService) Register(u model.UserResponse, err error) {
 
 }

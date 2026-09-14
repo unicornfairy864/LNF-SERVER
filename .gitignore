@@ -3,3 +3,7 @@
 
 # Environment
 /config.yaml
+
+# Build
+
+/dist

@@ -3,7 +3,7 @@ package common
 type Code int
 
 const (
-	// ==================== Í¨ÓÃ / ÏµÍ³ 0xxxx ====================
+	// ==================== é€šç”¨ / ç³»ç»Ÿ 0xxxx ====================
 	CodeSuccess         Code = 0
 	CodeParamError      Code = 1
 	CodeUnauthorized    Code = 2
@@ -14,7 +14,7 @@ const (
 	CodeTooManyRequests Code = 7
 	CodeOperationFailed Code = 8
 
-	// ==================== ÓÃ»§ÓëÈÏÖ¤ 1xxxx ====================
+	// ==================== ç”¨æˆ·ä¸è®¤è¯ 1xxxx ====================
 	CodeUserNotFound     Code = 10001
 	CodeUsernameOccupied Code = 10002
 	CodePasswordWrong    Code = 10003
@@ -26,7 +26,7 @@ const (
 	CodeCaptchaWrong     Code = 10009
 	CodeUserNotActive    Code = 10010
 
-	// ==================== ÎïÆ· 2xxxx ====================
+	// ==================== ç‰©å“ 2xxxx ====================
 	CodeItemNotFound         Code = 20001
 	CodeItemClosed           Code = 20002
 	CodeItemAlreadyClaimed   Code = 20003
@@ -40,7 +40,7 @@ const (
 	CodeItemAlreadyPublished Code = 20011
 	CodeItemCannotClaimSelf  Code = 20012
 
-	// ==================== ÈÏÁì 3xxxx ====================
+	// ==================== è®¤é¢† 3xxxx ====================
 	CodeClaimNotFound           Code = 30001
 	CodeClaimAlreadyExists      Code = 30002
 	CodeClaimAlreadyHandled     Code = 30003
@@ -50,7 +50,7 @@ const (
 	CodeClaimDescriptionTooLong Code = 30007
 	CodeClaimDuplicate          Code = 30008
 
-	// ==================== ±êÇ© & ¹ØÁª 4xxxx ====================
+	// ==================== æ ‡ç­¾ & å…³è” 4xxxx ====================
 	CodeTagNotFound     Code = 40001
 	CodeTagDuplicate    Code = 40002
 	CodeTagDisabled     Code = 40003
@@ -59,31 +59,31 @@ const (
 	CodeItemTagExists   Code = 40010
 	CodeItemTagNotFound Code = 40011
 
-	// ==================== »ı·Ö 5xxxx ====================
+	// ==================== ç§¯åˆ† 5xxxx ====================
 	CodeCreditInsufficient    Code = 50001
 	CodeCreditLogNotFound     Code = 50002
 	CodeCreditTypeInvalid     Code = 50003
 	CodeCreditAmountInvalid   Code = 50004
 	CodeCreditAlreadyRewarded Code = 50005
 
-	// ==================== Í¨Öª 6xxxx ====================
+	// ==================== é€šçŸ¥ 6xxxx ====================
 	CodeNotificationNotFound     Code = 60001
 	CodeNotificationNoPermission Code = 60002
 	CodeNotificationAlreadyRead  Code = 60003
 
-	// ==================== ¾Ù±¨ 7xxxx ====================
+	// ==================== ä¸¾æŠ¥ 7xxxx ====================
 	CodeReportNotFound       Code = 70001
 	CodeReportDuplicate      Code = 70002
 	CodeReportSelfContent    Code = 70003
 	CodeReportAlreadyHandled Code = 70004
 
-	// ==================== µØµã 8xxxx ====================
+	// ==================== åœ°ç‚¹ 8xxxx ====================
 	CodeLocationNotFound  Code = 80001
 	CodeLocationDuplicate Code = 80002
 	CodeLocationDisabled  Code = 80003
 	CodeLocationInUse     Code = 80004
 
-	// ==================== ¹«¸æ 9xxxx ====================
+	// ==================== å…¬å‘Š 9xxxx ====================
 	CodeAnnouncementNotFound     Code = 90001
 	CodeAnnouncementNoPermission Code = 90002
 	CodeAnnouncementInvalid      Code = 90003
@@ -91,79 +91,79 @@ const (
 
 var Msg = map[Code]string{
 	CodeSuccess:         "ok",
-	CodeParamError:      "ÇëÇó²ÎÊı´íÎó",
-	CodeUnauthorized:    "Î´µÇÂ¼»òTokenÎŞĞ§",
-	CodeForbidden:       "ÎŞÈ¨ÏŞ²Ù×÷",
-	CodeNotFound:        "×ÊÔ´²»´æÔÚ",
-	CodeServerError:     "·şÎñÆ÷ÄÚ²¿´íÎó",
-	CodeDatabaseError:   "Êı¾İ¿â²Ù×÷Ê§°Ü",
-	CodeTooManyRequests: "ÇëÇó¹ıÓÚÆµ·±",
-	CodeOperationFailed: "²Ù×÷Ê§°Ü",
+	CodeParamError:      "è¯·æ±‚å‚æ•°é”™è¯¯",
+	CodeUnauthorized:    "æœªç™»å½•æˆ–Tokenæ— æ•ˆ",
+	CodeForbidden:       "æ— æƒé™æ“ä½œ",
+	CodeNotFound:        "èµ„æºä¸å­˜åœ¨",
+	CodeServerError:     "æœåŠ¡å™¨å†…éƒ¨é”™è¯¯",
+	CodeDatabaseError:   "æ•°æ®åº“æ“ä½œå¤±è´¥",
+	CodeTooManyRequests: "è¯·æ±‚è¿‡äºé¢‘ç¹",
+	CodeOperationFailed: "æ“ä½œå¤±è´¥",
 
-	CodeUserNotFound:     "ÓÃ»§²»´æÔÚ",
-	CodeUsernameOccupied: "ÓÃ»§ÃûÒÑ±»Õ¼ÓÃ",
-	CodePasswordWrong:    "ÃÜÂë´íÎó",
-	CodeTokenExpired:     "TokenÒÑ¹ıÆÚ",
-	CodeUserDisabled:     "ÕË»§ÒÑ±»½ûÓÃ",
-	CodeOldPasswordWrong: "Ô­ÃÜÂë´íÎó",
-	CodeEmailOccupied:    "ÓÊÏäÒÑ±»Õ¼ÓÃ",
-	CodePhoneOccupied:    "ÊÖ»úºÅÒÑ±»Õ¼ÓÃ",
-	CodeCaptchaWrong:     "ÑéÖ¤Âë´íÎó",
-	CodeUserNotActive:    "ÓÃ»§Î´¼¤»î",
+	CodeUserNotFound:     "ç”¨æˆ·ä¸å­˜åœ¨",
+	CodeUsernameOccupied: "ç”¨æˆ·åå·²è¢«å ç”¨",
+	CodePasswordWrong:    "å¯†ç é”™è¯¯",
+	CodeTokenExpired:     "Tokenå·²è¿‡æœŸ",
+	CodeUserDisabled:     "è´¦æˆ·å·²è¢«ç¦ç”¨",
+	CodeOldPasswordWrong: "åŸå¯†ç é”™è¯¯",
+	CodeEmailOccupied:    "é‚®ç®±å·²è¢«å ç”¨",
+	CodePhoneOccupied:    "æ‰‹æœºå·å·²è¢«å ç”¨",
+	CodeCaptchaWrong:     "éªŒè¯ç é”™è¯¯",
+	CodeUserNotActive:    "ç”¨æˆ·æœªæ¿€æ´»",
 
-	CodeItemNotFound:         "ÎïÆ·²»´æÔÚ",
-	CodeItemClosed:           "ÎïÆ·ÒÑ¹Ø±Õ£¬²»¿É²Ù×÷",
-	CodeItemAlreadyClaimed:   "ÎïÆ·ÒÑ±»ÈÏÁì",
-	CodeItemPendingAudit:     "ÎïÆ·´ıÉóºË£¬Ôİ²»¿É²Ù×÷",
-	CodeItemNoPermission:     "ÎŞÈ¨²Ù×÷¸ÃÎïÆ·",
-	CodeItemTypeInvalid:      "ÎïÆ·ÀàĞÍ·Ç·¨",
-	CodeItemCreditNegative:   "»ı·Ö½±Àø²»ÄÜÎª¸ºÊı",
-	CodeItemTimeEmpty:        "¶ªÊ§/Ê°µ½Ê±¼ä²»ÄÜÎª¿Õ",
-	CodeItemTitleEmpty:       "ÎïÆ·±êÌâ²»ÄÜÎª¿Õ",
-	CodeItemLocationInvalid:  "µØµãÎŞĞ§",
-	CodeItemAlreadyPublished: "ÎïÆ·ÒÑ·¢²¼",
-	CodeItemCannotClaimSelf:  "²»ÄÜÈÏÁì×Ô¼º·¢²¼µÄÎïÆ·",
+	CodeItemNotFound:         "ç‰©å“ä¸å­˜åœ¨",
+	CodeItemClosed:           "ç‰©å“å·²å…³é—­ï¼Œä¸å¯æ“ä½œ",
+	CodeItemAlreadyClaimed:   "ç‰©å“å·²è¢«è®¤é¢†",
+	CodeItemPendingAudit:     "ç‰©å“å¾…å®¡æ ¸ï¼Œæš‚ä¸å¯æ“ä½œ",
+	CodeItemNoPermission:     "æ— æƒæ“ä½œè¯¥ç‰©å“",
+	CodeItemTypeInvalid:      "ç‰©å“ç±»å‹éæ³•",
+	CodeItemCreditNegative:   "ç§¯åˆ†å¥–åŠ±ä¸èƒ½ä¸ºè´Ÿæ•°",
+	CodeItemTimeEmpty:        "ä¸¢å¤±/æ‹¾åˆ°æ—¶é—´ä¸èƒ½ä¸ºç©º",
+	CodeItemTitleEmpty:       "ç‰©å“æ ‡é¢˜ä¸èƒ½ä¸ºç©º",
+	CodeItemLocationInvalid:  "åœ°ç‚¹æ— æ•ˆ",
+	CodeItemAlreadyPublished: "ç‰©å“å·²å‘å¸ƒ",
+	CodeItemCannotClaimSelf:  "ä¸èƒ½è®¤é¢†è‡ªå·±å‘å¸ƒçš„ç‰©å“",
 
-	CodeClaimNotFound:           "ÈÏÁì¼ÇÂ¼²»´æÔÚ",
-	CodeClaimAlreadyExists:      "¸ÃÎïÆ·ÒÑÓĞ´ıÉóºËµÄÈÏÁìÉêÇë",
-	CodeClaimAlreadyHandled:     "ÈÏÁìÉêÇëÒÑ±»´¦Àí",
-	CodeClaimCancelled:          "ÈÏÁìÉêÇëÒÑÈ¡Ïû",
-	CodeClaimNoPermission:       "ÎŞÈ¨ÉóºË¸ÃÈÏÁìÉêÇë",
-	CodeClaimSelfItem:           "²»ÄÜÈÏÁì×Ô¼º·¢²¼µÄÎïÆ·",
-	CodeClaimDescriptionTooLong: "ÈÏÁìÃèÊö¹ı³¤",
-	CodeClaimDuplicate:          "ÖØ¸´Ìá½»ÈÏÁìÉêÇë",
+	CodeClaimNotFound:           "è®¤é¢†è®°å½•ä¸å­˜åœ¨",
+	CodeClaimAlreadyExists:      "è¯¥ç‰©å“å·²æœ‰å¾…å®¡æ ¸çš„è®¤é¢†ç”³è¯·",
+	CodeClaimAlreadyHandled:     "è®¤é¢†ç”³è¯·å·²è¢«å¤„ç†",
+	CodeClaimCancelled:          "è®¤é¢†ç”³è¯·å·²å–æ¶ˆ",
+	CodeClaimNoPermission:       "æ— æƒå®¡æ ¸è¯¥è®¤é¢†ç”³è¯·",
+	CodeClaimSelfItem:           "ä¸èƒ½è®¤é¢†è‡ªå·±å‘å¸ƒçš„ç‰©å“",
+	CodeClaimDescriptionTooLong: "è®¤é¢†æè¿°è¿‡é•¿",
+	CodeClaimDuplicate:          "é‡å¤æäº¤è®¤é¢†ç”³è¯·",
 
-	CodeTagNotFound:     "±êÇ©²»´æÔÚ",
-	CodeTagDuplicate:    "±êÇ©Ãû³ÆÒÑ´æÔÚ",
-	CodeTagDisabled:     "±êÇ©ÒÑ±»½ûÓÃ",
-	CodeTagNameInvalid:  "±êÇ©Ãû³ÆÎŞĞ§",
-	CodeTagInUse:        "±êÇ©ÕıÔÚ±»Ê¹ÓÃ",
-	CodeItemTagExists:   "ÎïÆ·ÒÑ¹ØÁª¸Ã±êÇ©",
-	CodeItemTagNotFound: "±êÇ©¹ØÁª¼ÇÂ¼²»´æÔÚ",
+	CodeTagNotFound:     "æ ‡ç­¾ä¸å­˜åœ¨",
+	CodeTagDuplicate:    "æ ‡ç­¾åç§°å·²å­˜åœ¨",
+	CodeTagDisabled:     "æ ‡ç­¾å·²è¢«ç¦ç”¨",
+	CodeTagNameInvalid:  "æ ‡ç­¾åç§°æ— æ•ˆ",
+	CodeTagInUse:        "æ ‡ç­¾æ­£åœ¨è¢«ä½¿ç”¨",
+	CodeItemTagExists:   "ç‰©å“å·²å…³è”è¯¥æ ‡ç­¾",
+	CodeItemTagNotFound: "æ ‡ç­¾å…³è”è®°å½•ä¸å­˜åœ¨",
 
-	CodeCreditInsufficient:    "»ı·ÖÓà¶î²»×ã",
-	CodeCreditLogNotFound:     "»ı·ÖÁ÷Ë®¼ÇÂ¼²»´æÔÚ",
-	CodeCreditTypeInvalid:     "»ı·Ö²Ù×÷ÀàĞÍ·Ç·¨",
-	CodeCreditAmountInvalid:   "»ı·ÖÊıÁ¿·Ç·¨",
-	CodeCreditAlreadyRewarded: "»ı·ÖÒÑ·¢·Å",
+	CodeCreditInsufficient:    "ç§¯åˆ†ä½™é¢ä¸è¶³",
+	CodeCreditLogNotFound:     "ç§¯åˆ†æµæ°´è®°å½•ä¸å­˜åœ¨",
+	CodeCreditTypeInvalid:     "ç§¯åˆ†æ“ä½œç±»å‹éæ³•",
+	CodeCreditAmountInvalid:   "ç§¯åˆ†æ•°é‡éæ³•",
+	CodeCreditAlreadyRewarded: "ç§¯åˆ†å·²å‘æ”¾",
 
-	CodeNotificationNotFound:     "Í¨Öª²»´æÔÚ",
-	CodeNotificationNoPermission: "ÎŞÈ¨²é¿´¸ÃÍ¨Öª",
-	CodeNotificationAlreadyRead:  "Í¨ÖªÒÑ¶Á",
+	CodeNotificationNotFound:     "é€šçŸ¥ä¸å­˜åœ¨",
+	CodeNotificationNoPermission: "æ— æƒæŸ¥çœ‹è¯¥é€šçŸ¥",
+	CodeNotificationAlreadyRead:  "é€šçŸ¥å·²è¯»",
 
-	CodeReportNotFound:       "¾Ù±¨¼ÇÂ¼²»´æÔÚ",
-	CodeReportDuplicate:      "ÒÑ¾Ù±¨¹ı¸ÃÄÚÈİ",
-	CodeReportSelfContent:    "²»ÄÜ¾Ù±¨×Ô¼ºµÄÄÚÈİ",
-	CodeReportAlreadyHandled: "¾Ù±¨ÒÑ±»´¦Àí",
+	CodeReportNotFound:       "ä¸¾æŠ¥è®°å½•ä¸å­˜åœ¨",
+	CodeReportDuplicate:      "å·²ä¸¾æŠ¥è¿‡è¯¥å†…å®¹",
+	CodeReportSelfContent:    "ä¸èƒ½ä¸¾æŠ¥è‡ªå·±çš„å†…å®¹",
+	CodeReportAlreadyHandled: "ä¸¾æŠ¥å·²è¢«å¤„ç†",
 
-	CodeLocationNotFound:  "µØµã²»´æÔÚ",
-	CodeLocationDuplicate: "µØµãÃû³ÆÒÑ´æÔÚ",
-	CodeLocationDisabled:  "µØµãÒÑ±»½ûÓÃ",
-	CodeLocationInUse:     "µØµãÕıÔÚ±»Ê¹ÓÃ",
+	CodeLocationNotFound:  "åœ°ç‚¹ä¸å­˜åœ¨",
+	CodeLocationDuplicate: "åœ°ç‚¹åç§°å·²å­˜åœ¨",
+	CodeLocationDisabled:  "åœ°ç‚¹å·²è¢«ç¦ç”¨",
+	CodeLocationInUse:     "åœ°ç‚¹æ­£åœ¨è¢«ä½¿ç”¨",
 
-	CodeAnnouncementNotFound:     "¹«¸æ²»´æÔÚ",
-	CodeAnnouncementNoPermission: "ÎŞÈ¨²Ù×÷¸Ã¹«¸æ",
-	CodeAnnouncementInvalid:      "¹«¸æ²ÎÊı»ò×´Ì¬´íÎó",
+	CodeAnnouncementNotFound:     "å…¬å‘Šä¸å­˜åœ¨",
+	CodeAnnouncementNoPermission: "æ— æƒæ“ä½œè¯¥å…¬å‘Š",
+	CodeAnnouncementInvalid:      "å…¬å‘Šå‚æ•°æˆ–çŠ¶æ€é”™è¯¯",
 }
 
 type CommonHttpStatus struct {
