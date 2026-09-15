@@ -167,6 +167,3 @@ var Msg = map[Code]string{
 	CodeAnnouncementNoPermission: "无权操作该公告",
 	CodeAnnouncementInvalid:      "公告参数或状态错误",
 }
-
-type CommonHttpStatus struct {
-}

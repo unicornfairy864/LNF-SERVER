@@ -17,7 +17,7 @@ type UserServiceGroup struct{}
 // @Accept       json
 // @Produce      json
 // @Param        request  body      model.CreateUserRequest  true  "创建用户请求体"
-// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}  "成功，code=0，data=用户信息"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
 // @Router       /api/v1/user [post]
 func (userService *UserServiceGroup) Create(c *gin.Context) {
 	req := &model.CreateUserRequest{}

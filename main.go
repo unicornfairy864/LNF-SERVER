@@ -6,6 +6,10 @@ import (
 
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/initialization"
+
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	_ "github.com/unicornfairy864/LNF-SERVER/docs"
 )
 
 func main() {
@@ -25,6 +29,9 @@ func main() {
 
 	// Router & Handler
 	r := initialization.InitRouter();
+
+	// swagger
+	r.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// Start server
 	r.Run(fmt.Sprintf(":%d", global.LNF_CONFIG.Server.Port))
