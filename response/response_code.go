@@ -24,7 +24,7 @@ const (
 	CodeOldPasswordWrong Code = 10006
 	CodeEmailOccupied    Code = 10007
 	CodePhoneOccupied    Code = 10008
-	CodeCaptchaWrong     Code = 10009
+	CodeFormInvalid      Code = 10009
 	CodeUserNotActive    Code = 10010
 
 	// ==================== 物品 2xxxx ====================
@@ -110,7 +110,7 @@ var Msg = map[Code]string{
 	CodeOldPasswordWrong: "原密码错误",
 	CodeEmailOccupied:    "邮箱已被占用",
 	CodePhoneOccupied:    "手机号已被占用",
-	CodeCaptchaWrong:     "验证码错误",
+	CodeFormInvalid:      "用户名/昵称/密码不符合规则",
 	CodeUserNotActive:    "用户未激活",
 
 	CodeItemNotFound:         "物品不存在",

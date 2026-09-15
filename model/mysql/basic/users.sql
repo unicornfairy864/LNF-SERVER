@@ -3,7 +3,7 @@ CREATE TABLE `users` (
     `username`         VARCHAR(50)  NOT NULL                COMMENT '登录账号',
     `password_hash`    VARCHAR(255) NOT NULL                COMMENT '加密密码',
     `nickname`         VARCHAR(50)  NOT NULL                COMMENT '昵称',
-    `real_name`        VARCHAR(50)  DEFAULT NULL            COMMENT '真实姓名',
+    `realname`         VARCHAR(50)  DEFAULT NULL            COMMENT '真实姓名',
     `gender`           TINYINT      DEFAULT NULL            COMMENT '性别: 0未知 1男 2女',
     `qq`               VARCHAR(50)  DEFAULT NULL            COMMENT 'QQ号',
     `avatar`           VARCHAR(255) DEFAULT NULL            COMMENT '头像URL',
@@ -17,7 +17,7 @@ CREATE TABLE `users` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`),
     UNIQUE KEY `uk_qq` (`qq`),
-	KEY `idx_real_name` (`real_name`),
+	KEY `idx_realname` (`realname`),
     KEY `idx_role_status` (`role`, `status`),
     KEY `idx_created_at` (`created_at`)
 ) ENGINE = InnoDB

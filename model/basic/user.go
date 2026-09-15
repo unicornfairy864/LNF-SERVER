@@ -8,7 +8,7 @@ type User struct {
 	Username     string     `gorm:"column:username;type:varchar(50);not null;uniqueIndex:uk_username" json:"username"`
 	PasswordHash string     `gorm:"column:password_hash;type:varchar(255);not null" json:"-"`
 	Nickname     string     `gorm:"column:nickname;type:varchar(50);not null" json:"nickname"`
-	RealName     *string    `gorm:"column:real_name;type:varchar(50)" json:"real_name,omitempty"`
+	Realname     *string    `gorm:"column:realname;type:varchar(50)" json:"realname,omitempty"`
 	Gender       *int8      `gorm:"column:gender;type:tinyint;default:null" json:"gender,omitempty"`
 	QQ           *string    `gorm:"column:qq;type:varchar(50);uniqueIndex:uk_qq" json:"qq,omitempty"`
 	Avatar       *string    `gorm:"column:avatar;type:varchar(255)" json:"avatar,omitempty"`
@@ -31,7 +31,7 @@ type UserResponse struct {
 	ID          int64      `json:"id"`
 	Username    string     `json:"username"`
 	Nickname    string     `json:"nickname"`
-	RealName    *string    `json:"real_name,omitempty"`
+	Realname    *string    `json:"realname,omitempty"`
 	Gender      *int8      `json:"gender,omitempty"`
 	QQ          *string    `json:"qq,omitempty"`
 	Avatar      *string    `json:"avatar,omitempty"`
@@ -59,7 +59,7 @@ type CreateUserRequest struct {
 // UpdateUserRequest 用户更新请求
 type UpdateUserRequest struct {
 	Nickname string  `json:"nickname,omitempty"`
-	RealName *string `json:"real_name,omitempty"`
+	Realname *string `json:"realname,omitempty"`
 	Gender   *int8   `json:"gender,omitempty"`
 	Avatar   *string `json:"avatar,omitempty"`
 }
@@ -95,7 +95,7 @@ func UserToResponse(user *User) UserResponse {
 		ID:          user.ID,
 		Username:    user.Username,
 		Nickname:    user.Nickname,
-		RealName:    user.RealName,
+		Realname:    user.Realname,
 		Gender:      user.Gender,
 		QQ:          user.QQ,
 		Avatar:      user.Avatar,

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	// "log"
+	"log"
 
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/initialization"
@@ -16,12 +16,12 @@ func main() {
 	tester()
 
 	// Database
-	// var err error
-	// global.LNF_DB, err = initialization.InitDB()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer initialization.CloseDB();
+	var err error
+	global.LNF_DB, err = initialization.InitDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer initialization.CloseDB();
 
 	// Router & Handler
 	r := initialization.InitRouter();
