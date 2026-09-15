@@ -2,26 +2,33 @@ package main
 
 import (
 	"fmt"
-	"log"
+	// "log"
 
-	"github.com/unicornfairy864/LNF-SERVER/initialization"
 	"github.com/unicornfairy864/LNF-SERVER/global"
+	"github.com/unicornfairy864/LNF-SERVER/initialization"
 )
 
 func main() {
-	var err error
 	// Viper
-	global.LNF_VP = core.Viper()
+	global.LNF_VP = initialization.Viper()
+
 	// Database
-	global.LNF_DB, err = core.InitDB()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// var err error
+	// global.LNF_DB, err = initialization.InitDB()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer initialization.CloseDB();
+
+	// Router & Handler
+	initialization.InitRouter();
+
+	// Tester
 	tester()
 }
 
 func tester() {
 	fmt.Println("This is the tester.")
 
-	fmt.Println(global.LNF_CONFIG.Mysql)
+	// fmt.Println(global.LNF_CONFIG.Mysql)
 }

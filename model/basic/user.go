@@ -43,43 +43,44 @@ type UserResponse struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// UserLoginRequest 用户登录请求
-type UserLoginRequest struct {
+// LoginRequest 用户登录请求
+type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// UserRegisterRequest 用户注册请求
-type UserRegisterRequest struct {
+// CreateUserRequest 用户注册请求
+type CreateUserRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Nickname string `json:"nickname" binding:"required"`
-	QQ       string `json:"qq,omitempty"`
 }
 
-// UserUpdateRequest 用户更新请求
-type UserUpdateRequest struct {
+// UpdateUserRequest 用户更新请求
+type UpdateUserRequest struct {
 	Nickname string  `json:"nickname,omitempty"`
 	RealName *string `json:"real_name,omitempty"`
 	Gender   *int8   `json:"gender,omitempty"`
-	QQ       *string `json:"qq,omitempty"`
 	Avatar   *string `json:"avatar,omitempty"`
 }
 
-// UserChangeRoleRequest 用户角色变更请求
-type UserChangeRoleRequest struct {
+// BindUserQQRequest 绑定QQ请求
+type BindUserQQRequest struct {}
+
+// ChangeUserRoleRequest 用户角色变更请求
+type ChangeUserRoleRequest struct {
 	ID   int64 `json:"id" binding:"required"`
 	Role int8  `json:"role" binding:"required"`
 }
 
-// UserChangeStatusRequest 用户状态变更请求
-type UserChangeStatusRequest struct {
+// ChangeUserStatusRequest 用户状态变更请求
+type ChangeUserStatusRequest struct {
 	ID     int64 `json:"id" binding:"required"`
 	Status int8  `json:"status" binding:"required"`
 }
 
-// UserChangeCreditRequest 用户积分变更请求
-type UserChangeCreditRequest struct {
+// ChangeUserCreditRequest 用户积分变更请求
+type ChangeUserCreditRequest struct {
 	ID     int64 `json:"id" binding:"required"`
 	Credit int   `json:"credit" binding:"required"`
 }

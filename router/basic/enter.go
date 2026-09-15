@@ -1,3 +1,5 @@
 package basic
 
-type BasicRouterGroup struct {}
+type BasicRouterGroup struct {
+	User UserRouter
+}

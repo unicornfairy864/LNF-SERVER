@@ -1,7 +1,7 @@
 package service
 
-import "github.com/unicornfairy864/LNF-SERVER/service/server"
+import "github.com/unicornfairy864/LNF-SERVER/service/basic"
 
-type Service struct {
-	ServerGroup server.ServerService
-}
+var (
+	UserService basic.UserServiceGroup
+)

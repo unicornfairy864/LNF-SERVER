@@ -1,4 +1,4 @@
-package core
+package initialization
 
 import (
 	"fmt"
@@ -37,4 +37,15 @@ func InitDB() (*gorm.DB, error) {
 	// The program can't automatically reconnect database
 
 	return db, nil
+}
+
+func CloseDB() error {
+    if global.LNF_DB == nil {
+        return nil
+    }
+    sqlDB, err := global.LNF_DB.DB()
+    if err != nil {
+        return err
+    }
+    return sqlDB.Close()
 }

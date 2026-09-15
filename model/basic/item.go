@@ -48,8 +48,8 @@ type ItemResponse struct {
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
-// ItemCreateRequest 物品创建请求
-type ItemCreateRequest struct {
+// CreateItemRequest 物品创建请求
+type CreateItemRequest struct {
 	Title          string    `json:"title" binding:"required"`
 	Description    string    `json:"description" binding:"required"`
 	Type           int8      `json:"type" binding:"required"`
@@ -60,8 +60,8 @@ type ItemCreateRequest struct {
 	CreditReward   int       `json:"credit_reward,omitempty"`
 }
 
-// ItemUpdateRequest 物品更新请求
-type ItemUpdateRequest struct {
+// UpdateItemRequest 物品更新请求
+type UpdateItemRequest struct {
 	Title          *string    `json:"title,omitempty"`
 	Description    *string    `json:"description,omitempty"`
 	Status         *int8      `json:"status,omitempty"`
@@ -74,13 +74,13 @@ type ItemUpdateRequest struct {
 	ClaimTime      *time.Time `json:"claim_time,omitempty"`
 }
 
-// ItemDeleteRequest 物品删除请求
-type ItemDeleteRequest struct {
+// DeleteItemRequest 物品删除请求
+type DeleteItemRequest struct {
 	ID int64 `json:"id" binding:"required"`
 }
 
-// ItemChangeStatusRequest 物品状态变更请求
-type ItemChangeStatusRequest struct {
+// ChangeItemStatusRequest 物品状态变更请求
+type ChangeItemStatusRequest struct {
 	ID     int64 `json:"id" binding:"required"`
 	Status int8  `json:"status" binding:"required"`
 }
