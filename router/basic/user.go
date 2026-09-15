@@ -7,9 +7,15 @@ import (
 
 type UserRouter struct{}
 
-func (userRouter *UserRouter) UserRouter(r *gin.Engine) {
-	r.Group("/user") 
+func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
+	// public
+	public := api.Group("/user") 
 	{
-		r.POST("/create", service.UserService.Create)
+		public.POST("/create", service.UserService.Create)
 	}
+	// private
+	// private := api.Use()
+	// {
+	// 	private.POST("/",)
+	// }
 }

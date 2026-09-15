@@ -9,10 +9,10 @@ import (
 func InitRouter() (r *gin.Engine) {
 	// 初始化路由
 	r = gin.Default()
-	r.Group(global.LNF_CONFIG.Server.RouterPrefix)
+	api := r.Group(global.LNF_CONFIG.Server.RouterPrefix)
 	{
 		// Basic
-		router.BasicRouter.User.UserRouter(r)
+		router.UserRouter.CreateRouter(api)
 		// Advanced
 	}
 	return
