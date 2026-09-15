@@ -3,9 +3,9 @@ package response
 import "github.com/gin-gonic/gin"
 
 type CommonResponse struct {
-	Code    Code
-	Message string
-	Data    interface{}
+	Code    Code        `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
 func Result(c *gin.Context, code Code, message string, data interface{}) {

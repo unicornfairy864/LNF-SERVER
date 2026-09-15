@@ -10,6 +10,15 @@ import (
 
 type UserServiceGroup struct{}
 
+// Create 创建用户
+// @Summary      创建用户
+// @Description  创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.CreateUserRequest  true  "创建用户请求体"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}  "成功，code=0，data=用户信息"
+// @Router       /api/v1/user [post]
 func (userService *UserServiceGroup) Create(c *gin.Context) {
 	req := &model.CreateUserRequest{}
 	c.ShouldBindBodyWithJSON(req)
