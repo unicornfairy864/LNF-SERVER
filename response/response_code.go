@@ -1,4 +1,4 @@
-package common
+package response
 
 type Code int
 
@@ -13,6 +13,7 @@ const (
 	CodeDatabaseError   Code = 6
 	CodeTooManyRequests Code = 7
 	CodeOperationFailed Code = 8
+	CodeUnknownError    Code = 9
 
 	// ==================== 用户与认证 1xxxx ====================
 	CodeUserNotFound     Code = 10001
@@ -99,6 +100,7 @@ var Msg = map[Code]string{
 	CodeDatabaseError:   "数据库操作失败",
 	CodeTooManyRequests: "请求过于频繁",
 	CodeOperationFailed: "操作失败",
+	CodeUnknownError:    "未知错误",
 
 	CodeUserNotFound:     "用户不存在",
 	CodeUsernameOccupied: "用户名已被占用",
