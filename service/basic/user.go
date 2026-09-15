@@ -22,6 +22,9 @@ func (userService *UserServiceGroup) Create(c *gin.Context) {
 		response.FailWithData(c, response.CodeFormInvalid, req)
 		return
 	}
+	if (dao.UserDao.GetUserByUsername(req.Username).ID != 0) {
+		response.FailWithCode(c, response.CodeUsernameOccupied)
+	}
 	user, err := dao.UserDao.CreateUser(&model.User{
 		Username: req.Username,
 		PasswordHash: utils.Bycrypt.GeneratePasswordHash(req.Password),

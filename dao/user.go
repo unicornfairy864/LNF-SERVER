@@ -7,14 +7,8 @@ import (
 
 type UserGroup struct{}
 
-func (userGroup *UserGroup) UserExistsById(id int64) bool {
-	var count int64
-	global.LNF_DB.Model(&model.User{}).Where("id = ?", id).Count(&count)
-	return count > 0
-}
-
-func (userGroup *UserGroup) GetUserById(id int64) (user *model.User) {
-	user = &model.User{ID: id}
+func (userGroup *UserGroup) GetUserByUsername(username string) (user *model.User) {
+	user = &model.User{Username: username}
 	global.LNF_DB.First(user)
 	return user
 }
