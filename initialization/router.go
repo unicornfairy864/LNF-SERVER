@@ -108,9 +108,18 @@ func InitRouter() (r *gin.Engine) {
   <main class="card">
     <h1 class="title">LNF-SERVER</h1>
     <div class="divider"></div>
+    <a class="link" href="https://github.com/Estrelas-star/lost-and-found">
+      <span class="path">https://github.com/Estrelas-star/lost-and-found</span> - 访问我们的前端仓库
+    </a>
+	<br />
+    <a class="link" href="https://github.com/unicornfairy864/LNF-SERVER">
+      <span class="path">https://github.com/unicornfairy864/LNF-SERVER</span> - 访问我们的后端仓库
+    </a>
+    <div class="divider"></div>
     <a class="link" href="/api/v1/swagger/index.html">
       <span class="path">/api/v1/swagger/index.html</span> - 访问 swagger 文档以查看 api 接口
     </a>
+	<br />
     <a class="link" href="https://github.com/unicornfairy864/LNF-SERVER/blob/main/response/response_code.go">
       <span class="path">response_code.go</span> - 在 github 仓库上查看统一错误返回码
     </a>
