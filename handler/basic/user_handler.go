@@ -11,9 +11,7 @@ type UserHandlerGroup struct{}
 
 func (userHandler *UserHandlerGroup) CreateUserHandler(c *gin.Context) {
 	req := model.CreateUserRequest{}
-	c.ShouldBindBodyWithJSON(req)
-	response.FailWithData(c, -1, req)
-	return
+	c.ShouldBindBodyWithJSON(&req)
 	user, errCode := service.UserService.Create(&req)
 	if (user != nil) {
 		response.SuccessWithData(c, user)
