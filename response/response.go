@@ -35,3 +35,7 @@ func FailWithCode(c *gin.Context, code Code) {
 func FailWithData(c *gin.Context, code Code, data interface{}) {
 	Result(c, code, Msg[code], data)
 } 
+
+func TestWithData(c *gin.Context, data interface{}) {
+	Result(c, CodeTest, Msg[CodeTest], data)
+}
