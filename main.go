@@ -16,9 +16,6 @@ func main() {
 	// Viper
 	global.LNF_VP = initialization.Viper()
 
-	// Tester
-	tester()
-
 	// Database
 	var err error
 	global.LNF_DB, err = initialization.InitDB()
@@ -27,7 +24,7 @@ func main() {
 	}
 	defer initialization.CloseDB();
 
-	// Router & Handler
+	// Router
 	r := initialization.InitRouter();
 
 	// swagger
@@ -35,10 +32,4 @@ func main() {
 
 	// Start server
 	r.Run(fmt.Sprintf(":%d", global.LNF_CONFIG.Server.Port))
-}
-
-func tester() {
-	fmt.Println("This is the tester.")
-
-	fmt.Println(global.LNF_CONFIG.Server)
 }

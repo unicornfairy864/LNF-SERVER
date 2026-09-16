@@ -88,6 +88,9 @@ const (
 	CodeAnnouncementNotFound     Code = 90001
 	CodeAnnouncementNoPermission Code = 90002
 	CodeAnnouncementInvalid      Code = 90003
+
+	// ==================== 测试 -xxxx ====================
+	CodeTest Code = -1
 )
 
 var Msg = map[Code]string{
@@ -166,4 +169,6 @@ var Msg = map[Code]string{
 	CodeAnnouncementNotFound:     "公告不存在",
 	CodeAnnouncementNoPermission: "无权操作该公告",
 	CodeAnnouncementInvalid:      "公告参数或状态错误",
+
+	CodeTest: "这是开发人员测试",
 }

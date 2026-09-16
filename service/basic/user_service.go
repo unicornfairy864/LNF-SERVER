@@ -1,7 +1,6 @@
 package basic
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/unicornfairy864/LNF-SERVER/dao"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -19,21 +18,16 @@ type UserServiceGroup struct{}
 // @Param        request  body      model.CreateUserRequest  true  "创建用户请求体"
 // @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
 // @Router       /api/v1/user [post]
-func (userService *UserServiceGroup) Create(c *gin.Context) {
-	req := &model.CreateUserRequest{}
-	c.ShouldBindBodyWithJSON(req)
+func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*model.User, response.Code) {
 	// 判断表单是否符合要求
 	if (req.Username == "" || req.Nickname == "" || req.Password == "" ||
 		len(req.Username) < 2 || len(req.Username) > 32 ||
 		len(req.Nickname) < 2 || len(req.Nickname) > 32 ||
 		len(req.Password) < 8 || len(req.Password) > 20) {
-		// response.FailWithCode(c, response.CodeFormInvalid)
-		response.FailWithData(c, response.CodeFormInvalid, req)
-		return
+		return nil, response.CodeFormInvalid
 	}
 	if (dao.UserDao.GetUserByUsername(req.Username).ID != 0) {
-		response.FailWithCode(c, response.CodeUsernameOccupied)
-		return
+		return nil, response.CodeUsernameOccupied
 	}
 	user, err := dao.UserDao.CreateUser(&model.User{
 		Username: req.Username,
@@ -41,8 +35,7 @@ func (userService *UserServiceGroup) Create(c *gin.Context) {
 		Nickname: req.Nickname,
 	})
 	if err != nil {
-		response.FailWithCode(c, response.CodeServerError)
-		return
+		return nil, response.CodeServerError
 	}
-	response.OKWithData(c, model.UserToResponse(&user))
+	return &user, response.CodeSuccess
 }

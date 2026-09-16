@@ -16,13 +16,11 @@ func Result(c *gin.Context, code Code, message string, data interface{}) {
 	})
 }
 
-// OK
-
-func OK(c *gin.Context) {
+func Success(c *gin.Context) {
 	Result(c, CodeSuccess, Msg[CodeSuccess], map[string]interface{}{})
 }
 
-func OKWithData(c *gin.Context, data interface{}) {
+func SuccessWithData(c *gin.Context, data interface{}) {
 	Result(c, CodeSuccess, Msg[CodeSuccess], data)
 }
 

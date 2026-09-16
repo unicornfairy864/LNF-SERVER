@@ -15,6 +15,7 @@ func InitRouter() (r *gin.Engine) {
 		router.UserRouter.CreateRouter(api)
 		// Advanced
 	}
+
 	// 提示信息
 	r.GET("/", func(c *gin.Context) {
 		c.Data(200, "text/html; charset=utf-8", []byte(`
