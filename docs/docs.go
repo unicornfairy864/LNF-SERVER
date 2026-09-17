@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/user": {
+        "/api/v1/user/create": {
             "post": {
                 "description": "创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。",
                 "consumes": [
@@ -60,6 +60,52 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/user/login": {
+            "post": {
+                "description": "用户使用用户名和密码登录，验证通过后返回用户信息并在响应体 Header 设置 Authorization : Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "用户登录",
+                "parameters": [
+                    {
+                        "description": "用户登录请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -74,6 +120,21 @@ const docTemplate = `{
                 "nickname": {
                     "type": "string"
                 },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
                 "password": {
                     "type": "string"
                 },
@@ -138,63 +199,10 @@ const docTemplate = `{
                 6,
                 7,
                 8,
-                9,
                 10001,
                 10002,
                 10003,
-                10004,
-                10005,
-                10006,
-                10007,
-                10008,
-                10009,
-                10010,
-                20001,
-                20002,
-                20003,
-                20004,
-                20005,
-                20006,
-                20007,
-                20008,
-                20009,
-                20010,
-                20011,
-                20012,
-                30001,
-                30002,
-                30003,
-                30004,
-                30005,
-                30006,
-                30007,
-                30008,
-                40001,
-                40002,
-                40003,
-                40004,
-                40005,
-                40010,
-                40011,
-                50001,
-                50002,
-                50003,
-                50004,
-                50005,
-                60001,
-                60002,
-                60003,
-                70001,
-                70002,
-                70003,
-                70004,
-                80001,
-                80002,
-                80003,
-                80004,
-                90001,
-                90002,
-                90003
+                -1
             ],
             "x-enum-varnames": [
                 "CodeSuccess",
@@ -204,65 +212,12 @@ const docTemplate = `{
                 "CodeNotFound",
                 "CodeServerError",
                 "CodeDatabaseError",
-                "CodeTooManyRequests",
                 "CodeOperationFailed",
                 "CodeUnknownError",
-                "CodeUserNotFound",
+                "CodeUserOrPasswordError",
                 "CodeUsernameOccupied",
-                "CodePasswordWrong",
-                "CodeTokenExpired",
-                "CodeUserDisabled",
-                "CodeOldPasswordWrong",
-                "CodeEmailOccupied",
-                "CodePhoneOccupied",
                 "CodeFormInvalid",
-                "CodeUserNotActive",
-                "CodeItemNotFound",
-                "CodeItemClosed",
-                "CodeItemAlreadyClaimed",
-                "CodeItemPendingAudit",
-                "CodeItemNoPermission",
-                "CodeItemTypeInvalid",
-                "CodeItemCreditNegative",
-                "CodeItemTimeEmpty",
-                "CodeItemTitleEmpty",
-                "CodeItemLocationInvalid",
-                "CodeItemAlreadyPublished",
-                "CodeItemCannotClaimSelf",
-                "CodeClaimNotFound",
-                "CodeClaimAlreadyExists",
-                "CodeClaimAlreadyHandled",
-                "CodeClaimCancelled",
-                "CodeClaimNoPermission",
-                "CodeClaimSelfItem",
-                "CodeClaimDescriptionTooLong",
-                "CodeClaimDuplicate",
-                "CodeTagNotFound",
-                "CodeTagDuplicate",
-                "CodeTagDisabled",
-                "CodeTagNameInvalid",
-                "CodeTagInUse",
-                "CodeItemTagExists",
-                "CodeItemTagNotFound",
-                "CodeCreditInsufficient",
-                "CodeCreditLogNotFound",
-                "CodeCreditTypeInvalid",
-                "CodeCreditAmountInvalid",
-                "CodeCreditAlreadyRewarded",
-                "CodeNotificationNotFound",
-                "CodeNotificationNoPermission",
-                "CodeNotificationAlreadyRead",
-                "CodeReportNotFound",
-                "CodeReportDuplicate",
-                "CodeReportSelfContent",
-                "CodeReportAlreadyHandled",
-                "CodeLocationNotFound",
-                "CodeLocationDuplicate",
-                "CodeLocationDisabled",
-                "CodeLocationInUse",
-                "CodeAnnouncementNotFound",
-                "CodeAnnouncementNoPermission",
-                "CodeAnnouncementInvalid"
+                "CodeTest"
             ]
         },
         "response.CommonResponse": {

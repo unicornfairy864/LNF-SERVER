@@ -28,6 +28,7 @@ func (j *JWTGroup) GenerateToken(user *model.User) (string, error) {
 	authToken := jwt.NewWithClaims(jwt.SigningMethodHS256, TokenClaims{
 		Role: user.Role,
 		BufferTime: jwt.NewNumericDate(time.Now().Add(global.LNF_CONFIG.JWT.BufferTime)),
+		JWTVersion: 1,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer: global.LNF_CONFIG.JWT.Issuer,
 			Subject: strconv.FormatInt(user.ID, 10),

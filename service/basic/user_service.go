@@ -1,6 +1,8 @@
 package basic
 
 import (
+	"time"
+
 	"github.com/unicornfairy864/LNF-SERVER/dao"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -15,16 +17,18 @@ func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*mode
 		len(req.Username) < 2 || len(req.Username) > 32 ||
 		len(req.Nickname) < 2 || len(req.Nickname) > 32 ||
 		len(req.Password) < 8 || len(req.Password) > 20) {
-		return nil, response.CodeFormInvalid
+		return nil, response.CodeParamError
 	}
 	// 用户名是否被占用
-	if (dao.UserDao.GetUserByUsername(req.Username).ID == 0) {
+	if (dao.UserDao.GetUserByUsername(req.Username).ID != 0) {
 		return nil, response.CodeUsernameOccupied
 	}
 	user, err := dao.UserDao.CreateUser(&model.User{
 		Username: req.Username,
 		PasswordHash: utils.Bycrypt.GeneratePasswordHash(req.Password),
 		Nickname: req.Nickname,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	})
 	if err != nil {
 		return nil, response.CodeServerError
