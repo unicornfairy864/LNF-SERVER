@@ -12,6 +12,7 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 	public := api.Group("/user") 
 	{
 		public.POST("/create", handler.UserHandler.CreateUserHandler)
+		public.POST("/login", handler.UserHandler.LoginHandler)
 	}
 	// private
 	// private := api.Use()

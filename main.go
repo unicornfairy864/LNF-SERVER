@@ -27,9 +27,15 @@ func main() {
 	// Router
 	r := initialization.InitRouter();
 
-	// swagger
+	// Swagger
 	r.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
+	test()
 
 	// Start server
 	r.Run(fmt.Sprintf(":%d", global.LNF_CONFIG.Server.Port))
 }
+
+func test() {
+	fmt.Print("这是测试")
+}	

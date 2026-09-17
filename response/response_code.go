@@ -16,16 +16,9 @@ const (
 	CodeUnknownError    Code = 9
 
 	// ==================== 用户与认证 1xxxx ====================
-	CodeUserNotFound     Code = 10001
-	CodeUsernameOccupied Code = 10002
-	CodePasswordWrong    Code = 10003
-	CodeTokenExpired     Code = 10004
-	CodeUserDisabled     Code = 10005
-	CodeOldPasswordWrong Code = 10006
-	CodeEmailOccupied    Code = 10007
-	CodePhoneOccupied    Code = 10008
-	CodeFormInvalid      Code = 10009
-	CodeUserNotActive    Code = 10010
+	CodeUserOrPasswordError Code = 10001
+	CodeUsernameOccupied    Code = 10002
+	CodeFormInvalid         Code = 10003
 
 	// ==================== 物品 2xxxx ====================
 	CodeItemNotFound         Code = 20001
@@ -105,16 +98,9 @@ var Msg = map[Code]string{
 	CodeOperationFailed: "操作失败",
 	CodeUnknownError:    "未知错误",
 
-	CodeUserNotFound:     "用户不存在",
-	CodeUsernameOccupied: "用户名已被占用",
-	CodePasswordWrong:    "密码错误",
-	CodeTokenExpired:     "Token已过期",
-	CodeUserDisabled:     "账户已被禁用",
-	CodeOldPasswordWrong: "原密码错误",
-	CodeEmailOccupied:    "邮箱已被占用",
-	CodePhoneOccupied:    "手机号已被占用",
-	CodeFormInvalid:      "用户名/昵称/密码不符合规则",
-	CodeUserNotActive:    "用户未激活",
+	CodeUserOrPasswordError: "用户名或密码错误",
+	CodeUsernameOccupied:    "用户名已被占用",
+	CodeFormInvalid:         "用户名/昵称/密码不符合规则",
 
 	CodeItemNotFound:         "物品不存在",
 	CodeItemClosed:           "物品已关闭，不可操作",
