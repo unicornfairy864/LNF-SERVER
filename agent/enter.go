@@ -1,5 +1,3 @@
 package agent
 
-type Client struct {
-	LLMClient
-}
+type Client struct{}
