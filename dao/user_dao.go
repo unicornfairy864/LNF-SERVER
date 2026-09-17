@@ -2,14 +2,14 @@ package dao
 
 import (
 	"github.com/unicornfairy864/LNF-SERVER/global"
-	"github.com/unicornfairy864/LNF-SERVER/model/basic"
+	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 )
 
 type UserGroup struct{}
 
 func (userGroup *UserGroup) GetUserByUsername(username string) (user *model.User) {
 	user = &model.User{Username: username}
-	global.LNF_DB.First(user)
+	global.LNF_DB.Where("username = ?", username).First(user)
 	return user
 }
 
