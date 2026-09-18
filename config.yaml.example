@@ -1,13 +1,33 @@
+# Server
+server:
+  port: 8080
+  router_prefix: "/api/v1"
+  connection-timeout: 5s
+
 # Mysql
 mysql:
   database_host: "localhost"
   database_port: "3306"
-  database_dbname: "your_database_name"
-  database_user: "your_username"
-  database_password: "your_password"
+  database_dbname: "app_db"
+  database_user: "app_user"
+  database_password: "app_password"
+
+# Redis
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: "your_redis_password"
+  database: 0
+
+# JWT Auth
+jwt:
+  signing_key: "your-256-bit-secret-change-me-please"
+  expires_time: 24h
+  buffer_time: 6h
+  iss: "your-app-name"
 
 # Agent
 api:
-  openai_key: "TOKEN"
-  openai_base_url: "https://open.bigmodel.cn/api/paas/v4"
-  default_model: "glm-5.3-flash"
+  openai_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  openai_base_url: "https://api.openai.com/v1"
+  default_model: "gpt-4o-mini"
