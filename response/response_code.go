@@ -3,7 +3,7 @@ package response
 type Code int
 
 const (
-	// ==================== 通用 / 系统 0xxxx ====================
+	// ==================== 通用 / 系统 0xxxx ==============
 	CodeSuccess         Code = 0
 	CodeParamError      Code = 1
 	CodeUnauthorized    Code = 2
@@ -15,15 +15,17 @@ const (
 	CodeUnknownError    Code = 8
 
 	// ==================== 用户与认证 1xxxx ===============
-	CodeUserOrPasswordError Code = 10001
-	CodeUsernameOccupied    Code = 10002
-	CodeFormInvalid         Code = 10003
+	CodeUserOrPasswordError  Code = 10001
+	CodeUsernameOccupied     Code = 10002
+	CodeFormInvalid          Code = 10003
+	CodeInvalidSigningMethod Code = 10004
+	CodeTokenBanned          Code = 10005
 
 	// ==================== 物品 2xxxx ====================
 
 	// ==================== 认领 3xxxx ====================
 
-	// ==================== 标签 & 关联 4xxxx =============
+	// ==================== 标签 & 关联 4xxxx ==============
 
 	// ==================== 积分 5xxxx ====================
 
@@ -49,9 +51,11 @@ var Msg = map[Code]string{
 	CodeDatabaseError: "数据库操作失败",
 	CodeUnknownError:  "未知错误",
 
-	CodeUserOrPasswordError: "用户名或密码错误",
-	CodeUsernameOccupied:    "用户名已被占用",
-	CodeFormInvalid:         "用户名/昵称/密码不符合规则",
+	CodeUserOrPasswordError:  "用户名或密码错误",
+	CodeUsernameOccupied:     "用户名已被占用",
+	CodeFormInvalid:          "用户名/昵称/密码不符合规则",
+	CodeInvalidSigningMethod: "无效的加密方式",
+	CodeTokenBanned:          "令牌被禁用",
 
 	CodeTest: "这是开发人员测试",
 }

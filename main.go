@@ -22,10 +22,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer initialization.CloseDB();
+	defer initialization.CloseDB()
+
+	// Redis
+	global.LNF_RDB, err = initialization.InitRedis()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer global.LNF_RDB.Close()
 
 	// Router
-	r := initialization.InitRouter();
+	r := initialization.InitRouter()
 
 	// Swagger
 	r.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
@@ -38,4 +45,4 @@ func main() {
 
 func test() {
 	fmt.Print("这是测试")
-}	
+}

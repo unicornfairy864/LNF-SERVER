@@ -1,6 +1,7 @@
 package global
 
 import (
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"github.com/unicornfairy864/LNF-SERVER/config"
 	"gorm.io/gorm"
@@ -8,9 +9,10 @@ import (
 
 var (
 	// 项目配置
-	LNF_VP *viper.Viper
+	LNF_VP     *viper.Viper
 	LNF_CONFIG config.Config
-	
+
 	// 数据库
-	LNF_DB *gorm.DB
+	LNF_DB  *gorm.DB
+	LNF_RDB *redis.Client
 )

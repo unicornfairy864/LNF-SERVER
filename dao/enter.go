@@ -1,5 +1,6 @@
 package dao
 
 var (
-	UserDao UserGroup
+	RedisDao RedisGroup
+	UserDao  UserGroup
 )

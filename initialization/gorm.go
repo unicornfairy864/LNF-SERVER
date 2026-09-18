@@ -10,13 +10,13 @@ import (
 )
 
 func InitDB() (*gorm.DB, error) {
-	// Set up gorm connection 
+	// Set up gorm connection
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		global.LNF_CONFIG.Mysql.Database_user,
-		global.LNF_CONFIG.Mysql.Database_password,
-		global.LNF_CONFIG.Mysql.Database_host,
-		global.LNF_CONFIG.Mysql.Database_port,
-		global.LNF_CONFIG.Mysql.Database_dbname,
+		global.LNF_CONFIG.Mysql.DatabaseUser,
+		global.LNF_CONFIG.Mysql.DatabasePassword,
+		global.LNF_CONFIG.Mysql.DatabaseHost,
+		global.LNF_CONFIG.Mysql.DatabasePort,
+		global.LNF_CONFIG.Mysql.DatabaseDbname,
 	)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -25,14 +25,14 @@ func InitDB() (*gorm.DB, error) {
 
 	// Set sqlDB configuration
 	sqlDB, err := db.DB()
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
-    sqlDB.SetMaxIdleConns(5)
-    sqlDB.SetMaxOpenConns(20)
-    sqlDB.SetConnMaxLifetime(30 * time.Minute)
-    sqlDB.SetConnMaxIdleTime(30 * time.Second)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(30 * time.Second)
 
 	// The program can't automatically reconnect database
 
@@ -40,12 +40,12 @@ func InitDB() (*gorm.DB, error) {
 }
 
 func CloseDB() error {
-    if global.LNF_DB == nil {
-        return nil
-    }
-    sqlDB, err := global.LNF_DB.DB()
-    if err != nil {
-        return err
-    }
-    return sqlDB.Close()
+	if global.LNF_DB == nil {
+		return nil
+	}
+	sqlDB, err := global.LNF_DB.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
 }
