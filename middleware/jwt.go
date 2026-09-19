@@ -94,7 +94,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		c.Set("jwt:role", claims.Role)
 
 		c.Set("jwt:jti", claims.ID)
-		c.Set("jwt:expired_at", claims.ExpiresAt)
+		c.Set("jwt:expired_at", claims.ExpiresAt.Time)
 		c.Next()
 	}
 }

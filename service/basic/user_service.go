@@ -63,6 +63,8 @@ func (userService *UserServiceGroup) Login(req *model.LoginRequest) (*model.User
 }
 
 func (userService *UserServiceGroup) Logout(jti string, expiredAt time.Time) response.Code {
+	utils.LogJson(jti)
+	utils.LogJson(expiredAt)
 	err := utils.JWT.BanToken(&utils.TokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,

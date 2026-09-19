@@ -72,7 +72,7 @@ func (userHandler *UserHandlerGroup) LogoutHandler(c *gin.Context) {
 		return
 	}
 	var code response.Code
-	if req.LogoutAll != 0 {
+	if req.LogoutAll == 1 {
 		code = service.UserService.LogoutAll(c.GetInt64("jwt:id"))
 	} else {
 		code = service.UserService.Logout(c.GetString("jwt:jti"), c.GetTime("jwt:expired_at"))
