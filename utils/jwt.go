@@ -38,8 +38,6 @@ func (j *JWTGroup) GenerateToken(user *model.User, VersionChanged bool) (string,
 		version, err = dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
 	} else {
 		version, err = dao.RedisDao.GetValueInt64("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
-		LogJson("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
-		LogJson(version)
 	}
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
