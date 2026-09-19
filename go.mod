@@ -4,6 +4,8 @@ go 1.26.4
 
 require (
 	github.com/fsnotify/fsnotify v1.10.1
+	github.com/go-resty/resty/v2 v2.17.2
+	github.com/redis/go-redis/v9 v9.22.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.57.0
 	gorm.io/driver/mysql v1.6.0
@@ -40,7 +42,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.62.0 // indirect
-	github.com/redis/go-redis/v9 v9.22.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.9.1 // indirect

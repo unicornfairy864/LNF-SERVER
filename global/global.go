@@ -1,6 +1,7 @@
 package global
 
 import (
+	"github.com/go-resty/resty/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"github.com/unicornfairy864/LNF-SERVER/config"
@@ -15,4 +16,7 @@ var (
 	// 数据库
 	LNF_DB  *gorm.DB
 	LNF_RDB *redis.Client
+
+	// Http Connection
+	LNF_Resty *resty.Client
 )

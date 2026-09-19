@@ -31,6 +31,9 @@ func main() {
 	}
 	defer global.LNF_RDB.Close()
 
+	// Http Client
+	global.LNF_Resty = initialization.InitResty()
+
 	// Router
 	r := initialization.InitRouter()
 
