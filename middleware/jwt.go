@@ -85,15 +85,16 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			}
 			c.Set("TokenFresh", true)
 			c.Header("Authorization", "Bearer "+newToken)
-
-			c.Set("jwt:id", claims.Subject)
-			c.Set("jwt:role", claims.Role)
-
-			c.Set("jwt:jti", claims.ID)
-			c.Set("jwt:expired_at", claims.ExpiresAt)
 		} else {
 			c.Set("TokenFresh", false)
 		}
+
+		uid, _ := strconv.ParseInt(claims.Subject, 10, 64)
+		c.Set("jwt:id", uid)
+		c.Set("jwt:role", claims.Role)
+
+		c.Set("jwt:jti", claims.ID)
+		c.Set("jwt:expired_at", claims.ExpiresAt)
 		c.Next()
 	}
 }

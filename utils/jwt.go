@@ -106,6 +106,7 @@ func (j *JWTGroup) IsTokenBanned(jti string) error {
 
 func (j *JWTGroup) BanUserById(uid int64) error {
 	_, err := dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(uid, 10) + ":version")
+	LogJson("jwt:user:" + strconv.FormatInt(uid, 10) + ":version")
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return fmt.Errorf("VersionNotExist")
