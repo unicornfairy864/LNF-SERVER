@@ -21,7 +21,7 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 	{
 
 		// 测试 JWT 状态
-		private.POST("/jwt-status", func(c *gin.Context) {
+		private.Any("/jwt-status", func(c *gin.Context) {
 			response.TestWithData(c, struct {
 				JwtID      string `json:"jwtID"`
 				JwtRole    string `json:"jwtRole"`

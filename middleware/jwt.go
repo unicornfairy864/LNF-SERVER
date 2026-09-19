@@ -45,35 +45,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			}
 		}
 		// JWT 版本是否正确
-		var expectedVersion int64
-		val, err := dao.RedisDao.GetKey("jwt:user:" + claims.Subject + ":version")
-		if err != nil {
-			response.FailWithCode(c, response.CodeServerError)
-			c.Abort()
-			return
-		}
-		switch v := val.(type) {
-		case int64:
-			expectedVersion = v
-		case string:
-			n, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				response.FailWithCode(c, response.CodeServerError)
-				c.Abort()
-				return
-			}
-			expectedVersion = n
-		case []byte:
-			n, err := strconv.ParseInt(string(v), 10, 64)
-			if err != nil {
-				response.FailWithCode(c, response.CodeServerError)
-				c.Abort()
-				return
-			}
-			expectedVersion = n
-		default:
-			expectedVersion = 0
-		}
+		expectedVersion, err := dao.RedisDao.GetValueInt64("jwt:user:" + claims.Subject + ":version")
 		if claims.JWTVersion != expectedVersion {
 			response.FailWithCode(c, response.CodeTokenBanned)
 			c.Abort()
@@ -103,7 +75,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			newToken, err := utils.JWT.GenerateToken(&model.User{
 				ID:   uid,
 				Role: claims.Role,
-			}, true)
+			}, false)
+
 			if err != nil {
 				response.FailWithCode(c, response.CodeServerError)
 				c.Abort()

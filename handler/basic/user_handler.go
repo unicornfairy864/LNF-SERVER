@@ -25,7 +25,7 @@ func (userHandler *UserHandlerGroup) CreateUserHandler(c *gin.Context) {
 		return
 	}
 	user, errCode := service.UserService.Create(&req)
-	if (user != nil) {
+	if user != nil {
 		response.SuccessWithData(c, user)
 		return
 	}
@@ -48,8 +48,8 @@ func (userHandler *UserHandlerGroup) LoginHandler(c *gin.Context) {
 		return
 	}
 	user, token, errCode := service.UserService.Login(&req)
-	if (user != nil) {
-		c.Header("Authorization", *token)
+	if user != nil {
+		c.Header("Authorization", "Bearer "+*token)
 		response.SuccessWithData(c, user)
 		return
 	}

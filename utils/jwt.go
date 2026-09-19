@@ -6,12 +6,14 @@ package utils
  */
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/unicornfairy864/LNF-SERVER/dao"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
@@ -26,41 +28,37 @@ type TokenClaims struct {
 
 type JWTGroup struct{}
 
-func (j *JWTGroup) jtiKey(jti string) string {
-	return "jwt:blacklist:%010d" + jti
-}
-
 func (j *JWTGroup) GenerateToken(user *model.User, VersionChanged bool) (string, error) {
-	var userVersion int64
-	val, err := dao.RedisDao.GetKey(fmt.Sprintf("jwt:user:%d:version", user.ID))
-	if err != nil {
-		return "", fmt.Errorf("ServerError")
-	}
-	switch v := val.(type) {
-	case int64:
-		userVersion = v
-	case string:
-		n, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return "", fmt.Errorf("ServerError")
-		}
-		userVersion = n
-	case []byte:
-		n, err := strconv.ParseInt(string(v), 10, 64)
-		if err != nil {
-			return "", fmt.Errorf("ServerError")
-		}
-		userVersion = n
-	default:
-		userVersion = 0
-	}
+	// 处理 version
+	var (
+		version int64
+		err     error
+	)
 	if VersionChanged {
-		userVersion = userVersion + 1
+		version, err = dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
+	} else {
+		version, err = dao.RedisDao.GetValueInt64("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
 	}
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			if VersionChanged {
+				version = 2
+			} else {
+				version = 1
+			}
+			if err2 := dao.RedisDao.SetKey("jwt:user:"+strconv.FormatInt(user.ID, 10)+":version",
+				version, global.LNF_CONFIG.JWT.ExpiresTime); err2 != nil {
+				return "", err2
+			}
+		} else {
+			return "", err
+		}
+	}
+	// 生成 token
 	authToken := jwt.NewWithClaims(jwt.SigningMethodHS256, TokenClaims{
 		Role:       user.Role,
 		FreshAfter: jwt.NewNumericDate(time.Now().Add(global.LNF_CONFIG.JWT.BufferTime)),
-		JWTVersion: userVersion,
+		JWTVersion: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    global.LNF_CONFIG.JWT.Issuer,
 			Subject:   strconv.FormatInt(user.ID, 10),
@@ -90,14 +88,14 @@ func (j *JWTGroup) ParseToken(tokenString string) (*TokenClaims, error) {
 }
 
 func (j *JWTGroup) BanToken(claims *TokenClaims) error {
-	if err := dao.RedisDao.SetKey(j.jtiKey(claims.ID), 1, time.Until(claims.ExpiresAt.Time)); err != nil {
+	if err := dao.RedisDao.SetKey("jwt:blacklist:"+claims.ID, 1, time.Until(claims.ExpiresAt.Time)); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (j *JWTGroup) IsTokenBanned(jti string) error {
-	ok, err := dao.RedisDao.KeyExists(j.jtiKey(jti))
+	ok, err := dao.RedisDao.KeyExists("jwt:blacklist:" + jti)
 	if ok && err == nil {
 		return nil
 	} else if !ok && err != nil {
