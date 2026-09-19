@@ -8,7 +8,7 @@ type User struct {
 	Username     string     `gorm:"column:username;type:varchar(50);not null;uniqueIndex:uk_username" json:"username"`
 	PasswordHash string     `gorm:"column:password_hash;type:varchar(255);not null" json:"-"`
 	Nickname     string     `gorm:"column:nickname;type:varchar(50);not null" json:"nickname"`
-	Realname     *string    `gorm:"column:realname;type:varchar(50)" json:"realname,omitempty"`
+	Realname     *string    `gorm:"column:rename;type:varchar(50)" json:"realname,omitempty"`
 	Gender       *int8      `gorm:"column:gender;type:tinyint;default:null" json:"gender,omitempty"`
 	QQ           *string    `gorm:"column:qq;type:varchar(50);uniqueIndex:uk_qq" json:"qq,omitempty"`
 	Avatar       *string    `gorm:"column:avatar;type:varchar(255)" json:"avatar,omitempty"`
@@ -49,6 +49,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// LogoutRequest 用户登录请求
+type LogoutRequest struct {
+	LogoutAll int8 `json:"logout_all" binding:"required"`
+}
+
 // CreateUserRequest 用户注册请求
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required"`
@@ -65,7 +70,7 @@ type UpdateUserRequest struct {
 }
 
 // BindUserQQRequest 绑定QQ请求
-type BindUserQQRequest struct {}
+type BindUserQQRequest struct{}
 
 // ChangeUserRoleRequest 用户角色变更请求
 type ChangeUserRoleRequest struct {

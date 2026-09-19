@@ -1,8 +1,11 @@
 package basic
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/unicornfairy864/LNF-SERVER/dao"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -51,9 +54,31 @@ func (userService *UserServiceGroup) Login(req *model.LoginRequest) (*model.User
 	if !utils.Bycrypt.CheckPassword(req.Password, user.PasswordHash) {
 		return nil, nil, response.CodeUserOrPasswordError
 	}
+	// 生成 JWTToken
 	token, err := utils.JWT.GenerateToken(user, false)
 	if err != nil {
 		return nil, nil, response.CodeServerError
 	}
 	return user, &token, response.CodeSuccess
+}
+
+func (userService *UserServiceGroup) Logout(jti string, expiredAt time.Time) response.Code {
+	err := utils.JWT.BanToken(&utils.TokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
+			ExpiresAt: jwt.NewNumericDate(expiredAt),
+		},
+	})
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	return response.CodeSuccess
+}
+
+func (userService *UserServiceGroup) LogoutAll(uid int64) response.Code {
+	err := utils.JWT.BanUserById(uid)
+	if err != nil && !errors.Is(err, fmt.Errorf("VersionNotExist")) {
+		return response.CodeDatabaseError
+	}
+	return response.CodeSuccess
 }

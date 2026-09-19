@@ -19,16 +19,19 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 	// private
 	private := api.Use(middleware.JWTAuthMiddleware())
 	{
-
+		public := api.Group("/user")
+		{
+			public.POST("/logout", handler.UserHandler.LogoutHandler)
+		}
 		// 测试 JWT 状态
-		private.Any("/jwt-status", func(c *gin.Context) {
+		private.GET("/jwt-test", func(c *gin.Context) {
 			response.TestWithData(c, struct {
 				JwtID      string `json:"jwtID"`
 				JwtRole    string `json:"jwtRole"`
 				TokenFresh bool   `json:"tokenFresh"`
 			}{
-				JwtID:      c.Param("JwtID"),
-				JwtRole:    c.Param("JwtRole"),
+				JwtID:      c.GetString("jwt:id"),
+				JwtRole:    c.GetString("jwt:role"),
 				TokenFresh: false,
 			})
 		})

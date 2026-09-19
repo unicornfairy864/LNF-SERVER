@@ -38,6 +38,8 @@ func (j *JWTGroup) GenerateToken(user *model.User, VersionChanged bool) (string,
 		version, err = dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
 	} else {
 		version, err = dao.RedisDao.GetValueInt64("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
+		LogJson("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
+		LogJson(version)
 	}
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -76,7 +78,7 @@ func (j *JWTGroup) ParseToken(tokenString string) (*TokenClaims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("InvalidSigningMethod")
 		}
-		return global.LNF_CONFIG.JWT.SigningKey, nil
+		return []byte(global.LNF_CONFIG.JWT.SigningKey), nil
 	})
 	if err != nil {
 		return nil, err
@@ -97,9 +99,20 @@ func (j *JWTGroup) BanToken(claims *TokenClaims) error {
 func (j *JWTGroup) IsTokenBanned(jti string) error {
 	ok, err := dao.RedisDao.KeyExists("jwt:blacklist:" + jti)
 	if ok && err == nil {
-		return nil
-	} else if !ok && err != nil {
 		return fmt.Errorf("TokenBanned")
+	} else if !ok && err == nil {
+		return nil
 	}
 	return err
+}
+
+func (j *JWTGroup) BanUserById(uid int64) error {
+	_, err := dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(uid, 10) + ":version")
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return fmt.Errorf("VersionNotExist")
+		}
+		return err
+	}
+	return nil
 }

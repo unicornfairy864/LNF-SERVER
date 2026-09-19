@@ -14,6 +14,7 @@ import (
 
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 解析 Header
 		auth := c.Request.Header.Get("Authorization")
 		if !strings.HasPrefix(auth, "Bearer ") {
 			response.FailWithCode(c, response.CodeUnauthorized)
@@ -85,8 +86,11 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.Set("TokenFresh", true)
 			c.Header("Authorization", "Bearer "+newToken)
 
-			c.Set("JwtId", claims.Subject)
-			c.Set("JwtRole", claims.Role)
+			c.Set("jwt:id", claims.Subject)
+			c.Set("jwt:role", claims.Role)
+
+			c.Set("jwt:jti", claims.ID)
+			c.Set("jwt:expired_at", claims.ExpiresAt)
 		} else {
 			c.Set("TokenFresh", false)
 		}
