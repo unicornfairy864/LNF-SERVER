@@ -13,5 +13,5 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 	if err != nil {
 		response.FailWithCode(c, response.CodeParamError)
 	}
-	// Receiver Service
+	// Receive Service
 }

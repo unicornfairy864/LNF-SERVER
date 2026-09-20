@@ -91,6 +91,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		uid, _ := strconv.ParseInt(claims.Subject, 10, 64)
 		c.Set("jwt:id", uid)
+		c.Set("jwt:nickname", claims.Nickname)
 		c.Set("jwt:role", claims.Role)
 
 		c.Set("jwt:jti", claims.ID)

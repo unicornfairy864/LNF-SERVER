@@ -2,6 +2,19 @@ package client
 
 import "encoding/json"
 
+type SnowLumaSendGroupMessage struct {
+	GroupID int    `json:"group_id"`
+	Message string `json:"message"`
+}
+
+type SnowLumaResponse struct {
+	Status  string          `json:"status"`
+	Retcode int8            `json:"retcode"`
+	Data    json.RawMessage `json:"data"`
+	Message string          `json:"message,omitempty"`
+	Wording string          `json:"wording,omitempty"`
+}
+
 type OB11Message struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`

@@ -82,3 +82,66 @@ func (userHandler *UserHandlerGroup) LogoutHandler(c *gin.Context) {
 	}
 	response.Success(c)
 }
+
+// UpdateHandler  用户更改信息
+// @Summary      用户更改信息
+// @Description  用户更改昵称、真名、性别、头像
+// @Tags         user
+// @Accept       JSON
+// @Produce      JSON
+// @Param        request  body      model.UpdateUserRequest  true  "用户登出请求体"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/update [post]
+func (userHandler *UserHandlerGroup) UpdateHandler(c *gin.Context) {
+	req := model.UpdateUserRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); (err != nil || req == model.UpdateUserRequest{}) {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	code := service.UserService.Update(c.GetInt64("jwt:id"), &req)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// QQGetCodeHandler  用户申请获取qq验证码
+// @Summary      用户申请获取qq验证码
+// @Description  后端生成验证码并让陈松发送
+// @Tags         user
+// @Accept       JSON
+// @Produce      JSON
+// @Param        request  body      model.QQGetCodeRequest  true  "获取qq验证码请求"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/update [post]
+func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
+	req := model.QQGetCodeRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	code := service.UserService.QQGetCode(req.QQ, c.GetString("jwt:nickname"), c.GetString("jwt:jti"))
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+	}
+	response.Success(c)
+}
+
+// QQBindHandler  用户绑定qq
+// @Summary      用户通过验证码绑定qq
+// @Description  用户在统一jti会话中验证验证码，最大次数不超过?次/?时间
+// @Tags         user
+// @Accept       JSON
+// @Produce      JSON
+// @Param        request  body      model.QQBindRequest  true  "绑定QQ请求"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/update [post]
+func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
+	req := model.QQBindRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	response.Success(c)
+}

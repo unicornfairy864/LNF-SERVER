@@ -21,6 +21,7 @@ import (
 
 type TokenClaims struct {
 	Role       int8             `mapstructure:"role"`
+	Nickname   string           `mapstructure:"nickname"`
 	FreshAfter *jwt.NumericDate `mapstructure:"buffer_time"`
 	JWTVersion int64            `mapstructure:"jwt_version"`
 	jwt.RegisteredClaims
@@ -56,6 +57,7 @@ func (j *JWTGroup) GenerateToken(user *model.User, VersionChanged bool) (string,
 	}
 	// 生成 token
 	authToken := jwt.NewWithClaims(jwt.SigningMethodHS256, TokenClaims{
+		Nickname:   user.Nickname,
 		Role:       user.Role,
 		FreshAfter: jwt.NewNumericDate(time.Now().Add(global.LNF_CONFIG.JWT.BufferTime)),
 		JWTVersion: version,

@@ -69,8 +69,16 @@ type UpdateUserRequest struct {
 	Avatar   *string `json:"avatar,omitempty"`
 }
 
-// BindUserQQRequest 绑定QQ请求
-type BindUserQQRequest struct{}
+// QQGetCodeRequest 获取qq验证码请求
+type QQGetCodeRequest struct {
+	QQ string `json:"qq"`
+}
+
+// QQBindRequest 绑定QQ请求
+type QQBindRequest struct {
+	QQ   string `json:"qq"`
+	Code string `json:"code"`
+}
 
 // ChangeUserRoleRequest 用户角色变更请求
 type ChangeUserRoleRequest struct {
