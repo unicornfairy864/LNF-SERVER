@@ -1,12 +1,9 @@
 package handler
 
 import (
-	"os"
-	"path/filepath"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/unicornfairy864/LNF-SERVER/response"
+	"github.com/unicornfairy864/LNF-SERVER/utils"
 )
 
 type SlHandler struct{}
@@ -17,16 +14,6 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 		response.Fail(c)
 		return
 	}
-	dir := "/home/LNF-SERVER/logs/received"
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		response.Fail(c)
-		return
-	}
-	path := filepath.Join(dir, time.Now().Format("2006-01-02_15-04-05.000")+".json")
-	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
-		response.Fail(c)
-		return
-	}
-	// Receive Service
+	utils.LogJson(body)
 	response.Success(c)
 }
