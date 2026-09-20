@@ -8,6 +8,6 @@ import (
 // ÕâÊÇ³ÂËÉ»úÆ÷ÈËÔÚ±¾ÏîÄ¿µÄÖ÷ÒªÊµÏÖ
 
 var (
-	Client  client.ChenSongClient
-	Handler handler.ChenSongHandler
+	Client    client.ChenSongClient
+	SlHandler handler.SlHandler
 )

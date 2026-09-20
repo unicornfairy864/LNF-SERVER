@@ -9,4 +9,5 @@ type ChenSongConfig struct {
 	ActivatedGroup int           `mapstructure:"activated_group"`
 	BindMaxTries   int           `mapstructure:"bind_max_tries"`
 	BindTimeout    time.Duration `mapstructure:"bind_timeout"`
+	ReceiveToken   string        `mapstructure:"receive_token"`
 }

@@ -2,6 +2,7 @@ package initialization
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/unicornfairy864/LNF-SERVER/chensong"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/router"
 )
@@ -14,6 +15,8 @@ func InitRouter() (r *gin.Engine) {
 		// Basic
 		router.UserRouter.CreateRouter(api)
 		// Advanced
+		// ChenSong
+		api.POST("/chensong/receive", chensong.SlHandler.ReceiverHandler)
 	}
 
 	// 提示信息
