@@ -8,7 +8,10 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/response"
 )
 
-func ReceiveMiddleWare() gin.HandlerFunc {
+type SlMiddleware struct {
+}
+
+func (s *SlMiddleware) ReceiveMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 解析 Header
 		auth := c.Request.Header.Get("Authorization")

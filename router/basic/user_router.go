@@ -10,21 +10,22 @@ import (
 type UserRouter struct{}
 
 func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
+	userGroup := api.Group("/user")
 	// public
-	public := api.Group("")
+	public := userGroup.Group("")
 	{
 		// User
-		public.POST("/user/create", handler.UserHandler.CreateUserHandler)
-		public.POST("/user/login", handler.UserHandler.LoginHandler)
+		public.POST("/create", handler.UserHandler.CreateUserHandler)
+		public.POST("/login", handler.UserHandler.LoginHandler)
 	}
 	// private
-	private := api.Use(middleware.JWTAuthMiddleware())
+	private := userGroup.Use(middleware.JWTAuthMiddleware())
 	{
 		// User
-		private.POST("/user/logout", handler.UserHandler.LogoutHandler)
-		private.POST("/user/update", handler.UserHandler.UpdateHandler)
-		private.POST("/user/qq/get-code", handler.UserHandler.QQGetCodeHandler)
-		private.POST("/user/qq/bind", handler.UserHandler.QQBindHandler)
+		private.POST("/logout", handler.UserHandler.LogoutHandler)
+		private.POST("/update", handler.UserHandler.UpdateHandler)
+		private.POST("/qq/get-code", handler.UserHandler.QQGetCodeHandler)
+		private.POST("/qq/bind", handler.UserHandler.QQBindHandler)
 
 		// 测试 JWT 状态
 		private.GET("/jwt-test", func(c *gin.Context) {
