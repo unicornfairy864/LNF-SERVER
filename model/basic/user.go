@@ -63,7 +63,7 @@ type CreateUserRequest struct {
 
 // UpdateUserRequest 用户更新请求
 type UpdateUserRequest struct {
-	Nickname string  `json:"nickname,omitempty"`
+	Nickname *string `json:"nickname,omitempty"`
 	Realname *string `json:"realname,omitempty"`
 	Gender   *int8   `json:"gender,omitempty"`
 	Avatar   *string `json:"avatar,omitempty"`
