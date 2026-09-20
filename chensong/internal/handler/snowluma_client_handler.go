@@ -17,8 +17,7 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 		response.Fail(c)
 		return
 	}
-	// 保存到 logs/received/当前时间.json
-	dir := filepath.Join("logs", "received")
+	dir := "/home/LNF-SERVER/logs/received"
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		response.Fail(c)
 		return
