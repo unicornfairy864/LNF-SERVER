@@ -114,7 +114,7 @@ func (userHandler *UserHandlerGroup) UpdateHandler(c *gin.Context) {
 // @Produce      JSON
 // @Param        request  body      model.QQGetCodeRequest  true  "获取qq验证码请求"
 // @Success      200      {object}  response.CommonResponse{}
-// @Router       /api/v1/user/update [post]
+// @Router       /api/v1/user/qq/get-code [post]
 func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 	req := model.QQGetCodeRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
@@ -124,6 +124,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 	code := service.UserService.QQGetCode(req.QQ, c.GetString("jwt:nickname"), c.GetString("jwt:jti"))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
+		return
 	}
 	response.Success(c)
 }
@@ -136,7 +137,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 // @Produce      JSON
 // @Param        request  body      model.QQBindRequest  true  "绑定QQ请求"
 // @Success      200      {object}  response.CommonResponse{}
-// @Router       /api/v1/user/update [post]
+// @Router       /api/v1/user/qq/bind [post]
 func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 	req := model.QQBindRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {

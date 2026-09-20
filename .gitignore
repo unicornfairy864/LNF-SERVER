@@ -1,15 +1,15 @@
 # VsCode
-/.vscode
+.vscode
+.idea
 
 # Environment
-/config.yaml
+config.yaml
 
 # Build
-
-/dist
-/main
-/run
-/main.exe
-/run.exe
-/x.exe
-/logs
+dist
+main
+run
+main.exe
+run.exe
+x.exe
+logs
