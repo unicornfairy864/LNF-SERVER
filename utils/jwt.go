@@ -81,7 +81,7 @@ func (j *JWTGroup) ParseToken(tokenString string) (*TokenClaims, error) {
 		return []byte(global.LNF_CONFIG.JWT.SigningKey), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("TokenInvalid")
 	}
 	if token.Valid {
 		return claims, nil

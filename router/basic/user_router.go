@@ -24,6 +24,7 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 		// User
 		private.POST("/logout", handler.UserHandler.LogoutHandler)
 		private.POST("/update", handler.UserHandler.UpdateHandler)
+
 		private.POST("/qq/get-code", handler.UserHandler.QQGetCodeHandler)
 		private.POST("/qq/bind", handler.UserHandler.QQBindHandler)
 
