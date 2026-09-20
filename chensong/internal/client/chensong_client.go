@@ -10,11 +10,11 @@ import (
 
 type ChenSongClient struct{}
 
-func (c *ChenSongClient) Request(method string, RequestBody interface{}) (*model.SnowLumaResponse, error) {
+func (c *ChenSongClient) Request(actionUri, method string, RequestBody interface{}) (*model.SnowLumaResponse, error) {
 	req, err := global.LNF_Resty.R().
 		SetHeader("Authorization", "Bearer "+global.LNF_CONFIG.ChenSong.ApiToken).
 		SetBody(RequestBody).
-		Execute(method, global.LNF_CONFIG.ChenSong.ApiUrl)
+		Execute(method, global.LNF_CONFIG.ChenSong.ApiUrl+actionUri)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (c *ChenSongClient) Request(method string, RequestBody interface{}) (*model
 }
 
 func (c *ChenSongClient) SendGroupMessage(msg string) (*model.SnowLumaResponse, error) {
-	res, err := c.Request("POST", model.SnowLumaSendGroupMessage{
+	res, err := c.Request("/send_group_msg", "POST", model.SnowLumaSendGroupMessage{
 		GroupID: global.LNF_CONFIG.ChenSong.ActivatedGroup,
 		Message: msg,
 	})

@@ -71,13 +71,13 @@ type UpdateUserRequest struct {
 
 // QQGetCodeRequest 获取qq验证码请求
 type QQGetCodeRequest struct {
-	QQ string `json:"qq"`
+	QQ string `json:"qq" binding:"required"`
 }
 
 // QQBindRequest 绑定QQ请求
 type QQBindRequest struct {
-	QQ   string `json:"qq"`
-	Code string `json:"code"`
+	QQ   string `json:"qq" binding:"required"`
+	Code string `json:"code" binding:"required"`
 }
 
 // ChangeUserRoleRequest 用户角色变更请求

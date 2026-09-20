@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/unicornfairy864/LNF-SERVER/chensong"
 	"github.com/unicornfairy864/LNF-SERVER/dao"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
@@ -127,24 +126,31 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 	 * 1, qq:bind:{jti}:code  string
 	 * 2, qq:bind:{jti}:tries int64    <-Redis Incr Returns A Int64 Number
 	 */
-	str, err := dao.RedisDao.GetValueString("qq:bind:" + jti + "code")
+	// 判断会话是否存在
+	str, err := dao.RedisDao.GetValueString("qq:bind:" + jti + ":code")
 	if err != nil {
 		return response.CodeDatabaseError
 	}
 	if str != "" {
-		return response.CodeUserNotFoundOrBanned
+		return response.CodeQQCodeAlreadyExists
 	}
+	// 判断用户是否入群
+
+	// 生成验证码
 	QQCode := strconv.Itoa(rand.Intn(900000) + 100000)
-	err = dao.RedisDao.SetKey("qq:bind:"+jti+"code", QQCode, global.LNF_CONFIG.ChenSong.BindTimeout)
+	kv := make(map[string]interface{})
+	kv["qq:bind:"+jti+":code"] = QQCode
+	kv["qq:bind:"+jti+":tries"] = "0"
+	kv["qq:bind:"+jti+":qq"] = qq
+	err = dao.RedisDao.PipeSetKey(kv, global.LNF_CONFIG.ChenSong.BindTimeout)
 	if err != nil {
 		return response.CodeDatabaseError
 	}
-	err = dao.RedisDao.SetKey("qq:bind:"+jti+"tries", 0, global.LNF_CONFIG.ChenSong.BindTimeout)
-	err = dao.RedisDao.SetKey("qq:bind:"+jti+"qq", qq, global.LNF_CONFIG.ChenSong.BindTimeout)
-	res, err := chensong.Client.SendGroupMessage("[CQ:at,qq=" + qq + "] " + nickname + "，你好像在尝试绑定，我找到了验证码： " + QQCode + " 。")
-	if err != nil || res.Status != "ok" {
-		return response.CodeChenSongError
-	}
+	utils.LogJson("QQCode:" + QQCode)
+	//res, err := chensong.Client.SendGroupMessage("[CQ:at,qq=" + qq + "] " + nickname + "，你好像在尝试绑定，我找到了验证码： " + QQCode + " 。")
+	//if err != nil || res.Status != "ok" {
+	//	return response.CodeChenSongError
+	//}
 	return response.CodeSuccess
 }
 

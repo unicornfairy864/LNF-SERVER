@@ -24,6 +24,7 @@ const (
 	CodeUserNotFoundOrBanned Code = 10006
 	CodeQQCodeAlreadyExists  Code = 10007
 	CodeQQCodeError          Code = 10008
+	CodeQQUserNotExist       Code = 10009
 
 	// ==================== 物品 2xxxx ====================
 
@@ -64,6 +65,7 @@ var Msg = map[Code]string{
 	CodeUserNotFoundOrBanned: "用户不存在或被禁用",
 	CodeQQCodeAlreadyExists:  "验证会话已经存在，请等失效后重试",
 	CodeQQCodeError:          "会话的QQ验证码错误",
+	CodeQQUserNotExist:       "用户不在QQ群内",
 
 	CodeTest: "这是开发人员测试",
 }

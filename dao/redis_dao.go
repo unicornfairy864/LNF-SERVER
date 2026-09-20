@@ -82,3 +82,56 @@ func (redisGroup *RedisGroup) INCR(key string) (int64, error) {
 	}
 	return value, nil
 }
+
+func (redisGroup *RedisGroup) PipeSetKey(kv map[string]interface{}, ttl time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+	if len(kv) == 0 {
+		return nil
+	}
+	pipe := global.LNF_RDB.Pipeline()
+	for key, value := range kv {
+		pipe.Set(ctx, key, value, ttl)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (redisGroup *RedisGroup) PipeGetString(keys []string) (map[string]interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	pipe := global.LNF_RDB.Pipeline()
+	for _, key := range keys {
+		pipe.Get(ctx, key)
+	}
+	result, err := pipe.Exec(ctx)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return nil, err
+	}
+	if len(result) == 0 {
+		return nil, nil
+	}
+	resMap := make(map[string]interface{}, len(result))
+	for i, cmd := range result {
+		if i >= len(keys) {
+			break
+		}
+		stringCmd, ok := cmd.(*redis.StringCmd)
+		if !ok {
+			continue
+		}
+		val, err := stringCmd.Result()
+		if err != nil {
+			if errors.Is(err, redis.Nil) {
+				resMap[keys[i]] = nil
+			}
+			return nil, err
+		}
+		resMap[keys[i]] = val
+	}
+
+	return resMap, nil
+}
