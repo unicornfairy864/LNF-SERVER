@@ -7,9 +7,5 @@ config.yaml
 
 # Build
 dist
-main
-run
-main.exe
-run.exe
 x.exe
 logs
