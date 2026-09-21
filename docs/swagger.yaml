@@ -1,4 +1,42 @@
 definitions:
+  model.AddUserCreditRequest:
+    properties:
+      credit:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      operator_id:
+        type: integer
+      type:
+        type: integer
+    required:
+    - credit
+    - id
+    - operator_id
+    - type
+    type: object
+  model.ChangeUserRoleRequest:
+    properties:
+      id:
+        type: integer
+      role:
+        type: integer
+    required:
+    - id
+    - role
+    type: object
+  model.ChangeUserStatusRequest:
+    properties:
+      id:
+        type: integer
+      status:
+        type: integer
+    required:
+    - id
+    - status
+    type: object
   model.CreateUserRequest:
     properties:
       nickname:
@@ -110,6 +148,7 @@ definitions:
     - 10011
     - 10012
     - 10013
+    - 10014
     - -1
     type: integer
     x-enum-varnames:
@@ -135,6 +174,7 @@ definitions:
     - CodeQQTooManyRequests
     - CodeQQSessionNotExist
     - CodeQQAlreadyRegistered
+    - CodeCreditNotEnough
     - CodeTest
   response.CommonResponse:
     properties:
@@ -147,6 +187,72 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/user/admin-add-credit:
+    post:
+      consumes:
+      - application/json
+      description: Role为2的用户改变任意用户积分，可选为SET或ADD (is_delta)
+      parameters:
+      - description: 变更用户角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AddUserCreditRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 系统管理员改变用户积分
+      tags:
+      - user
+  /api/v1/user/admin-change-role:
+    post:
+      consumes:
+      - application/json
+      description: Role为2的用户改变任意用户Role为0/1/2
+      parameters:
+      - description: 变更用户角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ChangeUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 系统管理员改变用户角色
+      tags:
+      - user
+  /api/v1/user/admin-change-status:
+    post:
+      consumes:
+      - application/json
+      description: Role为2的用户改变任意用户Status为0(禁用)/1(正常)
+      parameters:
+      - description: 变更用户角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ChangeUserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 系统管理员改变用户状态(禁用)
+      tags:
+      - user
   /api/v1/user/create:
     post:
       consumes:

@@ -208,7 +208,7 @@ func (userHandler *UserHandlerGroup) ChangeUserStatusHandler(c *gin.Context) {
 // @Tags         user
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.ChangeUserCreditRequest  true  "变更用户角色请求"
+// @Param        request  body      model.AddUserCreditRequest  true  "变更用户角色请求"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/admin-add-credit [post]
 func (userHandler *UserHandlerGroup) AddUserCreditHandler(c *gin.Context) {

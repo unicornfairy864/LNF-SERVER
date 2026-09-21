@@ -15,6 +15,108 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/user/admin-add-credit": {
+            "post": {
+                "description": "Role为2的用户改变任意用户积分，可选为SET或ADD (is_delta)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "系统管理员改变用户积分",
+                "parameters": [
+                    {
+                        "description": "变更用户角色请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AddUserCreditRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/admin-change-role": {
+            "post": {
+                "description": "Role为2的用户改变任意用户Role为0/1/2",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "系统管理员改变用户角色",
+                "parameters": [
+                    {
+                        "description": "变更用户角色请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ChangeUserRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/admin-change-status": {
+            "post": {
+                "description": "Role为2的用户改变任意用户Status为0(禁用)/1(正常)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "系统管理员改变用户状态(禁用)",
+                "parameters": [
+                    {
+                        "description": "变更用户角色请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ChangeUserStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/create": {
             "post": {
                 "description": "创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。",
@@ -245,6 +347,62 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "model.AddUserCreditRequest": {
+            "type": "object",
+            "required": [
+                "credit",
+                "id",
+                "operator_id",
+                "type"
+            ],
+            "properties": {
+                "credit": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "operator_id": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ChangeUserRoleRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "role"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "role": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ChangeUserStatusRequest": {
+            "type": "object",
+            "required": [
+                "id",
+                "status"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateUserRequest": {
             "type": "object",
             "required": [
@@ -402,6 +560,7 @@ const docTemplate = `{
                 10011,
                 10012,
                 10013,
+                10014,
                 -1
             ],
             "x-enum-varnames": [
@@ -427,6 +586,7 @@ const docTemplate = `{
                 "CodeQQTooManyRequests",
                 "CodeQQSessionNotExist",
                 "CodeQQAlreadyRegistered",
+                "CodeCreditNotEnough",
                 "CodeTest"
             ]
         },
