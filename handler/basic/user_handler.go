@@ -134,7 +134,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 
 // QQBindHandler  用户绑定qq
 // @Summary      用户通过验证码绑定qq
-// @Description  用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 <br />接收json为number，但后端实际操作统一用string
+// @Description  用户在统一jti会话中验证验证码，最大次数不超过5次/3分钟 <br />接收json为number，但后端实际操作统一用string
 // @Tags         user
 // @Accept       json
 // @Produce      json

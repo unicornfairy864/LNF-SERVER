@@ -234,7 +234,7 @@
         },
         "/api/v1/user/qq/bind": {
             "post": {
-                "description": "用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 \u003cbr /\u003e接收json为number，但后端实际操作统一用string",
+                "description": "用户在统一jti会话中验证验证码，最大次数不超过5次/3分钟 \u003cbr /\u003e接收json为number，但后端实际操作统一用string",
                 "consumes": [
                     "application/json"
                 ],

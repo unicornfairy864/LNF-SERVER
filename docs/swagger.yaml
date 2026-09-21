@@ -333,7 +333,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 <br />接收json为number，但后端实际操作统一用string
+      description: 用户在统一jti会话中验证验证码，最大次数不超过5次/3分钟 <br />接收json为number，但后端实际操作统一用string
       parameters:
       - description: 绑定QQ请求
         in: body
