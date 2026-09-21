@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
+	"github.com/unicornfairy864/LNF-SERVER/chensong"
 	"github.com/unicornfairy864/LNF-SERVER/dao"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
@@ -134,11 +136,14 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 	if str != "" {
 		return response.CodeQQCodeAlreadyExists
 	}
-	// 判断用户是否入群
-
-	// 生成验证码
+	ok, err := dao.RedisDao.KeyExists("qq:bind-session:" + qq)
+	if err != nil || ok == true {
+		return response.CodeDatabaseError
+	}
+	// 先生成验证码，对jti进行冷却，防止多次bot查询
 	QQCode := strconv.Itoa(rand.Intn(900000) + 100000)
 	kv := make(map[string]interface{})
+	kv["qq:bind-session:"+qq] = 1
 	kv["qq:bind:"+jti+":code"] = QQCode
 	kv["qq:bind:"+jti+":tries"] = "0"
 	kv["qq:bind:"+jti+":qq"] = qq
@@ -146,6 +151,22 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 	if err != nil {
 		return response.CodeDatabaseError
 	}
+	// 判断用户是否入群
+	members, err := chensong.Client.GetGroupMemberList()
+	if err != nil {
+		return response.CodeChenSongError
+	}
+	qqInGroup := false
+	for _, mem := range *members {
+		if strconv.FormatInt(mem.UserID, 10) == qq {
+			qqInGroup = true
+			break
+		}
+	}
+	if !qqInGroup {
+		return response.CodeQQUserNotInGroup
+	}
+	// 发送消息
 	utils.LogJson("QQCode:" + QQCode)
 	//res, err := chensong.Client.SendGroupMessage("[CQ:at,qq=" + qq + "] " + nickname + "，你好像在尝试绑定，我找到了验证码： " + QQCode + " 。")
 	//if err != nil || res.Status != "ok" {
@@ -154,6 +175,38 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 	return response.CodeSuccess
 }
 
-func (userService *UserServiceGroup) QQBind(id int64, jti string, reqCode string) response.Code {
+func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, reqCode string) response.Code {
+	// 检测表单是否符合会话
+	keyCode := "qq:bind:" + jti + ":code"
+	keyTries := "qq:bind:" + jti + ":tries"
+	keyQQ := "qq:bind:" + jti + ":qq"
+	res, err := dao.RedisDao.PipeGetString([]string{keyCode, keyTries, keyQQ})
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return response.CodeQQSessionNotExist
+		}
+		return response.CodeDatabaseError
+	}
+	if res[keyCode] == "" {
+		return response.CodeQQSessionNotExist
+	}
+	if tries, err := strconv.ParseInt(res[keyTries], 10, 64); err != nil || tries > global.LNF_CONFIG.ChenSong.BindMaxTries {
+		return response.CodeQQTooManyRequests
+	}
+	_, err = dao.RedisDao.INCR(keyTries)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if reqQQ != res[keyQQ] {
+		return response.CodeQQNumberError
+	}
+	if reqCode != res[keyCode] {
+		return response.CodeQQCodeError
+	}
+	err = dao.RedisDao.DelKey(keyCode)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	// 在这个函数里检测qq是否已经注册, 减少开销
 	return response.CodeSuccess
 }

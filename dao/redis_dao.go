@@ -97,7 +97,7 @@ func (redisGroup *RedisGroup) PipeSetKey(kv map[string]interface{}, ttl time.Dur
 	return err
 }
 
-func (redisGroup *RedisGroup) PipeGetString(keys []string) (map[string]interface{}, error) {
+func (redisGroup *RedisGroup) PipeGetString(keys []string) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
 	defer cancel()
 	if len(keys) == 0 {
@@ -114,7 +114,7 @@ func (redisGroup *RedisGroup) PipeGetString(keys []string) (map[string]interface
 	if len(result) == 0 {
 		return nil, nil
 	}
-	resMap := make(map[string]interface{}, len(result))
+	resMap := make(map[string]string, len(result))
 	for i, cmd := range result {
 		if i >= len(keys) {
 			break
@@ -126,7 +126,7 @@ func (redisGroup *RedisGroup) PipeGetString(keys []string) (map[string]interface
 		val, err := stringCmd.Result()
 		if err != nil {
 			if errors.Is(err, redis.Nil) {
-				resMap[keys[i]] = nil
+				resMap[keys[i]] = ""
 			}
 			return nil, err
 		}

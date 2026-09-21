@@ -1,6 +1,8 @@
 package basic
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -121,7 +123,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
-	code := service.UserService.QQGetCode(req.QQ, c.GetString("jwt:nickname"), c.GetString("jwt:jti"))
+	code := service.UserService.QQGetCode(strconv.FormatInt(req.QQ, 10), c.GetString("jwt:nickname"), c.GetString("jwt:jti"))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return
@@ -131,7 +133,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 
 // QQBindHandler  用户绑定qq
 // @Summary      用户通过验证码绑定qq
-// @Description  用户在统一jti会话中验证验证码，最大次数不超过?次/?时间
+// @Description  用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 <br />接收json为number，但后端实际操作统一用string
 // @Tags         user
 // @Accept       JSON
 // @Produce      JSON
@@ -142,6 +144,11 @@ func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 	req := model.QQBindRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	code := service.UserService.QQBind(c.GetInt64("jwt:id"), c.GetString("jwt:jti"), strconv.FormatInt(req.QQ, 10), strconv.FormatInt(req.Code, 10))
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
 		return
 	}
 	response.Success(c)

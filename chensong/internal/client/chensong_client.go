@@ -38,3 +38,20 @@ func (c *ChenSongClient) SendGroupMessage(msg string) (*model.SnowLumaResponse, 
 	}
 	return res, nil
 }
+
+func (c *ChenSongClient) GetGroupMemberList() (*[]model.OB11Member, error) {
+	res, err := c.Request("/get_group_member_list", "POST", struct {
+		GroupID int64 `json:"group_id"`
+	}{
+		GroupID: global.LNF_CONFIG.ChenSong.ActivatedGroup,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var payload []model.OB11Member
+	err = json.Unmarshal(res.Data, &payload)
+	if err != nil {
+		return nil, err
+	}
+	return &payload, nil
+}

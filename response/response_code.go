@@ -24,7 +24,10 @@ const (
 	CodeUserNotFoundOrBanned Code = 10006
 	CodeQQCodeAlreadyExists  Code = 10007
 	CodeQQCodeError          Code = 10008
-	CodeQQUserNotExist       Code = 10009
+	CodeQQUserNotInGroup     Code = 10009
+	CodeQQNumberError        Code = 10010
+	CodeQQTooManyRequests    Code = 10011
+	CodeQQSessionNotExist    Code = 10012
 
 	// ==================== 物品 2xxxx ====================
 
@@ -65,7 +68,10 @@ var Msg = map[Code]string{
 	CodeUserNotFoundOrBanned: "用户不存在或被禁用",
 	CodeQQCodeAlreadyExists:  "验证会话已经存在，请等失效后重试",
 	CodeQQCodeError:          "会话的QQ验证码错误",
-	CodeQQUserNotExist:       "用户不在QQ群内",
+	CodeQQUserNotInGroup:     "用户不在QQ群内",
+	CodeQQNumberError:        "需要验证的QQ号不一致",
+	CodeQQTooManyRequests:    "QQ绑定请求过多，请等冷却后再试",
+	CodeQQSessionNotExist:    "QQ绑定会话不存在",
 
 	CodeTest: "这是开发人员测试",
 }

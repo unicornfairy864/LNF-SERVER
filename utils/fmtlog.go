@@ -1,10 +1,14 @@
 package utils
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 func LogJson(data interface{}) {
 	if data == nil {
 		return
 	}
-	fmt.Println(data)
+	str, _ := json.Marshal(data)
+	fmt.Println(string(str))
 }
