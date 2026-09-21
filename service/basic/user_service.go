@@ -107,18 +107,9 @@ func (userService *UserServiceGroup) Update(id int64, req *model.UpdateUserReque
 	if req.Avatar != nil {
 		updates["avatar"] = *req.Avatar
 	}
-	if len(updates) == 0 {
-		return response.CodeSuccess
-	}
-	updates["updated_at"] = time.Now()
-	result := global.LNF_DB.Model(&model.User{}).
-		Where("id = ? AND is_deleted = 0", id).
-		Updates(updates)
-	if result.Error != nil {
+	err := dao.UserDao.UpdateUserByVK(id, updates)
+	if err != nil {
 		return response.CodeDatabaseError
-	}
-	if result.RowsAffected == 0 {
-		return response.CodeUserNotFoundOrBanned
 	}
 	return response.CodeSuccess
 }
@@ -134,11 +125,11 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 		return response.CodeDatabaseError
 	}
 	if str != "" {
-		return response.CodeQQCodeAlreadyExists
+		return response.CodeQQSessionAlreadyExists
 	}
 	ok, err := dao.RedisDao.KeyExists("qq:bind-session:" + qq)
 	if err != nil || ok == true {
-		return response.CodeDatabaseError
+		return response.CodeQQSessionAlreadyExists
 	}
 	// 先生成验证码，对jti进行冷却，防止多次bot查询
 	QQCode := strconv.Itoa(rand.Intn(900000) + 100000)
@@ -204,9 +195,25 @@ func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, 
 		return response.CodeQQCodeError
 	}
 	err = dao.RedisDao.DelKey(keyCode)
+	err = dao.RedisDao.DelKey("qq:bind-session:" + reqQQ)
 	if err != nil {
 		return response.CodeDatabaseError
 	}
 	// 在这个函数里检测qq是否已经注册, 减少开销
+	userQQ := dao.UserDao.GetUserByQQ(reqQQ)
+	if userQQ.ID != 0 {
+		return response.CodeQQAlreadyRegistered
+	}
+	user := dao.UserDao.GetUserByID(id)
+	if user.ID == 0 || user.IsDeleted == 1 {
+		return response.CodeUserNotFoundOrBanned
+	}
+	if user.QQ != nil {
+		return response.CodeQQAlreadyRegistered
+	}
+	err = dao.UserDao.UpdateUserByVK(id, map[string]interface{}{"qq": reqQQ})
+	if err != nil {
+		return response.CodeDatabaseError
+	}
 	return response.CodeSuccess
 }
