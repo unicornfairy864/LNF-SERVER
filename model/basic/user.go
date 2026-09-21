@@ -112,7 +112,7 @@ type AddUserCreditRequest struct {
 	OperatorID int64   `json:"operator_id" binding:"required"`
 }
 
-type GetListRequest struct {
+type GetByIdsRequest struct {
 	IDs []int64 `json:"ids" binding:"required"`
 }
 

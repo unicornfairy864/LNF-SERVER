@@ -44,9 +44,9 @@ func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*mode
 	return &user, response.CodeSuccess
 }
 
-func (userService *UserServiceGroup) GetListService(ids []int64) (*[]model.PublicUserResponse, response.Code) {
+func (userService *UserServiceGroup) GetByIdsService(ids []int64) (*[]model.PublicUserResponse, response.Code) {
 	users := dao.UserDao.GetUserListByIDs(ids)
-	pubRes := []model.PublicUserResponse{}
+	var pubRes []model.PublicUserResponse
 	for _, user := range users {
 		if user.ID != 0 {
 			pubRes = append(pubRes, *model.UserToPublicUserResponse(&user))

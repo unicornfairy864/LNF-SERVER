@@ -59,17 +59,17 @@ func (userHandler *UserHandlerGroup) LoginHandler(c *gin.Context) {
 	response.FailWithCode(c, errCode)
 }
 
-// GetListHandler  根据id获取用户列表
+// GetByIdsHandler  根据id获取用户列表
 // @Summary      根据id获取用户列表
 // @Description  接收id数组，返回PublicUserResponse数组 <br /> 注意：结果可能不是输入列表的顺序且会过滤无效id
 // @Tags         user
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.GetListRequest  true  "获取用户列表请求体"
+// @Param        request  body      model.GetByIdsRequest  true  "获取用户列表请求体"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/get-list [post]
-func (userHandler *UserHandlerGroup) GetListHandler(c *gin.Context) {
-	req := model.GetListRequest{}
+func (userHandler *UserHandlerGroup) GetByIdsHandler(c *gin.Context) {
+	req := model.GetByIdsRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
 		return
@@ -78,7 +78,7 @@ func (userHandler *UserHandlerGroup) GetListHandler(c *gin.Context) {
 		response.SuccessWithData(c, []model.PublicUserResponse{})
 		return
 	}
-	pubRes, code := service.UserService.GetListService(req.IDs)
+	pubRes, code := service.UserService.GetByIdsService(req.IDs)
 	utils.LogJson(pubRes)
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
