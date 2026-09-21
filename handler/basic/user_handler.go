@@ -119,7 +119,8 @@ func (userHandler *UserHandlerGroup) UpdateHandler(c *gin.Context) {
 // @Router       /api/v1/user/qq/get-code [post]
 func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 	req := model.QQGetCodeRequest{}
-	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil ||
+		!(req.QQ >= 10000 && req.QQ <= 99999999999) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
@@ -142,7 +143,8 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 // @Router       /api/v1/user/qq/bind [post]
 func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 	req := model.QQBindRequest{}
-	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil ||
+		!(req.QQ >= 10000 && req.QQ <= 99999999999 || !(req.Code >= 100000 && req.Code <= 999999)) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
