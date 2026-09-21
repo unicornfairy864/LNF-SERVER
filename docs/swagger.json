@@ -95,6 +95,142 @@
                     }
                 }
             }
+        },
+        "/api/v1/user/logout": {
+            "post": {
+                "description": "选择全部登出或仅当前会话登出",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "用户登出",
+                "parameters": [
+                    {
+                        "description": "用户登出请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/qq/bind": {
+            "post": {
+                "description": "用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 \u003cbr /\u003e接收json为number，但后端实际操作统一用string",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "用户通过验证码绑定qq",
+                "parameters": [
+                    {
+                        "description": "绑定QQ请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.QQBindRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/qq/get-code": {
+            "post": {
+                "description": "后端生成验证码并让陈松发送",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "用户申请获取qq验证码",
+                "parameters": [
+                    {
+                        "description": "获取qq验证码请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.QQGetCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/update": {
+            "post": {
+                "description": "用户更改昵称、真名、性别、头像",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "用户更改信息",
+                "parameters": [
+                    {
+                        "description": "用户登出请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -128,6 +264,60 @@
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.LogoutRequest": {
+            "type": "object",
+            "required": [
+                "logout_all"
+            ],
+            "properties": {
+                "logout_all": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.QQBindRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "qq"
+            ],
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "qq": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.QQGetCodeRequest": {
+            "type": "object",
+            "required": [
+                "qq"
+            ],
+            "properties": {
+                "qq": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "realname": {
                     "type": "string"
                 }
             }
@@ -191,6 +381,16 @@
                 10001,
                 10002,
                 10003,
+                10004,
+                10005,
+                10006,
+                10007,
+                10008,
+                10009,
+                10010,
+                10011,
+                10012,
+                10013,
                 -1
             ],
             "x-enum-varnames": [
@@ -201,11 +401,21 @@
                 "CodeNotFound",
                 "CodeServerError",
                 "CodeDatabaseError",
-                "CodeOperationFailed",
                 "CodeUnknownError",
+                "CodeChenSongError",
                 "CodeUserOrPasswordError",
                 "CodeUsernameOccupied",
                 "CodeFormInvalid",
+                "CodeInvalidSigningMethod",
+                "CodeTokenBanned",
+                "CodeUserNotFoundOrBanned",
+                "CodeQQSessionAlreadyExists",
+                "CodeQQCodeError",
+                "CodeQQUserNotInGroup",
+                "CodeQQNumberError",
+                "CodeQQTooManyRequests",
+                "CodeQQSessionNotExist",
+                "CodeQQAlreadyRegistered",
                 "CodeTest"
             ]
         },

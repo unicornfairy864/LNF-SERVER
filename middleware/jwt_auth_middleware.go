@@ -100,3 +100,30 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		return
 	}
 }
+
+func SystemAdminAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := c.GetInt8("jwt:role")
+		utils.LogJson(role)
+		if role != 2 {
+			response.FailWithCode(c, response.CodeUnauthorized)
+			c.Abort()
+			return
+		}
+		c.Next()
+		return
+	}
+}
+
+func ServiceAdminAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := c.GetInt8("role")
+		if role == 0 {
+			response.FailWithCode(c, response.CodeUnauthorized)
+			c.Abort()
+			return
+		}
+		c.Next()
+		return
+	}
+}

@@ -22,6 +22,41 @@ definitions:
     - password
     - username
     type: object
+  model.LogoutRequest:
+    properties:
+      logout_all:
+        type: integer
+    required:
+    - logout_all
+    type: object
+  model.QQBindRequest:
+    properties:
+      code:
+        type: integer
+      qq:
+        type: integer
+    required:
+    - code
+    - qq
+    type: object
+  model.QQGetCodeRequest:
+    properties:
+      qq:
+        type: integer
+    required:
+    - qq
+    type: object
+  model.UpdateUserRequest:
+    properties:
+      avatar:
+        type: string
+      gender:
+        type: integer
+      nickname:
+        type: string
+      realname:
+        type: string
+    type: object
   model.UserResponse:
     properties:
       avatar:
@@ -65,6 +100,16 @@ definitions:
     - 10001
     - 10002
     - 10003
+    - 10004
+    - 10005
+    - 10006
+    - 10007
+    - 10008
+    - 10009
+    - 10010
+    - 10011
+    - 10012
+    - 10013
     - -1
     type: integer
     x-enum-varnames:
@@ -75,11 +120,21 @@ definitions:
     - CodeNotFound
     - CodeServerError
     - CodeDatabaseError
-    - CodeOperationFailed
     - CodeUnknownError
+    - CodeChenSongError
     - CodeUserOrPasswordError
     - CodeUsernameOccupied
     - CodeFormInvalid
+    - CodeInvalidSigningMethod
+    - CodeTokenBanned
+    - CodeUserNotFoundOrBanned
+    - CodeQQSessionAlreadyExists
+    - CodeQQCodeError
+    - CodeQQUserNotInGroup
+    - CodeQQNumberError
+    - CodeQQTooManyRequests
+    - CodeQQSessionNotExist
+    - CodeQQAlreadyRegistered
     - CodeTest
   response.CommonResponse:
     properties:
@@ -144,6 +199,94 @@ paths:
                   $ref: '#/definitions/model.UserResponse'
               type: object
       summary: 用户登录
+      tags:
+      - user
+  /api/v1/user/logout:
+    post:
+      consumes:
+      - application/json
+      description: 选择全部登出或仅当前会话登出
+      parameters:
+      - description: 用户登出请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 用户登出
+      tags:
+      - user
+  /api/v1/user/qq/bind:
+    post:
+      consumes:
+      - application/json
+      description: 用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 <br />接收json为number，但后端实际操作统一用string
+      parameters:
+      - description: 绑定QQ请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.QQBindRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 用户通过验证码绑定qq
+      tags:
+      - user
+  /api/v1/user/qq/get-code:
+    post:
+      consumes:
+      - application/json
+      description: 后端生成验证码并让陈松发送
+      parameters:
+      - description: 获取qq验证码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.QQGetCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 用户申请获取qq验证码
+      tags:
+      - user
+  /api/v1/user/update:
+    post:
+      consumes:
+      - application/json
+      description: 用户更改昵称、真名、性别、头像
+      parameters:
+      - description: 用户登出请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 用户更改信息
       tags:
       - user
 swagger: "2.0"

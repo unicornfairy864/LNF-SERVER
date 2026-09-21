@@ -15,8 +15,8 @@ type UserHandlerGroup struct{}
 // @Summary      创建用户
 // @Description  创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。
 // @Tags         user
-// @Accept       JSON
-// @Produce      JSON
+// @Accept       json
+// @Produce      json
 // @Param        request  body      model.CreateUserRequest  true  "创建用户请求体"
 // @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
 // @Router       /api/v1/user/create [post]
@@ -38,8 +38,8 @@ func (userHandler *UserHandlerGroup) CreateUserHandler(c *gin.Context) {
 // @Summary      用户登录
 // @Description  用户使用用户名和密码登录，验证通过后返回用户信息并在响应体 Header 设置 Authorization : Token
 // @Tags         user
-// @Accept       JSON
-// @Produce      JSON
+// @Accept       json
+// @Produce      json
 // @Param        request  body      model.LoginRequest  true  "用户登录请求体"
 // @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
 // @Router       /api/v1/user/login [post]
@@ -62,8 +62,8 @@ func (userHandler *UserHandlerGroup) LoginHandler(c *gin.Context) {
 // @Summary      用户登出
 // @Description  选择全部登出或仅当前会话登出
 // @Tags         user
-// @Accept       JSON
-// @Produce      JSON
+// @Accept       json
+// @Produce      json
 // @Param        request  body      model.LogoutRequest  true  "用户登出请求体"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/logout [post]
@@ -89,8 +89,8 @@ func (userHandler *UserHandlerGroup) LogoutHandler(c *gin.Context) {
 // @Summary      用户更改信息
 // @Description  用户更改昵称、真名、性别、头像
 // @Tags         user
-// @Accept       JSON
-// @Produce      JSON
+// @Accept       json
+// @Produce      json
 // @Param        request  body      model.UpdateUserRequest  true  "用户登出请求体"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/update [post]
@@ -112,8 +112,8 @@ func (userHandler *UserHandlerGroup) UpdateHandler(c *gin.Context) {
 // @Summary      用户申请获取qq验证码
 // @Description  后端生成验证码并让陈松发送
 // @Tags         user
-// @Accept       JSON
-// @Produce      JSON
+// @Accept       json
+// @Produce      json
 // @Param        request  body      model.QQGetCodeRequest  true  "获取qq验证码请求"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/qq/get-code [post]
@@ -136,8 +136,8 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 // @Summary      用户通过验证码绑定qq
 // @Description  用户在统一jti会话中验证验证码，最大次数不超过?次/?时间 <br />接收json为number，但后端实际操作统一用string
 // @Tags         user
-// @Accept       JSON
-// @Produce      JSON
+// @Accept       json
+// @Produce      json
 // @Param        request  body      model.QQBindRequest  true  "绑定QQ请求"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/qq/bind [post]
@@ -149,6 +149,75 @@ func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 		return
 	}
 	code := service.UserService.QQBind(c.GetInt64("jwt:id"), c.GetString("jwt:jti"), strconv.FormatInt(req.QQ, 10), strconv.FormatInt(req.Code, 10))
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// ChangeUserRoleHandler  系统管理员改变用户角色
+// @Summary      系统管理员改变用户角色
+// @Description  Role为2的用户改变任意用户Role为0/1/2
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.ChangeUserRoleRequest  true  "变更用户角色请求"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/admin-change-role [post]
+func (userHandler *UserHandlerGroup) ChangeUserRoleHandler(c *gin.Context) {
+	req := model.ChangeUserRoleRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	code := service.UserService.ChangeUserRoleService(&req)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// ChangeUserStatusHandler  系统管理员改变用户状态(禁用)
+// @Summary      系统管理员改变用户状态(禁用)
+// @Description  Role为2的用户改变任意用户Status为0(禁用)/1(正常)
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.ChangeUserStatusRequest  true  "变更用户角色请求"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/admin-change-status [post]
+func (userHandler *UserHandlerGroup) ChangeUserStatusHandler(c *gin.Context) {
+	req := model.ChangeUserStatusRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	code := service.UserService.ChangeUserStatusRequest(&req)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// AddUserCreditHandler  系统管理员改变用户积分
+// @Summary      系统管理员改变用户积分
+// @Description  Role为2的用户改变任意用户积分，可选为SET或ADD (is_delta)
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.ChangeUserCreditRequest  true  "变更用户角色请求"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/admin-add-credit [post]
+func (userHandler *UserHandlerGroup) AddUserCreditHandler(c *gin.Context) {
+	req := model.AddUserCreditRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	code := service.UserService.ChangeUserCreditRequest(&req)
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return

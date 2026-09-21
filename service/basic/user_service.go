@@ -59,7 +59,7 @@ func (userService *UserServiceGroup) Login(req *model.LoginRequest) (*model.User
 	if !utils.Bycrypt.CheckPassword(req.Password, user.PasswordHash) {
 		return nil, nil, response.CodeUserOrPasswordError
 	}
-	if user.IsDeleted != 0 {
+	if user.Status == 0 {
 		return nil, nil, response.CodeUserNotFoundOrBanned
 	}
 	// 生成 JWTToken
@@ -205,7 +205,7 @@ func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, 
 		return response.CodeQQAlreadyRegistered
 	}
 	user := dao.UserDao.GetUserByID(id)
-	if user.ID == 0 || user.IsDeleted == 1 {
+	if user.ID == 0 || user.Status == 0 {
 		return response.CodeUserNotFoundOrBanned
 	}
 	if user.QQ != nil {
@@ -213,6 +213,48 @@ func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, 
 	}
 	err = dao.UserDao.UpdateUserByVK(id, map[string]interface{}{"qq": reqQQ})
 	if err != nil {
+		return response.CodeDatabaseError
+	}
+	return response.CodeSuccess
+}
+
+func (userService *UserServiceGroup) ChangeUserRoleService(req *model.ChangeUserRoleRequest) response.Code {
+	if !(*req.Role == 0 || *req.Role == 1 || *req.Role == 2) {
+		return response.CodeFormInvalid
+	}
+	err := dao.UserDao.UpdateUserByVK(req.ID, map[string]interface{}{"role": req.Role})
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	return response.CodeSuccess
+}
+
+func (userService *UserServiceGroup) ChangeUserStatusRequest(req *model.ChangeUserStatusRequest) response.Code {
+	if !(*req.Status == 0 || *req.Status == 1) {
+		return response.CodeFormInvalid
+	}
+	if *req.Status == 1 {
+		_, err := dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(req.ID, 10) + ":version")
+		if err != nil {
+			return response.CodeDatabaseError
+		}
+	}
+	err := dao.UserDao.UpdateUserByVK(req.ID, map[string]interface{}{"status": req.Status})
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	return response.CodeSuccess
+}
+
+// ChangeUserCreditRequest
+// Type: 类型: 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整
+// Delta/Credit <= -99999 时，清零Credit
+func (userService *UserServiceGroup) ChangeUserCreditRequest(req *model.AddUserCreditRequest) response.Code {
+	err := dao.UserDao.AddUserCredit(req.ID, req.Credit, req.Type, *req.Desc, req.OperatorID)
+	if err != nil {
+		if errors.Is(err, fmt.Errorf("credit not enough")) {
+			return response.CodeCreditNotEnough
+		}
 		return response.CodeDatabaseError
 	}
 	return response.CodeSuccess

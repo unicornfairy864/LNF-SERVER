@@ -28,6 +28,7 @@ const (
 	CodeQQTooManyRequests      Code = 10011
 	CodeQQSessionNotExist      Code = 10012
 	CodeQQAlreadyRegistered    Code = 10013
+	CodeCreditNotEnough        Code = 10014
 
 	// ==================== 物品 2xxxx ====================
 
@@ -73,6 +74,7 @@ var Msg = map[Code]string{
 	CodeQQTooManyRequests:      "QQ绑定请求过多，请等冷却后再试",
 	CodeQQSessionNotExist:      "QQ绑定会话不存在或已经失效",
 	CodeQQAlreadyRegistered:    "QQ已被注册或账号已绑定QQ",
+	CodeCreditNotEnough:        "积分不够",
 
 	CodeTest: "这是开发人员测试",
 }

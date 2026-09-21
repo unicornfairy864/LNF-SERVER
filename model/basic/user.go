@@ -14,7 +14,7 @@ type User struct {
 	Avatar       *string    `gorm:"column:avatar;type:varchar(255)" json:"avatar,omitempty"`
 	Role         int8       `gorm:"column:role;type:tinyint;not null;default:0" json:"role"`
 	Status       int8       `gorm:"column:status;type:tinyint;not null;default:1" json:"status"`
-	Credit       int        `gorm:"column:credit;type:int;not null;default:0" json:"credit"`
+	Credit       int64      `gorm:"column:credit;type:int;not null;default:0" json:"credit"`
 	LastLoginAt  *time.Time `gorm:"column:last_login_at;type:datetime" json:"last_login_at,omitempty"`
 	CreatedAt    time.Time  `gorm:"column:created_at;type:datetime;not null;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt    time.Time  `gorm:"column:updated_at;type:datetime;not null;default:CURRENT_TIMESTAMP;autoUpdateTime" json:"updated_at"`
@@ -37,7 +37,7 @@ type UserResponse struct {
 	Avatar      *string    `json:"avatar,omitempty"`
 	Role        int8       `json:"role"`
 	Status      int8       `json:"status"`
-	Credit      int        `json:"credit"`
+	Credit      int64      `json:"credit"`
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -83,19 +83,22 @@ type QQBindRequest struct {
 // ChangeUserRoleRequest 用户角色变更请求
 type ChangeUserRoleRequest struct {
 	ID   int64 `json:"id" binding:"required"`
-	Role int8  `json:"role" binding:"required"`
+	Role *int8 `json:"role" binding:"required"`
 }
 
 // ChangeUserStatusRequest 用户状态变更请求
 type ChangeUserStatusRequest struct {
 	ID     int64 `json:"id" binding:"required"`
-	Status int8  `json:"status" binding:"required"`
+	Status *int8 `json:"status" binding:"required"`
 }
 
-// ChangeUserCreditRequest 用户积分变更请求
-type ChangeUserCreditRequest struct {
-	ID     int64 `json:"id" binding:"required"`
-	Credit int   `json:"credit" binding:"required"`
+// AddUserCreditRequest 用户积分变更请求
+type AddUserCreditRequest struct {
+	ID         int64   `json:"id" binding:"required"`
+	Credit     int64   `json:"credit" binding:"required"`
+	Type       int64   `json:"type" binding:"required"`
+	Desc       *string `json:"description,omitempty"`
+	OperatorID int64   `json:"operator_id" binding:"required"`
 }
 
 // UserToResponse 将User模型转换为UserResponse
@@ -119,4 +122,15 @@ func UserToResponse(user *User) UserResponse {
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
 	}
+}
+
+type CreditLog struct {
+	UserID       int64     `json:"user_id"`
+	ChangeAmount int64     `json:"change_amount"`
+	BeforeAmount int64     `json:"before_amount"`
+	AfterAmount  int64     `json:"after_amount"`
+	Type         int64     `json:"type"`
+	Description  string    `json:"description"`
+	OperatorID   int64     `json:"operator_id"`
+	CreatedAt    time.Time `json:"created_at"`
 }

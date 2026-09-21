@@ -11,15 +11,16 @@ type UserRouter struct{}
 
 func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 	userGroup := api.Group("/user")
-	// public
+	// Public
 	public := userGroup.Group("")
 	{
 		// User
 		public.POST("/create", handler.UserHandler.CreateUserHandler)
 		public.POST("/login", handler.UserHandler.LoginHandler)
 	}
-	// private
-	private := userGroup.Use(middleware.JWTAuthMiddleware())
+	// Private
+	private := userGroup.Group("")
+	private.Use(middleware.JWTAuthMiddleware())
 	{
 		// User
 		private.POST("/logout", handler.UserHandler.LogoutHandler)
@@ -40,5 +41,15 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 				TokenFresh: false,
 			})
 		})
+	}
+
+	// Admin
+	admin := userGroup.Group("")
+	admin.Use(middleware.JWTAuthMiddleware())
+	admin.Use(middleware.SystemAdminAuthMiddleware())
+	{
+		admin.POST("/admin-change-role", handler.UserHandler.ChangeUserRoleHandler)
+		admin.POST("/admin-change-status", handler.UserHandler.ChangeUserStatusHandler)
+		admin.POST("/admin-add-credit", handler.UserHandler.AddUserCreditHandler)
 	}
 }
