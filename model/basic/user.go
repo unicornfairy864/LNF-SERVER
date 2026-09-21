@@ -31,14 +31,14 @@ type UserResponse struct {
 	ID          int64      `json:"id"`
 	Username    string     `json:"username"`
 	Nickname    string     `json:"nickname"`
-	Realname    *string    `json:"realname,omitempty"`
-	Gender      *int8      `json:"gender,omitempty"`
-	QQ          *string    `json:"qq,omitempty"`
-	Avatar      *string    `json:"avatar,omitempty"`
+	Realname    *string    `json:"realname"`
+	Gender      *int8      `json:"gender"`
+	QQ          *string    `json:"qq"`
+	Avatar      *string    `json:"avatar"`
 	Role        int8       `json:"role"`
 	Status      int8       `json:"status"`
 	Credit      int64      `json:"credit"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	LastLoginAt *time.Time `json:"last_login_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
@@ -47,10 +47,10 @@ type UserResponse struct {
 type PublicUserResponse struct {
 	ID          int64      `json:"id"`
 	Nickname    string     `json:"nickname"`
-	Gender      *int8      `json:"gender,omitempty"`
-	Avatar      *string    `json:"avatar,omitempty"`
+	Gender      *int8      `json:"gender"`
+	Avatar      *string    `json:"avatar"`
 	Role        int8       `json:"role"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	LastLoginAt *time.Time `json:"last_login_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
@@ -110,6 +110,10 @@ type AddUserCreditRequest struct {
 	Type       int64   `json:"type" binding:"required"`
 	Desc       *string `json:"description,omitempty"`
 	OperatorID int64   `json:"operator_id" binding:"required"`
+}
+
+type GetListRequest struct {
+	IDs []int64 `json:"ids" binding:"required"`
 }
 
 // UserToResponse 将User模型转换为UserResponse

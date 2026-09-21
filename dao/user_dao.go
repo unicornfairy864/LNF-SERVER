@@ -23,6 +23,12 @@ func (userGroup *UserGroup) GetUserByID(id int64) (user *model.User) {
 	return user
 }
 
+func (userGroup *UserGroup) GetUserListByIDs(ids []int64) []model.User {
+	var users []model.User
+	global.LNF_DB.Where("id IN (?)", ids).Find(&users)
+	return users
+}
+
 func (userGroup *UserGroup) GetUserByQQ(QQ string) (user *model.User) {
 	user = &model.User{}
 	global.LNF_DB.Where("qq = ?", QQ).First(user)

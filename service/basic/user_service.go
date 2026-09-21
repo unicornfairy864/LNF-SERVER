@@ -44,6 +44,17 @@ func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*mode
 	return &user, response.CodeSuccess
 }
 
+func (userService *UserServiceGroup) GetListService(ids []int64) (*[]model.PublicUserResponse, response.Code) {
+	users := dao.UserDao.GetUserListByIDs(ids)
+	pubRes := []model.PublicUserResponse{}
+	for _, user := range users {
+		if user.ID != 0 {
+			pubRes = append(pubRes, *model.UserToPublicUserResponse(&user))
+		}
+	}
+	return &pubRes, response.CodeSuccess
+}
+
 func (userService *UserServiceGroup) Login(req *model.LoginRequest) (*model.User, *string, response.Code) {
 	// 判断表单是否符合要求
 	if req.Username == "" || req.Password == "" ||
@@ -66,6 +77,10 @@ func (userService *UserServiceGroup) Login(req *model.LoginRequest) (*model.User
 	token, err := utils.JWT.GenerateToken(user, false)
 	if err != nil {
 		return nil, nil, response.CodeServerError
+	}
+	err = dao.UserDao.UpdateUserByVK(user.ID, map[string]interface{}{"last_login_at": time.Now()})
+	if err != nil {
+		return nil, nil, response.CodeDatabaseError
 	}
 	return user, &token, response.CodeSuccess
 }

@@ -7,6 +7,7 @@ import (
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 	"github.com/unicornfairy864/LNF-SERVER/service"
+	"github.com/unicornfairy864/LNF-SERVER/utils"
 )
 
 type UserHandlerGroup struct{}
@@ -58,6 +59,34 @@ func (userHandler *UserHandlerGroup) LoginHandler(c *gin.Context) {
 	response.FailWithCode(c, errCode)
 }
 
+// GetListHandler  根据id获取用户列表
+// @Summary      根据id获取用户列表
+// @Description  接收id数组，返回PublicUserResponse数组 <br /> 注意：结果可能不是输入列表的顺序且会过滤无效id
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.GetListRequest  true  "获取用户列表请求体"
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/get-list [post]
+func (userHandler *UserHandlerGroup) GetListHandler(c *gin.Context) {
+	req := model.GetListRequest{}
+	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	if len(req.IDs) == 0 {
+		response.SuccessWithData(c, []model.PublicUserResponse{})
+		return
+	}
+	pubRes, code := service.UserService.GetListService(req.IDs)
+	utils.LogJson(pubRes)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.SuccessWithData(c, pubRes)
+}
+
 // LogoutHandler  用户登出
 // @Summary      用户登出
 // @Description  选择全部登出或仅当前会话登出
@@ -81,6 +110,7 @@ func (userHandler *UserHandlerGroup) LogoutHandler(c *gin.Context) {
 	}
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
+		return
 	}
 	response.Success(c)
 }
