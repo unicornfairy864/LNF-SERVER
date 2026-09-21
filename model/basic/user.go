@@ -43,6 +43,17 @@ type UserResponse struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
+// PublicUserResponse 公开相应模型
+type PublicUserResponse struct {
+	ID          int64      `json:"id"`
+	Nickname    string     `json:"nickname"`
+	Gender      *int8      `json:"gender,omitempty"`
+	Avatar      *string    `json:"avatar,omitempty"`
+	Role        int8       `json:"role"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
 // LoginRequest 用户登录请求
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
@@ -121,6 +132,23 @@ func UserToResponse(user *User) UserResponse {
 		LastLoginAt: user.LastLoginAt,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
+	}
+}
+
+// UserToPublicUserResponse 将用户转为公开响应模型
+func UserToPublicUserResponse(u *User) *PublicUserResponse {
+	if u == nil {
+		return nil
+	}
+
+	return &PublicUserResponse{
+		ID:          u.ID,
+		Nickname:    u.Nickname,
+		Gender:      u.Gender,
+		Avatar:      u.Avatar,
+		Role:        u.Role,
+		LastLoginAt: u.LastLoginAt,
+		CreatedAt:   u.CreatedAt,
 	}
 }
 
