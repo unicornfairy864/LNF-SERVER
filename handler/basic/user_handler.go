@@ -14,7 +14,7 @@ type UserHandlerGroup struct{}
 
 // CreateUserHandler 创建用户
 // @Summary      创建用户
-// @Description  创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。
+// @Description  创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。<br />不返回用户数据。
 // @Tags         user
 // @Accept       json
 // @Produce      json
@@ -29,7 +29,7 @@ func (userHandler *UserHandlerGroup) CreateUserHandler(c *gin.Context) {
 	}
 	user, errCode := service.UserService.Create(&req)
 	if user != nil {
-		response.SuccessWithData(c, user)
+		response.Success(c)
 		return
 	}
 	response.FailWithCode(c, errCode)
@@ -59,17 +59,17 @@ func (userHandler *UserHandlerGroup) LoginHandler(c *gin.Context) {
 	response.FailWithCode(c, errCode)
 }
 
-// GetByIdsHandler  根据id获取用户列表
+// BatchHandler  根据id获取用户列表
 // @Summary      根据id获取用户列表
 // @Description  接收id数组，返回PublicUserResponse数组 <br /> 注意：结果可能不是输入列表的顺序且会过滤无效id
 // @Tags         user
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.GetByIdsRequest  true  "获取用户列表请求体"
+// @Param        request  body      model.BatchHandler  true  "获取用户列表请求体"
 // @Success      200      {object}  response.CommonResponse{}
-// @Router       /api/v1/user/get-list [post]
-func (userHandler *UserHandlerGroup) GetByIdsHandler(c *gin.Context) {
-	req := model.GetByIdsRequest{}
+// @Router       /api/v1/user/batch [post]
+func (userHandler *UserHandlerGroup) BatchHandler(c *gin.Context) {
+	req := model.BatchRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
 		return
@@ -78,13 +78,29 @@ func (userHandler *UserHandlerGroup) GetByIdsHandler(c *gin.Context) {
 		response.SuccessWithData(c, []model.PublicUserResponse{})
 		return
 	}
-	pubRes, code := service.UserService.GetByIdsService(req.IDs)
+	pubRes, code := service.UserService.BatchService(req.IDs)
 	utils.LogJson(pubRes)
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return
 	}
 	response.SuccessWithData(c, pubRes)
+}
+
+// GetMeHandler  拥有jwt的用户获取自己信息
+// @Summary      拥有jwt的用户获取自己信息
+// @Description  拥有jwt的用户获取自己信息
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Success      200      {object}  response.CommonResponse{}
+// @Router       /api/v1/user/me [get]
+func (userHandler *UserHandlerGroup) GetMeHandler(c *gin.Context) {
+	res, code := service.UserService.GetMeService(c.GetInt64("jwt:id"))
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+	}
+	response.SuccessWithData(c, res)
 }
 
 // LogoutHandler  用户登出

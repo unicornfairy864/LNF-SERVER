@@ -44,7 +44,7 @@ func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*mode
 	return &user, response.CodeSuccess
 }
 
-func (userService *UserServiceGroup) GetByIdsService(ids []int64) (*[]model.PublicUserResponse, response.Code) {
+func (userService *UserServiceGroup) BatchService(ids []int64) (*[]model.PublicUserResponse, response.Code) {
 	users := dao.UserDao.GetUserListByIDs(ids)
 	var pubRes []model.PublicUserResponse
 	for _, user := range users {
@@ -53,6 +53,14 @@ func (userService *UserServiceGroup) GetByIdsService(ids []int64) (*[]model.Publ
 		}
 	}
 	return &pubRes, response.CodeSuccess
+}
+
+func (userService *UserServiceGroup) GetMeService(id int64) (*model.UserResponse, response.Code) {
+	user := dao.UserDao.GetUserByID(id)
+	if user.ID == 0 {
+		return nil, response.CodeUserNotFoundOrBanned
+	}
+	return model.UserToResponse(user), response.CodeSuccess
 }
 
 func (userService *UserServiceGroup) Login(req *model.LoginRequest) (*model.User, *string, response.Code) {

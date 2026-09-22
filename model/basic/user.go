@@ -112,17 +112,17 @@ type AddUserCreditRequest struct {
 	OperatorID int64   `json:"operator_id" binding:"required"`
 }
 
-type GetByIdsRequest struct {
+type BatchRequest struct {
 	IDs []int64 `json:"ids" binding:"required"`
 }
 
 // UserToResponse 将User模型转换为UserResponse
-func UserToResponse(user *User) UserResponse {
+func UserToResponse(user *User) *UserResponse {
 	if user == nil {
-		return UserResponse{}
+		return &UserResponse{}
 	}
 
-	return UserResponse{
+	return &UserResponse{
 		ID:          user.ID,
 		Username:    user.Username,
 		Nickname:    user.Nickname,
