@@ -138,29 +138,26 @@ func (userService *UserServiceGroup) Update(id int64, req *model.UpdateUserReque
 }
 
 func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti string) response.Code {
-	/* 绑定QQ思路: 若上一个 code 未失效, 则不生成新的
-	 * 1, qq:bind:{jti}:code  string
-	 * 2, qq:bind:{jti}:tries int64    <-Redis Incr Returns A Int64 Number
-	 */
+	// 绑定QQ思路: 若上一个 code 未失效, 则不生成新的
 	// 判断会话是否存在
-	str, err := dao.RedisDao.GetValueString("qq:bind:" + jti + ":code")
+	str, err := dao.RedisDao.GetValueString(dao.GetQQBindCodeKey(jti))
 	if err != nil {
 		return response.CodeDatabaseError
 	}
 	if str != "" {
 		return response.CodeQQSessionAlreadyExists
 	}
-	ok, err := dao.RedisDao.KeyExists("qq:bind-session:" + qq)
+	ok, err := dao.RedisDao.KeyExists(dao.GetQQBindSessionKey(qq))
 	if err != nil || ok == true {
 		return response.CodeQQSessionAlreadyExists
 	}
 	// 先生成验证码，对jti进行冷却，防止多次bot查询
 	QQCode := strconv.Itoa(rand.Intn(900000) + 100000)
 	kv := make(map[string]interface{})
-	kv["qq:bind-session:"+qq] = 1
-	kv["qq:bind:"+jti+":code"] = QQCode
-	kv["qq:bind:"+jti+":tries"] = "0"
-	kv["qq:bind:"+jti+":qq"] = qq
+	kv[dao.GetQQBindSessionKey(qq)] = 1
+	kv[dao.GetQQBindCodeKey(jti)] = QQCode
+	kv[dao.GetQQBindTriesKey(jti)] = "0"
+	kv[dao.GetQQBindQQKey(jti)] = qq
 	err = dao.RedisDao.PipeSetKey(kv, global.LNF_CONFIG.ChenSong.BindTimeout)
 	if err != nil {
 		return response.CodeDatabaseError
@@ -191,9 +188,9 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 
 func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, reqCode string) response.Code {
 	// 检测表单是否符合会话
-	keyCode := "qq:bind:" + jti + ":code"
-	keyTries := "qq:bind:" + jti + ":tries"
-	keyQQ := "qq:bind:" + jti + ":qq"
+	keyCode := dao.GetQQBindCodeKey(jti)
+	keyTries := dao.GetQQBindTriesKey(jti)
+	keyQQ := dao.GetQQBindQQKey(jti)
 	res, err := dao.RedisDao.PipeGetString([]string{keyCode, keyTries, keyQQ})
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -218,7 +215,7 @@ func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, 
 		return response.CodeQQCodeError
 	}
 	err = dao.RedisDao.DelKey(keyCode)
-	err = dao.RedisDao.DelKey("qq:bind-session:" + reqQQ)
+	err = dao.RedisDao.DelKey(dao.GetQQBindSessionKey(reqQQ))
 	if err != nil {
 		return response.CodeDatabaseError
 	}

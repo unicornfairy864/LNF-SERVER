@@ -9,6 +9,28 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	qqBindPrefix = "qq:bind:"
+
+	ConditionIDNotDeleted = "id = ? AND is_deleted = 0"
+)
+
+func GetQQBindSessionKey(qq string) string {
+	return qqBindPrefix + qq
+}
+
+func GetQQBindCodeKey(jti string) string {
+	return fmt.Sprintf("%s%s:code", qqBindPrefix, jti)
+}
+
+func GetQQBindTriesKey(jti string) string {
+	return fmt.Sprintf("%s%s:tries", qqBindPrefix, jti)
+}
+
+func GetQQBindQQKey(jti string) string {
+	return fmt.Sprintf("%s%s:qq", qqBindPrefix, jti)
+}
+
 type UserGroup struct{}
 
 func (userGroup *UserGroup) GetUserByUsername(username string) (user *model.User) {
@@ -46,7 +68,7 @@ func (userGroup *UserGroup) UpdateUserByVK(id int64, updates map[string]interfac
 	}
 	updates["updated_at"] = time.Now()
 	result := global.LNF_DB.Model(&model.User{}).
-		Where("id = ? AND is_deleted = 0", id).
+		Where(ConditionIDNotDeleted, id).
 		Updates(updates)
 	if result.Error != nil {
 		return result.Error
@@ -63,7 +85,7 @@ func (userGroup *UserGroup) AddUserCredit(id int64, delta int64, logType int64, 
 		// 加行锁读取当前用户积分，防止并发丢失更新
 		var user model.User
 		if err := tx.Set("gorm:query_option", "FOR UPDATE").
-			Where("id = ? AND is_deleted = 0", id).
+			Where(ConditionIDNotDeleted, id).
 			First(&user).Error; err != nil {
 			return err
 		}
@@ -87,7 +109,7 @@ func (userGroup *UserGroup) AddUserCredit(id int64, delta int64, logType int64, 
 			"updated_at": time.Now(),
 		}
 		if err := tx.Model(&model.User{}).
-			Where("id = ? AND is_deleted = 0", id).
+			Where(ConditionIDNotDeleted, id).
 			Updates(updates).Error; err != nil {
 			return err
 		}

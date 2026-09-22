@@ -12,6 +12,15 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/utils"
 )
 
+var (
+	ContextID       = "jwt:id"
+	ContextNickname = "jwt:nickname"
+	ContextRole     = "jwt:role"
+
+	ContextJti       = "jwt:jti"
+	ContextExpiredAt = "jwt:expired_at"
+)
+
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 解析 Header
@@ -90,12 +99,12 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 
 		uid, _ := strconv.ParseInt(claims.Subject, 10, 64)
-		c.Set("jwt:id", uid)
-		c.Set("jwt:nickname", claims.Nickname)
-		c.Set("jwt:role", claims.Role)
+		c.Set(ContextID, uid)
+		c.Set(ContextNickname, claims.Nickname)
+		c.Set(ContextRole, claims.Role)
 
-		c.Set("jwt:jti", claims.ID)
-		c.Set("jwt:expired_at", claims.ExpiresAt.Time)
+		c.Set(ContextJti, claims.ID)
+		c.Set(ContextExpiredAt, claims.ExpiresAt.Time)
 		c.Next()
 		return
 	}

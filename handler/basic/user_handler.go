@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/unicornfairy864/LNF-SERVER/middleware"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 	"github.com/unicornfairy864/LNF-SERVER/service"
@@ -99,7 +100,7 @@ func (userHandler *UserHandlerGroup) GetMeHandler(c *gin.Context) {
 	if c.Request.Method == "POST" {
 		c.Header("Warning", "Method not recommended. Please use GET.")
 	}
-	res, code := service.UserService.GetMeService(c.GetInt64("jwt:id"))
+	res, code := service.UserService.GetMeService(c.GetInt64(middleware.ContextID))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 	}
@@ -123,9 +124,9 @@ func (userHandler *UserHandlerGroup) LogoutHandler(c *gin.Context) {
 	}
 	var code response.Code
 	if req.LogoutAll == 1 {
-		code = service.UserService.LogoutAll(c.GetInt64("jwt:id"))
+		code = service.UserService.LogoutAll(c.GetInt64(middleware.ContextID))
 	} else {
-		code = service.UserService.Logout(c.GetString("jwt:jti"), c.GetTime("jwt:expired_at"))
+		code = service.UserService.Logout(c.GetString(middleware.ContextJti), c.GetTime(middleware.ContextExpiredAt))
 	}
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
@@ -149,7 +150,7 @@ func (userHandler *UserHandlerGroup) UpdateHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
-	code := service.UserService.Update(c.GetInt64("jwt:id"), &req)
+	code := service.UserService.Update(c.GetInt64(middleware.ContextID), &req)
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return
@@ -173,7 +174,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
-	code := service.UserService.QQGetCode(strconv.FormatInt(req.QQ, 10), c.GetString("jwt:nickname"), c.GetString("jwt:jti"))
+	code := service.UserService.QQGetCode(strconv.FormatInt(req.QQ, 10), c.GetString(middleware.ContextNickname), c.GetString(middleware.ContextJti))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return
@@ -197,7 +198,7 @@ func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
-	code := service.UserService.QQBind(c.GetInt64("jwt:id"), c.GetString("jwt:jti"), strconv.FormatInt(req.QQ, 10), strconv.FormatInt(req.Code, 10))
+	code := service.UserService.QQBind(c.GetInt64(middleware.ContextID), c.GetString(middleware.ContextID), strconv.FormatInt(req.QQ, 10), strconv.FormatInt(req.Code, 10))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return
