@@ -137,7 +137,7 @@ func (userService *UserServiceGroup) Update(id int64, req *model.UpdateUserReque
 	return response.CodeSuccess
 }
 
-func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti string) response.Code {
+func (userService *UserServiceGroup) QQGetCode(qq, nickname, jti string) response.Code {
 	// 绑定QQ思路: 若上一个 code 未失效, 则不生成新的
 	// 判断会话是否存在
 	str, err := dao.RedisDao.GetValueString(dao.GetQQBindCodeKey(jti))
