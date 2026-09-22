@@ -17,6 +17,15 @@ definitions:
     - operator_id
     - type
     type: object
+  model.BatchRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - ids
+    type: object
   model.ChangeUserRoleRequest:
     properties:
       id:
@@ -253,11 +262,33 @@ paths:
       summary: 系统管理员改变用户状态(禁用)
       tags:
       - user
+  /api/v1/user/batch:
+    post:
+      consumes:
+      - application/json
+      description: 接收id数组，返回PublicUserResponse数组 <br /> 注意：结果可能不是输入列表的顺序且会过滤无效id
+      parameters:
+      - description: 获取用户列表请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.BatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 根据id获取用户列表
+      tags:
+      - user
   /api/v1/user/create:
     post:
       consumes:
       - application/json
-      description: 创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。
+      description: 创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。<br />不返回用户数据。
       parameters:
       - description: 创建用户请求体
         in: body
@@ -327,6 +358,21 @@ paths:
           schema:
             $ref: '#/definitions/response.CommonResponse'
       summary: 用户登出
+      tags:
+      - user
+  /api/v1/user/me:
+    get:
+      consumes:
+      - application/json
+      description: 拥有jwt的用户获取自己信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 拥有jwt的用户获取自己信息
       tags:
       - user
   /api/v1/user/qq/bind:

@@ -106,9 +106,43 @@
                 }
             }
         },
+        "/api/v1/user/batch": {
+            "post": {
+                "description": "接收id数组，返回PublicUserResponse数组 \u003cbr /\u003e 注意：结果可能不是输入列表的顺序且会过滤无效id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "根据id获取用户列表",
+                "parameters": [
+                    {
+                        "description": "获取用户列表请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.BatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/create": {
             "post": {
-                "description": "创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。",
+                "description": "创建新用户。用户名和昵称长度 2-32，密码长度 8-20，用户名必须唯一。\u003cbr /\u003e不返回用户数据。",
                 "consumes": [
                     "application/json"
                 ],
@@ -222,6 +256,29 @@
                         }
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/me": {
+            "get": {
+                "description": "拥有jwt的用户获取自己信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "拥有jwt的用户获取自己信息",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -359,6 +416,20 @@
                 },
                 "type": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.BatchRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },

@@ -65,7 +65,7 @@ func (userHandler *UserHandlerGroup) LoginHandler(c *gin.Context) {
 // @Tags         user
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.BatchHandler  true  "获取用户列表请求体"
+// @Param        request  body      model.BatchRequest  true  "获取用户列表请求体"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/batch [post]
 func (userHandler *UserHandlerGroup) BatchHandler(c *gin.Context) {
@@ -96,6 +96,9 @@ func (userHandler *UserHandlerGroup) BatchHandler(c *gin.Context) {
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/me [get]
 func (userHandler *UserHandlerGroup) GetMeHandler(c *gin.Context) {
+	if c.Request.Method == "POST" {
+		c.Header("Warning", "Method not recommended. Please use GET.")
+	}
 	res, code := service.UserService.GetMeService(c.GetInt64("jwt:id"))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)

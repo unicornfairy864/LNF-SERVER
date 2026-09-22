@@ -18,8 +18,7 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 		public.POST("/create", handler.UserHandler.CreateUserHandler)
 		public.POST("/login", handler.UserHandler.LoginHandler)
 
-		public.POST("/get-by-ids", handler.UserHandler.BatchHandler)
-		public.GET("/get-me", handler.UserHandler.GetMeHandler)
+		public.POST("/batch", handler.UserHandler.BatchHandler)
 	}
 	// Private
 	private := userGroup.Group("")
@@ -28,6 +27,8 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 		// User
 		private.POST("/logout", handler.UserHandler.LogoutHandler)
 		private.POST("/update", handler.UserHandler.UpdateHandler)
+		public.GET("/me", handler.UserHandler.GetMeHandler)
+		public.POST("/me", handler.UserHandler.GetMeHandler)
 
 		private.POST("/qq/get-code", handler.UserHandler.QQGetCodeHandler)
 		private.POST("/qq/bind", handler.UserHandler.QQBindHandler)
