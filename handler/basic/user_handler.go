@@ -252,13 +252,13 @@ func (userHandler *UserHandlerGroup) ChangeUserStatusHandler(c *gin.Context) {
 	response.Success(c)
 }
 
-// AddUserCreditHandler  系统管理员改变用户积分
+// AddUserCreditHandler  系统管理员增加用户积分
 // @Summary      系统管理员改变用户积分
-// @Description  Role为2的用户改变任意用户积分，可选为SET或ADD (is_delta)
+// @Description  Role为2的用户改变任意用户积分（含正负），积分会检测不小于0<br />当credit=-99999时，清零积分
 // @Tags         user
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.AddUserCreditRequest  true  "变更用户角色请求"
+// @Param        request  body      model.AddUserCreditRequest  true  "增加用户积分请求"
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/user/admin-add-credit [post]
 func (userHandler *UserHandlerGroup) AddUserCreditHandler(c *gin.Context) {
