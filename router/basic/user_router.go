@@ -18,7 +18,7 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 		public.POST("/create", handler.UserHandler.CreateUserHandler)
 		public.POST("/login", handler.UserHandler.LoginHandler)
 
-		public.POST("/get-by-ids", handler.UserHandler.GetListHandler)
+		public.POST("/get-by-ids", handler.UserHandler.GetByIdsHandler)
 	}
 	// Private
 	private := userGroup.Group("")
