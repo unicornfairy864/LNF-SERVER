@@ -9,6 +9,8 @@ import (
 
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
+	// 空导入以执行 docs 包的 init() 函数，向 ginSwagger 注册 Swagger 路由
 	_ "github.com/unicornfairy864/LNF-SERVER/docs"
 )
 

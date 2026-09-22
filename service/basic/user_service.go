@@ -186,7 +186,7 @@ func (userService *UserServiceGroup) QQGetCode(qq string, nickname string, jti s
 	return response.CodeSuccess
 }
 
-func (userService *UserServiceGroup) QQBind(id int64, jti string, reqQQ string, reqCode string) response.Code {
+func (userService *UserServiceGroup) QQBind(id int64, jti, reqQQ, reqCode string) response.Code {
 	// 检测表单是否符合会话
 	keyCode := dao.GetQQBindCodeKey(jti)
 	keyTries := dao.GetQQBindTriesKey(jti)
@@ -254,7 +254,7 @@ func (userService *UserServiceGroup) ChangeUserStatusRequest(req *model.ChangeUs
 		return response.CodeFormInvalid
 	}
 	if *req.Status == 1 {
-		_, err := dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(req.ID, 10) + ":version")
+		_, err := dao.RedisDao.INCR(dao.GetJwtVersionKey(req.ID))
 		if err != nil {
 			return response.CodeDatabaseError
 		}

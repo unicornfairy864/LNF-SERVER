@@ -9,28 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	qqBindPrefix = "qq:bind:"
-
-	ConditionIDNotDeleted = "id = ? AND is_deleted = 0"
-)
-
-func GetQQBindSessionKey(qq string) string {
-	return qqBindPrefix + qq
-}
-
-func GetQQBindCodeKey(jti string) string {
-	return fmt.Sprintf("%s%s:code", qqBindPrefix, jti)
-}
-
-func GetQQBindTriesKey(jti string) string {
-	return fmt.Sprintf("%s%s:tries", qqBindPrefix, jti)
-}
-
-func GetQQBindQQKey(jti string) string {
-	return fmt.Sprintf("%s%s:qq", qqBindPrefix, jti)
-}
-
 type UserGroup struct{}
 
 func (userGroup *UserGroup) GetUserByUsername(username string) (user *model.User) {

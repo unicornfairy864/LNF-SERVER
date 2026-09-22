@@ -36,9 +36,9 @@ func (j *JWTGroup) GenerateToken(user *model.User, VersionChanged bool) (string,
 		err     error
 	)
 	if VersionChanged {
-		version, err = dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
+		version, err = dao.RedisDao.INCR(dao.GetJwtVersionKey(user.ID))
 	} else {
-		version, err = dao.RedisDao.GetValueInt64("jwt:user:" + strconv.FormatInt(user.ID, 10) + ":version")
+		version, err = dao.RedisDao.GetValueInt64(dao.GetJwtVersionKey(user.ID))
 	}
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -90,14 +90,14 @@ func (j *JWTGroup) ParseToken(tokenString string) (*TokenClaims, error) {
 }
 
 func (j *JWTGroup) BanToken(claims *TokenClaims) error {
-	if err := dao.RedisDao.SetKey("jwt:blacklist:"+claims.ID, 1, time.Until(claims.ExpiresAt.Time)); err != nil {
+	if err := dao.RedisDao.SetKey(dao.GetJwtBlacklistKey(claims.ID), 1, time.Until(claims.ExpiresAt.Time)); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (j *JWTGroup) IsTokenBanned(jti string) error {
-	ok, err := dao.RedisDao.KeyExists("jwt:blacklist:" + jti)
+	ok, err := dao.RedisDao.KeyExists(dao.GetJwtBlacklistKey(jti))
 	if ok && err == nil {
 		return fmt.Errorf("TokenBanned")
 	} else if !ok && err == nil {
@@ -107,8 +107,7 @@ func (j *JWTGroup) IsTokenBanned(jti string) error {
 }
 
 func (j *JWTGroup) BanUserById(uid int64) error {
-	_, err := dao.RedisDao.INCR("jwt:user:" + strconv.FormatInt(uid, 10) + ":version")
-	LogJson("jwt:user:" + strconv.FormatInt(uid, 10) + ":version")
+	_, err := dao.RedisDao.INCR(dao.GetJwtVersionKey(uid))
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return fmt.Errorf("VersionNotExist")

@@ -103,6 +103,7 @@ func (userHandler *UserHandlerGroup) GetMeHandler(c *gin.Context) {
 	res, code := service.UserService.GetMeService(c.GetInt64(middleware.ContextID))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
+		return
 	}
 	response.SuccessWithData(c, res)
 }
