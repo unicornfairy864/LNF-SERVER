@@ -14,4 +14,5 @@ type LocationHandler struct{}
 // @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/location/create [post]
 func (l *LocationHandler) CreateLocationHandler(c *gin.Context) {
+	return
 }
