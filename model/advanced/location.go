@@ -21,9 +21,25 @@ func (Location) TableName() string {
 }
 
 // CreateLocationRequest 创建地点请求体
+// parent_id 允许为 0（根节点），sort_order 允许为 0；level 不由请求方指定，创建时按父级计算
 type CreateLocationRequest struct {
 	Name      string  `json:"name" binding:"required"`
-	ParentID  int64   `json:"parent_id" binding:"required"`
+	ParentID  int64   `json:"parent_id" binding:"gte=0"`
 	Address   *string `json:"address,omitempty"`
-	SortOrder int     `json:"sort_order" binding:"required"`
+	SortOrder int     `json:"sort_order" binding:"gte=0"`
+}
+
+// UpdateLocationRequest 更新地点请求体（id 必填，其余字段增量更新，非整体替换）
+type UpdateLocationRequest struct {
+	ID        int64   `json:"id" binding:"required"`
+	Name      *string `json:"name,omitempty"`
+	ParentID  *int64  `json:"parent_id,omitempty" binding:"omitempty,gte=0"`
+	Address   *string `json:"address,omitempty"`
+	SortOrder *int    `json:"sort_order,omitempty"`
+}
+
+// ListLocationRequest 地点列表查询条件（GET 参数，均可选）
+type ListLocationRequest struct {
+	ParentID *int64 `form:"parent_id,omitempty"`
+	Level    *int   `form:"level,omitempty"`
 }

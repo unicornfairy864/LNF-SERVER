@@ -10,4 +10,5 @@ var (
 	ItemHandler basic.ItemHandlerGroup
 
 	LocationHandler advanced.LocationHandler
+	TagHandler      advanced.TagHandler
 )

@@ -126,7 +126,7 @@ func SystemAdminAuthMiddleware() gin.HandlerFunc {
 
 func ServiceAdminAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role := c.GetInt8("role")
+		role := c.GetInt8("jwt:role")
 		if role == 0 {
 			response.FailWithCode(c, response.CodeUnauthorized)
 			c.Abort()

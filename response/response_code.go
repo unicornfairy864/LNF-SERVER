@@ -31,10 +31,21 @@ const (
 	CodeCreditNotEnough        Code = 10014
 
 	// ==================== 物品 2xxxx ====================
+	CodeItemNotFound        Code = 20001
+	CodeItemNoPermission    Code = 20005
+	CodeItemTypeInvalid     Code = 20006
+	CodeItemLocationInvalid Code = 20010
+	CodeItemImageTooMany    Code = 20013
+	CodeItemImageInvalid    Code = 20014
 
 	// ==================== 认领 3xxxx ====================
 
 	// ==================== 标签 & 关联 4xxxx ==============
+	// ==================== 标签 & 关联 4xxxx =============
+	CodeTagNotFound    Code = 40001
+	CodeTagDuplicate   Code = 40002
+	CodeTagNameInvalid Code = 40004
+	CodeTagInUse       Code = 40005
 
 	// ==================== 积分 5xxxx ====================
 
@@ -43,6 +54,10 @@ const (
 	// ==================== 举报 7xxxx ====================
 
 	// ==================== 地点 8xxxx ====================
+	CodeLocationNotFound    Code = 80001
+	CodeLocationDuplicate   Code = 80002
+	CodeLocationInUse       Code = 80004
+	CodeLocationHasChildren Code = 80005
 
 	// ==================== 公告 9xxxx ====================
 
@@ -75,6 +90,23 @@ var Msg = map[Code]string{
 	CodeQQSessionNotExist:      "QQ绑定会话不存在或已经失效",
 	CodeQQAlreadyRegistered:    "QQ已被注册或账号已绑定QQ",
 	CodeCreditNotEnough:        "积分不够",
+
+	CodeItemNotFound:        "物品不存在",
+	CodeItemNoPermission:    "无权操作该物品",
+	CodeItemTypeInvalid:     "物品类型非法",
+	CodeItemLocationInvalid: "地点无效",
+	CodeItemImageTooMany:    "物品图片最多3张",
+	CodeItemImageInvalid:    "物品图片参数错误",
+
+	CodeTagNotFound:    "标签不存在",
+	CodeTagDuplicate:   "标签名称已存在",
+	CodeTagNameInvalid: "标签名称无效",
+	CodeTagInUse:       "标签正在被使用，无法删除",
+
+	CodeLocationNotFound:    "地点不存在",
+	CodeLocationDuplicate:   "地点名称重复",
+	CodeLocationInUse:       "地点正在被物品引用，无法删除",
+	CodeLocationHasChildren: "存在子地点，无法删除",
 
 	CodeTest: "这是开发人员测试",
 }
