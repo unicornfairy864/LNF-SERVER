@@ -196,13 +196,13 @@ definitions:
 info:
   contact: {}
 paths:
-  /api/v1/user/admin-add-credit:
+  /api/v1/admin/add-credit:
     post:
       consumes:
       - application/json
-      description: Role为2的用户改变任意用户积分，可选为SET或ADD (is_delta)
+      description: Role为2的用户改变任意用户积分（含正负），积分会检测不小于0<br />当credit=-99999时，清零积分
       parameters:
-      - description: 变更用户角色请求
+      - description: 增加用户积分请求
         in: body
         name: request
         required: true
@@ -218,7 +218,7 @@ paths:
       summary: 系统管理员改变用户积分
       tags:
       - user
-  /api/v1/user/admin-change-role:
+  /api/v1/admin/change-role:
     post:
       consumes:
       - application/json
@@ -240,7 +240,7 @@ paths:
       summary: 系统管理员改变用户角色
       tags:
       - user
-  /api/v1/user/admin-change-status:
+  /api/v1/admin/change-status:
     post:
       consumes:
       - application/json

@@ -15,9 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/user/admin-add-credit": {
+        "/api/v1/admin/add-credit": {
             "post": {
-                "description": "Role为2的用户改变任意用户积分，可选为SET或ADD (is_delta)",
+                "description": "Role为2的用户改变任意用户积分（含正负），积分会检测不小于0\u003cbr /\u003e当credit=-99999时，清零积分",
                 "consumes": [
                     "application/json"
                 ],
@@ -30,7 +30,7 @@ const docTemplate = `{
                 "summary": "系统管理员改变用户积分",
                 "parameters": [
                     {
-                        "description": "变更用户角色请求",
+                        "description": "增加用户积分请求",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -49,7 +49,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/user/admin-change-role": {
+        "/api/v1/admin/change-role": {
             "post": {
                 "description": "Role为2的用户改变任意用户Role为0/1/2",
                 "consumes": [
@@ -83,7 +83,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/user/admin-change-status": {
+        "/api/v1/admin/change-status": {
             "post": {
                 "description": "Role为2的用户改变任意用户Status为0(禁用)/1(正常)",
                 "consumes": [

@@ -19,3 +19,11 @@ type Location struct {
 func (Location) TableName() string {
 	return "locations"
 }
+
+// CreateLocationRequest 创建地点请求体
+type CreateLocationRequest struct {
+	Name      string  `json:"name" binding:"required"`
+	ParentID  int64   `json:"parent_id" binding:"required"`
+	Address   *string `json:"address,omitempty"`
+	SortOrder int     `json:"sort_order" binding:"required"`
+}

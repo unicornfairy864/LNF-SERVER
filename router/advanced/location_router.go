@@ -9,11 +9,13 @@ import (
 type LocationRouter struct{}
 
 func (l *LocationRouter) CreateRouter(api *gin.RouterGroup) {
+	const ItemPrefix = "/item/{itemID}"
+
 	userGroup := api.Group("")
 	// Public
 	public := userGroup.Group("")
 	{
-		public.POST("/item/{itemID}/location")
+		public.POST(ItemPrefix + "/location")
 	}
 	// Private
 	private := userGroup.Group("")
