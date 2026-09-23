@@ -14,8 +14,8 @@ type Item struct {
 	LocationDetail *string    `gorm:"column:location_detail;type:varchar(200)" json:"location_detail,omitempty"`
 	LostFoundTime  time.Time  `gorm:"column:lost_found_time;type:datetime;not null" json:"lost_found_time"`
 	Contact        *string    `gorm:"column:contact;type:varchar(100)" json:"contact,omitempty"`
-	CreditReward   int        `gorm:"column:credit_reward;type:int;default:0" json:"credit_reward"`
-	ViewCount      int        `gorm:"column:view_count;type:int;not null;default:0" json:"view_count"`
+	CreditReward   int64      `gorm:"column:credit_reward;type:int;default:0" json:"credit_reward"`
+	ViewCount      int64      `gorm:"column:view_count;type:int;not null;default:0" json:"view_count"`
 	ClaimUserID    *int64     `gorm:"column:claim_user_id;type:bigint" json:"claim_user_id,omitempty"`
 	ClaimTime      *time.Time `gorm:"column:claim_time;type:datetime" json:"claim_time,omitempty"`
 	CreatedAt      time.Time  `gorm:"column:created_at;type:datetime;not null;default:CURRENT_TIMESTAMP" json:"created_at"`
@@ -40,8 +40,8 @@ type ItemResponse struct {
 	LocationDetail *string    `json:"location_detail,omitempty"`
 	LostFoundTime  time.Time  `json:"lost_found_time"`
 	Contact        *string    `json:"contact,omitempty"`
-	CreditReward   int        `json:"credit_reward"`
-	ViewCount      int        `json:"view_count"`
+	CreditReward   int64      `json:"credit_reward"`
+	ViewCount      int64      `json:"view_count"`
 	ClaimUserID    *int64     `json:"claim_user_id,omitempty"`
 	ClaimTime      *time.Time `json:"claim_time,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
