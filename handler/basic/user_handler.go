@@ -215,7 +215,7 @@ func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 // @Produce      json
 // @Param        request  body      model.ChangeUserRoleRequest  true  "变更用户角色请求"
 // @Success      200      {object}  response.CommonResponse{}
-// @Router       /api/v1/user/admin-change-role [post]
+// @Router       /api/v1/admin/change-role [post]
 func (userHandler *UserHandlerGroup) ChangeUserRoleHandler(c *gin.Context) {
 	req := model.ChangeUserRoleRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
@@ -238,7 +238,7 @@ func (userHandler *UserHandlerGroup) ChangeUserRoleHandler(c *gin.Context) {
 // @Produce      json
 // @Param        request  body      model.ChangeUserStatusRequest  true  "变更用户角色请求"
 // @Success      200      {object}  response.CommonResponse{}
-// @Router       /api/v1/user/admin-change-status [post]
+// @Router       /api/v1/admin/change-status [post]
 func (userHandler *UserHandlerGroup) ChangeUserStatusHandler(c *gin.Context) {
 	req := model.ChangeUserStatusRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {
@@ -261,7 +261,7 @@ func (userHandler *UserHandlerGroup) ChangeUserStatusHandler(c *gin.Context) {
 // @Produce      json
 // @Param        request  body      model.AddUserCreditRequest  true  "增加用户积分请求"
 // @Success      200      {object}  response.CommonResponse{}
-// @Router       /api/v1/user/admin-add-credit [post]
+// @Router       /api/v1/admin/add-credit [post]
 func (userHandler *UserHandlerGroup) AddUserCreditHandler(c *gin.Context) {
 	req := model.AddUserCreditRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil {

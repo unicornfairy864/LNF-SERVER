@@ -10,21 +10,19 @@ import (
 type UserRouter struct{}
 
 func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
-	userGroup := api.Group("/user")
+	userGroup := api.Group("")
 	// Public
-	public := userGroup.Group("")
+	public := userGroup.Group("/user")
 	{
-		// User
 		public.POST("/create", handler.UserHandler.CreateUserHandler)
 		public.POST("/login", handler.UserHandler.LoginHandler)
 
 		public.POST("/batch", handler.UserHandler.BatchHandler)
 	}
 	// Private
-	private := userGroup.Group("")
+	private := userGroup.Group("/user")
 	private.Use(middleware.JWTAuthMiddleware())
 	{
-		// User
 		private.POST("/logout", handler.UserHandler.LogoutHandler)
 		private.POST("/update", handler.UserHandler.UpdateHandler)
 		public.GET("/me", handler.UserHandler.GetMeHandler)
@@ -48,12 +46,12 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 	}
 
 	// Admin
-	admin := userGroup.Group("")
+	admin := userGroup.Group("/admin")
 	admin.Use(middleware.JWTAuthMiddleware())
 	admin.Use(middleware.SystemAdminAuthMiddleware())
 	{
-		admin.POST("/admin-change-role", handler.UserHandler.ChangeUserRoleHandler)
-		admin.POST("/admin-change-status", handler.UserHandler.ChangeUserStatusHandler)
-		admin.POST("/admin-add-credit", handler.UserHandler.AddUserCreditHandler)
+		admin.POST("/change-role", handler.UserHandler.ChangeUserRoleHandler)
+		admin.POST("/change-status", handler.UserHandler.ChangeUserStatusHandler)
+		admin.POST("/add-credit", handler.UserHandler.AddUserCreditHandler)
 	}
 }
