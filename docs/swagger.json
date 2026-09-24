@@ -106,6 +106,676 @@
                 }
             }
         },
+        "/api/v1/item/create": {
+            "post": {
+                "description": "创建失物（type=0）或招领（type=1）信息，创建即发布（status=0）；\u003cbr /\u003euser_id 取自 JWT；可携带 tag_ids 关联标签；location_id 指向不存在地点返回 20010，标签不存在返回 40001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "登录用户创建物品信息",
+                "parameters": [
+                    {
+                        "description": "创建物品请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/delete": {
+            "post": {
+                "description": "仅发布者本人可删；items 表为逻辑删除，删除后 is_deleted=1，不再出现在任何列表/详情中",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "登录用户删除自己的物品",
+                "parameters": [
+                    {
+                        "description": "删除物品请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.DeleteItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/list": {
+            "get": {
+                "description": "按类型/状态/地点/标签/关键词筛选物品，分页返回 ItemResponse 数组\u003cbr /\u003e未指定 status 时默认只返回已发布（status=0）的未删除物品",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "公开分页查询物品列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型: 0丢失 1拾到",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "状态: 0已发布 1已认领 2已关闭，默认0",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "地点ID",
+                        "name": "location_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "标签ID",
+                        "name": "tag_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "标题/描述关键词",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.ItemListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/mine": {
+            "get": {
+                "description": "查询当前用户发布的物品，默认返回全部状态；筛选与分页参数同公开列表接口",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "登录用户查询自己的发布记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型: 0丢失 1拾到",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "状态: 0已发布 1已认领 2已关闭，默认全部",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "标题/描述关键词",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大50",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.ItemListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/update": {
+            "post": {
+                "description": "仅发布者本人可改；给定 id 和非空字段做增量更新，非整体替换；\u003cbr /\u003e携带 tag_ids（可为空数组）时整体替换标签关联；非本人返回 20005，物品不存在返回 20001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "登录用户增量更新自己的物品",
+                "parameters": [
+                    {
+                        "description": "更新物品请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{itemID}": {
+            "get": {
+                "description": "返回物品详情（含地点链、标签、图片），浏览量 +1；物品不存在或已删除返回 20001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "公开获取物品详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "物品ID",
+                        "name": "itemID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.ItemResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{itemID}/images": {
+            "post": {
+                "description": "仅发布者本人可操作；整体替换该物品的图片列表，最多3张，sort_order 取值1-3且不可重复；\u003cbr /\u003e传空数组 images=[] 清空图片；超过3张返回 20013，参数非法返回 20014",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "登录用户覆盖式设置自己物品的图片",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "物品ID",
+                        "name": "itemID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "覆盖式设置图片请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.SetItemImagesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{itemID}/locations": {
+            "get": {
+                "description": "返回物品所在地点从根到叶的完整链路（含自身）；物品无地点时返回空数组；物品不存在返回 20001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "公开查询物品地点链",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "物品ID",
+                        "name": "itemID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Location"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/create": {
+            "post": {
+                "description": "serviceAdmin 及以上角色可创建；根据父元素ID创建地点，parent_id=0 表示根节点（level=1），否则 level=父级level+1；\u003cbr /\u003e详细地址 address 可选，sort_order 为递增排序条件（允许0）；父级不存在返回 80001，同父级下重名返回 80002",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "管理员创建地点",
+                "parameters": [
+                    {
+                        "description": "创建地点请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateLocationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/list": {
+            "get": {
+                "description": "按 parent_id / level 筛选地点（均可选，缺省返回全部），按 sort_order 升序；\u003cbr /\u003e传 parent_id=0 返回根节点列表，用于级联选择器",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "公开查询地点列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "父地点ID，0表示根节点",
+                        "name": "parent_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "树深度",
+                        "name": "level",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Location"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/update": {
+            "post": {
+                "description": "给定 id 和非空字段做增量更新，非整体替换；修改 parent_id 时校验父级存在（80001）、非自身非后代（1），\u003cbr /\u003e并在同一事务中重算整棵子树 level；地点不存在返回 80001，同父级下重名返回 80002",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "管理员更新地点",
+                "parameters": [
+                    {
+                        "description": "更新地点请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateLocationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/{locationID}": {
+            "delete": {
+                "description": "硬删除（locations 表无 is_deleted）；存在子地点返回 80005，被物品 location_id 引用返回 80004，地点不存在返回 80001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "管理员删除地点",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "地点ID",
+                        "name": "locationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tag/create": {
+            "post": {
+                "description": "serviceAdmin 及以上角色可创建；标签名必填且唯一（40002），长度 1-50（40004）；\u003cbr /\u003ecolor 可选（十六进制颜色），sort_order 为排序序号（默认0）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tag"
+                ],
+                "summary": "管理员创建标签",
+                "parameters": [
+                    {
+                        "description": "创建标签请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateTagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tag/list": {
+            "get": {
+                "description": "按 sort_order 升序返回全部标签，用于前端筛选器",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tag"
+                ],
+                "summary": "公开查询全部标签",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Tag"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tag/update": {
+            "post": {
+                "description": "给定 id 和非空字段做增量更新，非整体替换；标签不存在返回 40001，改名与其他标签重复返回 40002",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tag"
+                ],
+                "summary": "管理员更新标签",
+                "parameters": [
+                    {
+                        "description": "更新标签请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateTagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tag/{tagID}": {
+            "delete": {
+                "description": "硬删除（tags 表无 is_deleted）；标签不存在返回 40001，仍被物品关联时返回 40005",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tag"
+                ],
+                "summary": "管理员删除标签",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "标签ID",
+                        "name": "tagID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/batch": {
             "post": {
                 "description": "接收id数组，返回PublicUserResponse数组 \u003cbr /\u003e 注意：结果可能不是输入列表的顺序且会过滤无效id",
@@ -463,6 +1133,86 @@
                 }
             }
         },
+        "model.CreateItemRequest": {
+            "type": "object",
+            "required": [
+                "description",
+                "lost_found_time",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "contact": {
+                    "type": "string"
+                },
+                "credit_reward": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "location_detail": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "lost_found_time": {
+                    "type": "string"
+                },
+                "tag_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CreateLocationRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "model.CreateTagRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateUserRequest": {
             "type": "object",
             "required": [
@@ -478,6 +1228,172 @@
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.DeleteItemRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ItemImage": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ItemImageInput": {
+            "type": "object",
+            "required": [
+                "image_url",
+                "sort_order"
+            ],
+            "properties": {
+                "image_url": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ItemListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ItemResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ItemResponse": {
+            "type": "object",
+            "properties": {
+                "claim_time": {
+                    "type": "string"
+                },
+                "claim_user_id": {
+                    "type": "integer"
+                },
+                "contact": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "credit_reward": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ItemImage"
+                    }
+                },
+                "location_detail": {
+                    "type": "string"
+                },
+                "locations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Location"
+                    }
+                },
+                "lost_found_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Tag"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "view_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.Location": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -530,6 +1446,135 @@
             ],
             "properties": {
                 "qq": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.SetItemImagesRequest": {
+            "type": "object",
+            "required": [
+                "images"
+            ],
+            "properties": {
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ItemImageInput"
+                    }
+                }
+            }
+        },
+        "model.Tag": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateItemRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "claim_time": {
+                    "type": "string"
+                },
+                "claim_user_id": {
+                    "type": "integer"
+                },
+                "contact": {
+                    "type": "string"
+                },
+                "credit_reward": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_detail": {
+                    "type": "string"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "lost_found_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "tag_ids": {
+                    "description": "TagIDs 非 nil 时整体替换物品标签关联",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateLocationRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.UpdateTagRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
                     "type": "integer"
                 }
             }
@@ -621,6 +1666,20 @@
                 10012,
                 10013,
                 10014,
+                20001,
+                20005,
+                20006,
+                20010,
+                20013,
+                20014,
+                40001,
+                40002,
+                40004,
+                40005,
+                80001,
+                80002,
+                80004,
+                80005,
                 -1
             ],
             "x-enum-varnames": [
@@ -647,6 +1706,20 @@
                 "CodeQQSessionNotExist",
                 "CodeQQAlreadyRegistered",
                 "CodeCreditNotEnough",
+                "CodeItemNotFound",
+                "CodeItemNoPermission",
+                "CodeItemTypeInvalid",
+                "CodeItemLocationInvalid",
+                "CodeItemImageTooMany",
+                "CodeItemImageInvalid",
+                "CodeTagNotFound",
+                "CodeTagDuplicate",
+                "CodeTagNameInvalid",
+                "CodeTagInUse",
+                "CodeLocationNotFound",
+                "CodeLocationDuplicate",
+                "CodeLocationInUse",
+                "CodeLocationHasChildren",
                 "CodeTest"
             ]
         },
