@@ -41,23 +41,32 @@ func (locationService *LocationServiceGroup) CreateService(req *model.CreateLoca
 		return response.CodeParamError
 	}
 	level := rootLocationLevel
-	if req.ParentID > 0 {
-		parent := dao.LocationDao.GetLocationByID(req.ParentID)
+	// 指针字段仅在显式传入时生效，未传（nil）按默认值处理：parent_id=0 视为根节点，sort_order=0
+	parentID := int64(0)
+	if req.ParentID != nil {
+		parentID = *req.ParentID
+	}
+	sortOrder := 0
+	if req.SortOrder != nil {
+		sortOrder = *req.SortOrder
+	}
+	if parentID > 0 {
+		parent := dao.LocationDao.GetLocationByID(parentID)
 		if parent.ID == 0 {
 			return response.CodeLocationNotFound
 		}
 		level = parent.Level + 1
 	}
 	// 同父级下名称查重
-	if exists := dao.LocationDao.GetLocationByParentAndName(req.ParentID, name); exists.ID != 0 {
+	if exists := dao.LocationDao.GetLocationByParentAndName(parentID, name); exists.ID != 0 {
 		return response.CodeLocationDuplicate
 	}
 	location := &model.Location{
 		Name:      name,
-		ParentID:  req.ParentID,
+		ParentID:  parentID,
 		Level:     level,
 		Address:   req.Address,
-		SortOrder: req.SortOrder,
+		SortOrder: sortOrder,
 	}
 	if err := dao.LocationDao.CreateLocation(location); err != nil {
 		return response.CodeDatabaseError

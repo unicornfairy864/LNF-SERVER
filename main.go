@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/initialization"
+	"github.com/unicornfairy864/LNF-SERVER/utils"
 
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -50,4 +52,5 @@ func main() {
 
 func test() {
 	fmt.Print("这是测试")
+	utils.LogJson(time.Now())
 }

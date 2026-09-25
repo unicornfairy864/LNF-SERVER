@@ -60,9 +60,10 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// LogoutRequest 用户登录请求
+// LogoutRequest 用户登出请求
+// logout_all 为指针：0（仅当前会话）是合法输入，用 required 校验"必须显式传入"
 type LogoutRequest struct {
-	LogoutAll int8 `json:"logout_all" binding:"required"`
+	LogoutAll *int8 `json:"logout_all" binding:"required"`
 }
 
 // CreateUserRequest 用户注册请求
@@ -104,10 +105,11 @@ type ChangeUserStatusRequest struct {
 }
 
 // AddUserCreditRequest 用户积分变更请求
+// credit / type 为指针：0 是合法输入（credit=0 不产生变动，type=0 拾金不昧奖励）
 type AddUserCreditRequest struct {
 	ID         int64   `json:"id" binding:"required"`
-	Credit     int64   `json:"credit" binding:"required"`
-	Type       int64   `json:"type" binding:"required"`
+	Credit     *int64  `json:"credit" binding:"required"`
+	Type       *int64  `json:"type" binding:"required"`
 	Desc       *string `json:"description,omitempty"`
 	OperatorID int64   `json:"operator_id" binding:"required"`
 }

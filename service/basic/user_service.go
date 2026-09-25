@@ -270,7 +270,20 @@ func (userService *UserServiceGroup) ChangeUserStatusRequest(req *model.ChangeUs
 // Type: 类型: 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整
 // Delta/Credit <= -99999 时，清零Credit
 func (userService *UserServiceGroup) ChangeUserCreditRequest(req *model.AddUserCreditRequest) response.Code {
-	err := dao.UserDao.AddUserCredit(req.ID, req.Credit, req.Type, *req.Desc, req.OperatorID)
+	// 指针字段防 nil：未传时取默认值（credit=0 不产生变动，type=0 拾金不昧奖励，description 空串）
+	credit := int64(0)
+	if req.Credit != nil {
+		credit = *req.Credit
+	}
+	logType := int64(0)
+	if req.Type != nil {
+		logType = *req.Type
+	}
+	desc := ""
+	if req.Desc != nil {
+		desc = *req.Desc
+	}
+	err := dao.UserDao.AddUserCredit(req.ID, credit, logType, desc, req.OperatorID)
 	if err != nil {
 		if errors.Is(err, fmt.Errorf("credit not enough")) {
 			return response.CodeCreditNotEnough

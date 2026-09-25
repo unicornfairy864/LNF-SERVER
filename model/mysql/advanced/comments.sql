@@ -9,11 +9,9 @@ CREATE TABLE `comments` (
     `updated_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted`       TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除: 0否 1是',
     PRIMARY KEY (`id`),
-    KEY `idx_item_id` (`item_id`),
-    KEY `idx_user_id` (`user_id`),
-    KEY `idx_parent_id` (`parent_id`),
-    KEY `idx_status` (`status`),
-    KEY `idx_created_at` (`created_at`)
+    KEY `idx_item_status_created` (`item_id`, `status`, `created_at`),
+    KEY `idx_user_created` (`user_id`, `created_at`),
+    KEY `idx_parent_created` (`parent_id`, `created_at`)
 ) ENGINE = InnoDB
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_general_ci

@@ -22,11 +22,12 @@ func (Location) TableName() string {
 
 // CreateLocationRequest 创建地点请求体
 // parent_id 允许为 0（根节点），sort_order 允许为 0；level 不由请求方指定，创建时按父级计算
+// parent_id / sort_order 可省略（omitempty）：省略时按默认值处理，parent_id=0 视为根节点、sort_order=0
 type CreateLocationRequest struct {
 	Name      string  `json:"name" binding:"required"`
-	ParentID  int64   `json:"parent_id" binding:"gte=0"`
+	ParentID  *int64  `json:"parent_id" binding:"omitempty,gte=0"`
 	Address   *string `json:"address,omitempty"`
-	SortOrder int     `json:"sort_order" binding:"gte=0"`
+	SortOrder *int    `json:"sort_order" binding:"omitempty,gte=0"`
 }
 
 // UpdateLocationRequest 更新地点请求体（id 必填，其余字段增量更新，非整体替换）

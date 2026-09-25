@@ -83,7 +83,7 @@ func (userGroup *UserGroup) AddUserCredit(id int64, delta int64, logType int64, 
 
 		// 更新用户积分
 		updates := map[string]interface{}{
-			"points":     afterAmount,
+			"credit":     afterAmount,
 			"updated_at": time.Now(),
 		}
 		if err := tx.Model(&model.User{}).

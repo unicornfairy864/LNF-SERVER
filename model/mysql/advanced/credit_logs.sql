@@ -11,8 +11,7 @@ CREATE TABLE `credit_logs` (
     `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `is_deleted`       TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除: 0否 1是',
     PRIMARY KEY (`id`),
-	KEY `idx_user_created` (`user_id`, `created_at`),
-    KEY `idx_user_amount_dir_created` (`user_id`, (IF(change_amount > 0, 1, -1)), `created_at`)
+    KEY `idx_user_created` (`user_id`, `created_at`)
 ) ENGINE = InnoDB
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_general_ci

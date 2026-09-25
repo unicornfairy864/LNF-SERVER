@@ -124,7 +124,7 @@ func (userHandler *UserHandlerGroup) LogoutHandler(c *gin.Context) {
 		return
 	}
 	var code response.Code
-	if req.LogoutAll == 1 {
+	if req.LogoutAll != nil && *req.LogoutAll == 1 {
 		code = service.UserService.LogoutAll(c.GetInt64(middleware.ContextID))
 	} else {
 		code = service.UserService.Logout(c.GetString(middleware.ContextJti), c.GetTime(middleware.ContextExpiredAt))
@@ -195,7 +195,7 @@ func (userHandler *UserHandlerGroup) QQGetCodeHandler(c *gin.Context) {
 func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 	req := model.QQBindRequest{}
 	if err := c.ShouldBindBodyWithJSON(&req); err != nil ||
-		!(req.QQ >= 10000 && req.QQ <= 99999999999 || !(req.Code >= 100000 && req.Code <= 999999)) {
+		!(req.QQ >= 10000 && req.QQ <= 99999999999 && req.Code >= 100000 && req.Code <= 999999) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}

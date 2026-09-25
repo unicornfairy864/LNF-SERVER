@@ -72,7 +72,7 @@ type ItemResponse struct {
 type CreateItemRequest struct {
 	Title          string    `json:"title" binding:"required"`
 	Description    string    `json:"description" binding:"required"`
-	Type           int8      `json:"type" binding:"required"`
+	Type           *int8     `json:"type" binding:"required"`
 	LocationID     *int64    `json:"location_id,omitempty"`
 	LocationDetail *string   `json:"location_detail,omitempty"`
 	LostFoundTime  time.Time `json:"lost_found_time" binding:"required"`

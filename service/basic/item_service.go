@@ -133,7 +133,7 @@ func (itemService *ItemServiceGroup) GetDetailService(itemID int64) (*model.Item
 
 // CreateService 创建物品（status 默认 0 已发布）
 func (itemService *ItemServiceGroup) CreateService(userID int64, req *model.CreateItemRequest) response.Code {
-	if req.Type != 0 && req.Type != 1 {
+	if *req.Type != 0 && *req.Type != 1 {
 		return response.CodeItemTypeInvalid
 	}
 	if strings.TrimSpace(req.Title) == "" || len(req.Title) > itemMaxTitleLen {
@@ -155,7 +155,7 @@ func (itemService *ItemServiceGroup) CreateService(userID int64, req *model.Crea
 		UserID:         userID,
 		Title:          req.Title,
 		Description:    req.Description,
-		Type:           req.Type,
+		Type:           *req.Type,
 		Status:         0,
 		LocationID:     locationID,
 		LocationDetail: req.LocationDetail,
