@@ -9,7 +9,6 @@ CREATE TABLE `notifications` (
     `read_at`          DATETIME     DEFAULT NULL            COMMENT '阅读时间',
     `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `is_deleted`       TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除: 0否 1是',
     PRIMARY KEY (`id`),
     KEY `idx_type` (`type`),
 	KEY `idx_user_id_read` (`user_id`, `is_read`),
