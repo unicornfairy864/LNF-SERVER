@@ -352,6 +352,12 @@ definitions:
       realname:
         type: string
     type: object
+  model.UploadImageResponse:
+    properties:
+      url:
+        description: 图片相对 URL（如 /uploads/2026/09/26/{uuid}.jpg），前端展示时需拼接服务器源
+        type: string
+    type: object
   model.UserResponse:
     properties:
       avatar:
@@ -392,6 +398,9 @@ definitions:
     - 6
     - 7
     - 8
+    - 9
+    - 10
+    - 11
     - 10001
     - 10002
     - 10003
@@ -432,6 +441,9 @@ definitions:
     - CodeDatabaseError
     - CodeUnknownError
     - CodeChenSongError
+    - CodeUploadFileTooLarge
+    - CodeUploadFileTypeInvalid
+    - CodeUploadFailed
     - CodeUserOrPasswordError
     - CodeUsernameOccupied
     - CodeFormInvalid
@@ -967,6 +979,34 @@ paths:
       summary: 管理员更新标签
       tags:
       - tag
+  /api/v1/upload/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 头像与物品图通用的图片上传接口，multipart/form-data 的 file 字段；<br />仅支持 jpg/png/webp，单文件最大
+        5MB（storage.max_size 可调）；返回相对 URL（如 /uploads/2026/09/26/xxx.jpg），入库与前端展示时需自行拼接服务器源；<br
+        />文件过大返回 9，类型不支持返回 10，保存失败返回 11
+      parameters:
+      - description: 图片文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UploadImageResponse'
+              type: object
+      summary: 登录用户上传图片
+      tags:
+      - upload
   /api/v1/user/batch:
     post:
       consumes:

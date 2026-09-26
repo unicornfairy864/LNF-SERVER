@@ -31,3 +31,10 @@ api:
   openai_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   openai_base_url: "https://api.openai.com/v1"
   default_model: "gpt-4o-mini"
+
+# Storage (upload)
+storage:
+  driver: "local"
+  path: "./uploads"
+  max_size: 5242880
+  allowed_types: ["image/jpeg", "image/png", "image/webp"]

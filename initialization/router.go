@@ -1,10 +1,13 @@
 package initialization
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/unicornfairy864/LNF-SERVER/chensong"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/router"
+	"github.com/unicornfairy864/LNF-SERVER/service/storage"
 )
 
 func InitRouter() (r *gin.Engine) {
@@ -15,6 +18,7 @@ func InitRouter() (r *gin.Engine) {
 		// Basic
 		router.UserRouter.CreateRouter(api)
 		router.ItemRouter.CreateRouter(api)
+		router.UploadRouter.CreateRouter(api)
 		// Advanced
 		router.LocationRouter.CreateRouter(api)
 		router.TagRouter.CreateRouter(api)
@@ -22,6 +26,13 @@ func InitRouter() (r *gin.Engine) {
 		chensongGroup := api.Group("chensong")
 		chensongGroup.Use(chensong.SlMiddleware.ReceiveMiddleWare()).POST("/receive", chensong.SlHandler.ReceiverHandler)
 	}
+
+	// 静态资源：上传文件目录（挂在根路径，避开 /api/v1 前缀）
+	// 目录不存在时先创建，避免静态服务 404
+	if err := os.MkdirAll(global.LNF_CONFIG.Storage.Path, 0o755); err != nil {
+		panic(err)
+	}
+	r.Static(storage.URLPrefix, global.LNF_CONFIG.Storage.Path)
 
 	// 提示信息
 	r.GET("/", func(c *gin.Context) {

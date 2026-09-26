@@ -8,6 +8,7 @@ import (
 var (
 	UserService     basic.UserServiceGroup
 	ItemService     basic.ItemServiceGroup
+	UploadService   basic.UploadServiceGroup
 	TagService      advanced.TagServiceGroup
 	LocationService advanced.LocationServiceGroup
 )

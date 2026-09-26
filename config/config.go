@@ -7,4 +7,5 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	ChenSong ChenSongConfig `mapstructure:"chensong"`
+	Storage  StorageConfig  `mapstructure:"storage"`
 }

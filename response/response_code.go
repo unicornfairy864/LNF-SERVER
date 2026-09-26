@@ -4,15 +4,18 @@ type Code int
 
 const (
 	// ==================== 通用 / 系统 0xxxx ==============
-	CodeSuccess       Code = 0
-	CodeParamError    Code = 1
-	CodeUnauthorized  Code = 2
-	CodeForbidden     Code = 3
-	CodeNotFound      Code = 4
-	CodeServerError   Code = 5
-	CodeDatabaseError Code = 6
-	CodeUnknownError  Code = 7
-	CodeChenSongError Code = 8
+	CodeSuccess               Code = 0
+	CodeParamError            Code = 1
+	CodeUnauthorized          Code = 2
+	CodeForbidden             Code = 3
+	CodeNotFound              Code = 4
+	CodeServerError           Code = 5
+	CodeDatabaseError         Code = 6
+	CodeUnknownError          Code = 7
+	CodeChenSongError         Code = 8
+	CodeUploadFileTooLarge    Code = 9
+	CodeUploadFileTypeInvalid Code = 10
+	CodeUploadFailed          Code = 11
 
 	// ==================== 用户与认证 1xxxx ===============
 	CodeUserOrPasswordError    Code = 10001
@@ -65,15 +68,18 @@ const (
 )
 
 var Msg = map[Code]string{
-	CodeSuccess:       "ok",
-	CodeParamError:    "请求参数错误",
-	CodeUnauthorized:  "未登录或Token无效",
-	CodeForbidden:     "无权限操作",
-	CodeNotFound:      "资源不存在",
-	CodeServerError:   "服务器内部错误",
-	CodeDatabaseError: "数据库操作失败",
-	CodeUnknownError:  "未知错误",
-	CodeChenSongError: "陈松出了故障!",
+	CodeSuccess:               "ok",
+	CodeParamError:            "请求参数错误",
+	CodeUnauthorized:          "未登录或Token无效",
+	CodeForbidden:             "无权限操作",
+	CodeNotFound:              "资源不存在",
+	CodeServerError:           "服务器内部错误",
+	CodeDatabaseError:         "数据库操作失败",
+	CodeUnknownError:          "未知错误",
+	CodeChenSongError:         "陈松出了故障!",
+	CodeUploadFileTooLarge:    "上传文件过大",
+	CodeUploadFileTypeInvalid: "上传文件类型不支持",
+	CodeUploadFailed:          "上传文件保存失败",
 
 	CodeUserOrPasswordError:    "用户名或密码错误",
 	CodeUsernameOccupied:       "用户名已被占用",

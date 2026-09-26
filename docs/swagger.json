@@ -776,6 +776,50 @@
                 }
             }
         },
+        "/api/v1/upload/image": {
+            "post": {
+                "description": "头像与物品图通用的图片上传接口，multipart/form-data 的 file 字段；\u003cbr /\u003e仅支持 jpg/png/webp，单文件最大 5MB（storage.max_size 可调）；返回相对 URL（如 /uploads/2026/09/26/xxx.jpg），入库与前端展示时需自行拼接服务器源；\u003cbr /\u003e文件过大返回 9，类型不支持返回 10，保存失败返回 11",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "登录用户上传图片",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "图片文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.UploadImageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/batch": {
             "post": {
                 "description": "接收id数组，返回PublicUserResponse数组 \u003cbr /\u003e 注意：结果可能不是输入列表的顺序且会过滤无效id",
@@ -1596,6 +1640,15 @@
                 }
             }
         },
+        "model.UploadImageResponse": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "description": "图片相对 URL（如 /uploads/2026/09/26/{uuid}.jpg），前端展示时需拼接服务器源",
+                    "type": "string"
+                }
+            }
+        },
         "model.UserResponse": {
             "type": "object",
             "properties": {
@@ -1652,6 +1705,9 @@
                 6,
                 7,
                 8,
+                9,
+                10,
+                11,
                 10001,
                 10002,
                 10003,
@@ -1692,6 +1748,9 @@
                 "CodeDatabaseError",
                 "CodeUnknownError",
                 "CodeChenSongError",
+                "CodeUploadFileTooLarge",
+                "CodeUploadFileTypeInvalid",
+                "CodeUploadFailed",
                 "CodeUserOrPasswordError",
                 "CodeUsernameOccupied",
                 "CodeFormInvalid",

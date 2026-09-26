@@ -9,3 +9,6 @@ config.yaml
 dist
 x.exe
 logs
+
+# Upload
+uploads

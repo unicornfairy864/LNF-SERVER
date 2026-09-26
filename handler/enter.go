@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	UserHandler basic.UserHandlerGroup
-	ItemHandler basic.ItemHandlerGroup
+	UserHandler   basic.UserHandlerGroup
+	ItemHandler   basic.ItemHandlerGroup
+	UploadHandler basic.UploadHandlerGroup
 
 	LocationHandler advanced.LocationHandler
 	TagHandler      advanced.TagHandler

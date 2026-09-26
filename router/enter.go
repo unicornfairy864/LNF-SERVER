@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	UserRouter basic.UserRouter
-	ItemRouter basic.ItemRouter
+	UserRouter   basic.UserRouter
+	ItemRouter   basic.ItemRouter
+	UploadRouter basic.UploadRouter
 
 	LocationRouter advanced.LocationRouter
 	TagRouter      advanced.TagRouter
