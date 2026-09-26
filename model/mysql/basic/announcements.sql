@@ -5,7 +5,6 @@ CREATE TABLE `announcements` (
   `content` TEXT NOT NULL COMMENT '公告内容（支持markdown格式）',
   `type` TINYINT NOT NULL DEFAULT 0 COMMENT '公告类型: 0系统公告 1活动公告 2维护通知 3其他',
   `is_top` TINYINT NOT NULL DEFAULT 0 COMMENT '是否置顶: 0否 1是',
-  `view_count` INT NOT NULL DEFAULT 0 COMMENT '浏览次数',
   `published_at` DATETIME DEFAULT NULL COMMENT '发布时间',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
