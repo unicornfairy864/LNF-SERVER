@@ -42,6 +42,12 @@ const (
 	CodeItemImageInvalid    Code = 20014
 
 	// ==================== 认领 3xxxx ====================
+	CodeItemAlreadyClaimed Code = 30001
+	CodeClaimNotFound      Code = 30002
+	CodeClaimNoPermission  Code = 30003
+	CodeClaimSelfItem      Code = 30004
+	CodeItemClosed         Code = 30005
+	CodeClaimQQRequired    Code = 30006
 
 	// ==================== 标签 & 关联 4xxxx =============
 	CodeTagNotFound    Code = 40001
@@ -102,6 +108,13 @@ var Msg = map[Code]string{
 	CodeItemLocationInvalid: "地点无效",
 	CodeItemImageTooMany:    "物品图片最多3张",
 	CodeItemImageInvalid:    "物品图片参数错误",
+
+	CodeItemAlreadyClaimed: "物品已被认领",
+	CodeClaimNotFound:      "暂无可操作的认领",
+	CodeClaimNoPermission:  "无权操作该认领",
+	CodeClaimSelfItem:      "不能认领自己发布的物品",
+	CodeItemClosed:         "物品已关闭",
+	CodeClaimQQRequired:    "认领前请先绑定QQ",
 
 	CodeTagNotFound:    "标签不存在",
 	CodeTagDuplicate:   "标签名称已存在",

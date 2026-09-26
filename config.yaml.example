@@ -3,6 +3,9 @@ server:
   port: 8080
   router_prefix: "/api/v1"
   connection-timeout: 5s
+  claim_qq_required: true
+  claim_credit: 10
+  claim_auto_close: 24h
 
 # Mysql
 mysql:

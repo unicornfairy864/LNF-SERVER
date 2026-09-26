@@ -92,8 +92,6 @@ type UpdateItemRequest struct {
 	LostFoundTime  *time.Time `json:"lost_found_time,omitempty"`
 	Contact        *string    `json:"contact,omitempty"`
 	CreditReward   *int       `json:"credit_reward,omitempty"`
-	ClaimUserID    *int64     `json:"claim_user_id,omitempty"`
-	ClaimTime      *time.Time `json:"claim_time,omitempty"`
 	// TagIDs 非 nil 时整体替换物品标签关联
 	TagIDs *[]int64 `json:"tag_ids,omitempty"`
 }

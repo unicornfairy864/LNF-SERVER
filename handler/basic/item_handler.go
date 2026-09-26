@@ -196,3 +196,89 @@ func (itemHandler *ItemHandlerGroup) SetItemImagesHandler(c *gin.Context) {
 	}
 	response.Success(c)
 }
+
+// ==================== 认领 / 关闭 ====================
+
+// ClaimItemHandler 登录用户认领物品
+// @Summary      登录用户认领物品
+// @Description  仅 status=0（已发布）物品可认领；不能认领自己发布的物品；<br />server.claim_qq_required 开启时，未绑定QQ的用户返回 30006；<br />已被他人认领返回 30001，已关闭返回 30005，物品不存在返回 20001
+// @Tags         item
+// @Produce      json
+// @Param        itemID  path  int  true  "物品ID"
+// @Success      200  {object}  response.CommonResponse{}
+// @Router       /api/v1/item/{itemID}/claim [post]
+func (itemHandler *ItemHandlerGroup) ClaimItemHandler(c *gin.Context) {
+	itemID, ok := parseItemID(c)
+	if !ok {
+		return
+	}
+	code := service.ItemService.ClaimService(c.GetInt64(middleware.ContextID), itemID)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// WithdrawClaimHandler 撤回认领（认领者或发帖者双方均可）
+// @Summary      撤回认领（认领者或发帖者）
+// @Description  仅物品处于 status=1（已认领）且未关闭时可撤回；<br />认领者和发帖者双方均可撤回，撤回后物品恢复为 status=0 可再次被认领；<br />已关闭返回 30005，无认领返回 30002，无权撤回返回 30003
+// @Tags         item
+// @Produce      json
+// @Param        itemID  path  int  true  "物品ID"
+// @Success      200  {object}  response.CommonResponse{}
+// @Router       /api/v1/item/{itemID}/claim/cancel [post]
+func (itemHandler *ItemHandlerGroup) WithdrawClaimHandler(c *gin.Context) {
+	itemID, ok := parseItemID(c)
+	if !ok {
+		return
+	}
+	code := service.ItemService.WithdrawClaimService(c.GetInt64(middleware.ContextID), itemID)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// ConfirmClaimHandler 发帖者确认由他人找回（关闭并发分）
+// @Summary      发帖者确认认领并关闭物品
+// @Description  仅发布者本人可操作，且物品需处于 status=1（已认领）；<br />确认后物品关闭（status=2），并按 server.claim_credit 给拾到者加积分：<br />拾物帖(type=1)给发帖者，失物帖(type=0)给认领者；<br />无认领可确认返回 30002，已关闭返回 30005，非本人返回 20005
+// @Tags         item
+// @Produce      json
+// @Param        itemID  path  int  true  "物品ID"
+// @Success      200  {object}  response.CommonResponse{}
+// @Router       /api/v1/item/{itemID}/confirm [post]
+func (itemHandler *ItemHandlerGroup) ConfirmClaimHandler(c *gin.Context) {
+	itemID, ok := parseItemID(c)
+	if !ok {
+		return
+	}
+	code := service.ItemService.ConfirmClaimService(c.GetInt64(middleware.ContextID), itemID)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
+
+// CloseSelfHandler 发帖者关闭自己的帖子（自己已经找回，不发积分）
+// @Summary      发帖者关闭自己的帖子
+// @Description  仅发布者本人可操作；status=0（已发布）或 status=1（已认领）均可关闭；<br />关闭后 status=2 不可再认领/撤回，不发积分（若需确认他人认领并发分请用 confirm 接口）
+// @Tags         item
+// @Produce      json
+// @Param        itemID  path  int  true  "物品ID"
+// @Success      200  {object}  response.CommonResponse{}
+// @Router       /api/v1/item/{itemID}/close [post]
+func (itemHandler *ItemHandlerGroup) CloseSelfHandler(c *gin.Context) {
+	itemID, ok := parseItemID(c)
+	if !ok {
+		return
+	}
+	code := service.ItemService.CloseSelfService(c.GetInt64(middleware.ContextID), itemID)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}

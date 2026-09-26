@@ -25,6 +25,10 @@ func (i *ItemRouter) CreateRouter(api *gin.RouterGroup) {
 		private.POST("/delete", handler.ItemHandler.DeleteItemHandler)
 		private.GET("/mine", handler.ItemHandler.ListMyItemHandler)
 		private.POST("/:itemID/images", handler.ItemHandler.SetItemImagesHandler)
+		private.POST("/:itemID/claim", handler.ItemHandler.ClaimItemHandler)
+		private.POST("/:itemID/claim/cancel", handler.ItemHandler.WithdrawClaimHandler)
+		private.POST("/:itemID/confirm", handler.ItemHandler.ConfirmClaimHandler)
+		private.POST("/:itemID/close", handler.ItemHandler.CloseSelfHandler)
 	}
 	// Admin（审核/状态流转等管理接口由后续 audit 模块补充）
 	admin := userGroup.Group("/admin")

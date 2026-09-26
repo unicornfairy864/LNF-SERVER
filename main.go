@@ -41,6 +41,9 @@ func main() {
 	// Router
 	r := initialization.InitRouter()
 
+	// Scheduler：认领超时自动关闭
+	initialization.StartClaimAutoCloseScheduler()
+
 	// Swagger
 	r.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 

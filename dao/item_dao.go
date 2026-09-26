@@ -142,3 +142,78 @@ func (itemGroup *ItemGroup) CountItemsByLocationID(locationID int64) (count int6
 		Count(&count)
 	return count
 }
+
+// ==================== 认领 / 关闭 ====================
+
+// ClaimItem 认领物品（条件更新防并发：仅 status=0 时生效）
+func (itemGroup *ItemGroup) ClaimItem(itemID int64, claimUserID int64, claimTime time.Time) (int64, error) {
+	res := global.LNF_DB.Model(&model.Item{}).
+		Where("id = ? AND status = 0 AND is_deleted = 0", itemID).
+		Updates(map[string]interface{}{
+			"status":        1,
+			"claim_user_id": claimUserID,
+			"claim_time":    claimTime,
+			"updated_at":    time.Now(),
+		})
+	return res.RowsAffected, res.Error
+}
+
+// WithdrawClaim 撤回认领（仅 status=1 时生效；恢复为已发布并清空认领字段）
+func (itemGroup *ItemGroup) WithdrawClaim(itemID int64) (int64, error) {
+	res := global.LNF_DB.Model(&model.Item{}).
+		Where("id = ? AND status = 1 AND is_deleted = 0", itemID).
+		Updates(map[string]interface{}{
+			"status":        0,
+			"claim_user_id": nil,
+			"claim_time":    nil,
+			"updated_at":    time.Now(),
+		})
+	return res.RowsAffected, res.Error
+}
+
+// CloseItem 关闭物品（发帖者自己找回，不发积分；status=0/1 → 2，清空认领字段）
+func (itemGroup *ItemGroup) CloseItem(itemID int64) (int64, error) {
+	res := global.LNF_DB.Model(&model.Item{}).
+		Where("id = ? AND status IN ? AND is_deleted = 0", itemID, []int8{0, 1}).
+		Updates(map[string]interface{}{
+			"status":        2,
+			"claim_user_id": nil,
+			"claim_time":    nil,
+			"updated_at":    time.Now(),
+		})
+	return res.RowsAffected, res.Error
+}
+
+// CloseItemWithCredit 确认认领并关闭物品（status=1 → 2），同一事务内给受益人加积分；
+// 条件更新保证并发下只关闭/发分一次，affected=0 表示状态已变化（已被并发确认/撤回）
+func (itemGroup *ItemGroup) CloseItemWithCredit(itemID int64, beneficiaryID int64, credit int64, logType int64, desc string) (int64, error) {
+	affected := int64(0)
+	err := global.LNF_DB.Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&model.Item{}).
+			Where("id = ? AND status = 1 AND is_deleted = 0", itemID).
+			Updates(map[string]interface{}{
+				"status":     2,
+				"updated_at": time.Now(),
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil
+		}
+		affected = res.RowsAffected
+		return UserDao.AddUserCreditTx(tx, beneficiaryID, credit, logType, desc, 0)
+	})
+	return affected, err
+}
+
+// ListExpiredClaimedItems 查询认领超时仍未关闭的物品
+func (itemGroup *ItemGroup) ListExpiredClaimedItems(deadline time.Time, limit int) ([]model.Item, error) {
+	var items []model.Item
+	err := global.LNF_DB.
+		Where("status = 1 AND is_deleted = 0 AND claim_time <= ?", deadline).
+		Order("claim_time ASC").
+		Limit(limit).
+		Find(&items).Error
+	return items, err
+}

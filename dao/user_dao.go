@@ -55,11 +55,16 @@ func (userGroup *UserGroup) UpdateUserByVK(id int64, updates map[string]interfac
 }
 
 func (userGroup *UserGroup) AddUserCredit(id int64, delta int64, logType int64, desc string, operatorId int64) error {
+	return userGroup.AddUserCreditTx(global.LNF_DB, id, delta, logType, desc, operatorId)
+}
+
+// AddUserCreditTx 在指定 DB/事务上变更积分并写入流水（供外部事务复用，如认领关闭发分）
+func (userGroup *UserGroup) AddUserCreditTx(db *gorm.DB, id int64, delta int64, logType int64, desc string, operatorId int64) error {
 	if delta == 0 {
 		return nil
 	}
 
-	return global.LNF_DB.Transaction(func(tx *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		// 加行锁读取当前用户积分，防止并发丢失更新
 		var user model.User
 		if err := tx.Set("gorm:query_option", "FOR UPDATE").

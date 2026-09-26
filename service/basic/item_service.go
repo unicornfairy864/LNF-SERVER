@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/unicornfairy864/LNF-SERVER/dao"
+	"github.com/unicornfairy864/LNF-SERVER/global"
 	modeladv "github.com/unicornfairy864/LNF-SERVER/model/advanced"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -18,6 +19,17 @@ const (
 	itemMyMaxPageSize   = 50
 	itemMaxTitleLen     = 100
 	itemMaxImages       = 3
+
+	// 物品状态（items.status）
+	itemStatusPublished int8 = 0 // 已发布
+	itemStatusClaimed   int8 = 1 // 已认领
+	itemStatusClosed    int8 = 2 // 已关闭
+
+	// 认领自动关闭单批扫描上限
+	itemAutoCloseBatchSize = 200
+
+	// 积分流水类型（见 credit_logs.sql type 注释）：1 认领成功奖励
+	creditLogTypeClaimReward int64 = 1
 )
 
 // normalizePage 归一化分页参数
@@ -217,12 +229,6 @@ func (itemService *ItemServiceGroup) UpdateService(userID int64, req *model.Upda
 		}
 		updates["credit_reward"] = *req.CreditReward
 	}
-	if req.ClaimUserID != nil {
-		updates["claim_user_id"] = *req.ClaimUserID
-	}
-	if req.ClaimTime != nil {
-		updates["claim_time"] = *req.ClaimTime
-	}
 	// 标签整体替换
 	var tagIDs *[]int64
 	if req.TagIDs != nil {
@@ -285,4 +291,163 @@ func (itemService *ItemServiceGroup) SetImagesService(userID int64, itemID int64
 		return response.CodeDatabaseError
 	}
 	return response.CodeSuccess
+}
+
+// ==================== 认领 / 关闭 ====================
+
+// claimBeneficiary 认领成功积分受益人：拾物帖(type=1)归发帖者，失物帖(type=0)归认领者
+func claimBeneficiary(item *model.Item) int64 {
+	if item.Type == 1 {
+		return item.UserID
+	}
+	if item.ClaimUserID != nil {
+		return *item.ClaimUserID
+	}
+	return 0
+}
+
+// ClaimService 认领物品（登录用户；是否要求绑定QQ由 server.claim_qq_required 控制）
+func (itemService *ItemServiceGroup) ClaimService(userID int64, itemID int64) response.Code {
+	item := dao.ItemDao.GetItemByID(itemID)
+	if item.ID == 0 {
+		return response.CodeItemNotFound
+	}
+	if item.Status == itemStatusClosed {
+		return response.CodeItemClosed
+	}
+	if item.Status != itemStatusPublished {
+		return response.CodeItemAlreadyClaimed
+	}
+	if item.UserID == userID {
+		return response.CodeClaimSelfItem
+	}
+	user := dao.UserDao.GetUserByID(userID)
+	if user.ID == 0 || user.Status == 0 {
+		return response.CodeUserNotFoundOrBanned
+	}
+	if global.LNF_CONFIG.Server.ClaimQQRequired && (user.QQ == nil || strings.TrimSpace(*user.QQ) == "") {
+		return response.CodeClaimQQRequired
+	}
+	affected, err := dao.ItemDao.ClaimItem(itemID, userID, time.Now())
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if affected == 0 {
+		// 并发下状态已变化，重查给出准确错误
+		item = dao.ItemDao.GetItemByID(itemID)
+		if item.Status == itemStatusClosed {
+			return response.CodeItemClosed
+		}
+		return response.CodeItemAlreadyClaimed
+	}
+	return response.CodeSuccess
+}
+
+// WithdrawClaimService 撤回认领（认领者或发帖者双方均可，仅 status=1 未关闭时可撤；撤回后恢复为已发布）
+func (itemService *ItemServiceGroup) WithdrawClaimService(userID int64, itemID int64) response.Code {
+	item := dao.ItemDao.GetItemByID(itemID)
+	if item.ID == 0 {
+		return response.CodeItemNotFound
+	}
+	if item.Status == itemStatusClosed {
+		return response.CodeItemClosed
+	}
+	if item.Status != itemStatusClaimed || item.ClaimUserID == nil {
+		return response.CodeClaimNotFound
+	}
+	if userID != *item.ClaimUserID && userID != item.UserID {
+		return response.CodeClaimNoPermission
+	}
+	affected, err := dao.ItemDao.WithdrawClaim(itemID)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if affected == 0 {
+		item = dao.ItemDao.GetItemByID(itemID)
+		if item.Status == itemStatusClosed {
+			return response.CodeItemClosed
+		}
+		return response.CodeClaimNotFound
+	}
+	return response.CodeSuccess
+}
+
+// ConfirmClaimService 发帖者确认由他人找回：关闭物品并给拾到者加 server.claim_credit 积分
+func (itemService *ItemServiceGroup) ConfirmClaimService(userID int64, itemID int64) response.Code {
+	item := dao.ItemDao.GetItemByID(itemID)
+	if item.ID == 0 {
+		return response.CodeItemNotFound
+	}
+	if item.UserID != userID {
+		return response.CodeItemNoPermission
+	}
+	if item.Status == itemStatusClosed {
+		return response.CodeItemClosed
+	}
+	if item.Status != itemStatusClaimed || item.ClaimUserID == nil {
+		return response.CodeClaimNotFound
+	}
+	beneficiary := claimBeneficiary(&item)
+	if beneficiary == 0 {
+		return response.CodeServerError
+	}
+	affected, err := dao.ItemDao.CloseItemWithCredit(itemID, beneficiary,
+		global.LNF_CONFIG.Server.ClaimCredit, creditLogTypeClaimReward, "认领成功奖励")
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if affected == 0 {
+		item = dao.ItemDao.GetItemByID(itemID)
+		if item.Status == itemStatusClosed {
+			return response.CodeItemClosed
+		}
+		return response.CodeClaimNotFound
+	}
+	return response.CodeSuccess
+}
+
+// CloseSelfService 发帖者关闭自己的帖子（自己已经找回，不发积分；status=0/1 均可关）
+func (itemService *ItemServiceGroup) CloseSelfService(userID int64, itemID int64) response.Code {
+	item := dao.ItemDao.GetItemByID(itemID)
+	if item.ID == 0 {
+		return response.CodeItemNotFound
+	}
+	if item.UserID != userID {
+		return response.CodeItemNoPermission
+	}
+	if item.Status == itemStatusClosed {
+		return response.CodeItemClosed
+	}
+	affected, err := dao.ItemDao.CloseItem(itemID)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if affected == 0 {
+		return response.CodeItemClosed
+	}
+	return response.CodeSuccess
+}
+
+// AutoCloseExpiredClaimsService 扫描认领超时的物品并自动关闭（按确认认领语义发分）
+// 由 initialization.StartClaimAutoCloseScheduler 定时调用
+func (itemService *ItemServiceGroup) AutoCloseExpiredClaimsService() {
+	duration := global.LNF_CONFIG.Server.ClaimAutoClose
+	if duration <= 0 {
+		return
+	}
+	deadline := time.Now().Add(-duration)
+	items, err := dao.ItemDao.ListExpiredClaimedItems(deadline, itemAutoCloseBatchSize)
+	if err != nil {
+		return
+	}
+	for i := range items {
+		item := &items[i]
+		beneficiary := claimBeneficiary(item)
+		if beneficiary == 0 {
+			continue
+		}
+		// 条件更新保证并发下只关闭/发分一次
+		_, _ = dao.ItemDao.CloseItemWithCredit(item.ID, beneficiary,
+			global.LNF_CONFIG.Server.ClaimCredit, creditLogTypeClaimReward, "认领超时自动关闭奖励")
+	}
 }
