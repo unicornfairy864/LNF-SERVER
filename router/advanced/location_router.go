@@ -17,7 +17,7 @@ func (l *LocationRouter) CreateRouter(api *gin.RouterGroup) {
 	public := userGroup.Group("")
 	{
 		public.GET("/location/list", handler.LocationHandler.ListLocationHandler)
-		public.GET(ItemPrefix+"/locations", handler.LocationHandler.GetItemLocationsHandler)
+		public.GET(ItemPrefix + "/locations", handler.LocationHandler.GetItemLocationsHandler)
 	}
 	// Private
 	private := userGroup.Group("")
