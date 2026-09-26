@@ -4,7 +4,6 @@ CREATE TABLE `comments` (
     `user_id`          BIGINT       NOT NULL                COMMENT '评论用户ID',
     `parent_id`        BIGINT       DEFAULT NULL            COMMENT '父评论ID（支持回复评论）',
     `content`          TEXT         NOT NULL                COMMENT '评论内容（支持markdown格式）',
-    `status`           TINYINT      NOT NULL DEFAULT 1      COMMENT '状态: 0待审核 1正常 2已隐藏',
     `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted`       TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除: 0否 1是',
