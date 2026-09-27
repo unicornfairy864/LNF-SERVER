@@ -725,6 +725,60 @@ paths:
       summary: 系统管理员改变用户积分
       tags:
       - user
+  /api/v1/admin/announcement/create:
+    post:
+      consumes:
+      - application/json
+      description: 系统管理员创建公告（草稿）
+      parameters:
+      - description: 创建公告请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+      summary: 创建公告
+      tags:
+      - announcement
+  /api/v1/admin/announcement/update:
+    post:
+      consumes:
+      - application/json
+      description: 系统管理员保存，发布，删除，下架公告
+      parameters:
+      - description: 获取公告请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+      summary: 获取公告
+      tags:
+      - announcement
   /api/v1/admin/change-role:
     post:
       consumes:
@@ -769,6 +823,33 @@ paths:
       summary: 系统管理员改变用户状态(禁用)
       tags:
       - user
+  /api/v1/announcement:
+    post:
+      consumes:
+      - application/json
+      description: 非系统管理员获取公告
+      parameters:
+      - description: 获取公告请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+      summary: 获取公告
+      tags:
+      - announcement
   /api/v1/item/{itemID}:
     get:
       consumes:
@@ -1191,6 +1272,33 @@ paths:
       summary: 管理员更新地点
       tags:
       - location
+  /api/v1/superadmin/announcement:
+    post:
+      consumes:
+      - application/json
+      description: 系统管理员获取公告
+      parameters:
+      - description: 获取公告请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+      summary: 获取公告
+      tags:
+      - announcement
   /api/v1/tag/{tagID}:
     delete:
       consumes:
