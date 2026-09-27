@@ -45,9 +45,8 @@ func (a *AnnouncementServiceGroup) GetAnnouncements(anrq *model.AnnouncementGetR
 	limit := anrq.Limit
 	for limit > 0 && last > 0 {
 		an := dao.AnnouncementDao.GetAnnouncementByID(last)
-		last = an.ID - 1
 		if an == nil {
-			continue
+			return nil
 		}
 		status := an.Status
 		if status == 0 && anrq.Auth && anrq.AdminID == an.AdminID || status == 2 && anrq.Auth || status == 1 {
@@ -58,6 +57,7 @@ func (a *AnnouncementServiceGroup) GetAnnouncements(anrq *model.AnnouncementGetR
 				ignore--
 			}
 		}
+		last = an.ID - 1
 	}
 	return announcements
 }

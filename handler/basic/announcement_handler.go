@@ -66,7 +66,13 @@ func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 	}
 	req.Auth = false
-	response.SuccessWithData(c, service.AnnouncementService.GetAnnouncements(&req))
+	ans := service.AnnouncementService.GetAnnouncements(&req)
+	if ans == nil {
+		response.FailWithCode(c, response.CodeAnnouncementNotFound)
+		return
+	}
+	response.SuccessWithData(c, ans)
+	return
 }
 
 // AnnouncementAuthGetHandler  获取公告
@@ -83,5 +89,11 @@ func (a *AnnouncementHandlerGroup) AuthGetHandler(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
 	}
-	response.SuccessWithData(c, service.AnnouncementService.GetAnnouncements(&req))
+	ans := service.AnnouncementService.GetAnnouncements(&req)
+	if ans == nil {
+		response.FailWithCode(c, response.CodeAnnouncementNotFound)
+		return
+	}
+	response.SuccessWithData(c, ans)
+	return
 }
