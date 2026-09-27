@@ -16,9 +16,9 @@ func (a *AnnouncementRouter) CreateRouter(api *gin.RouterGroup) {
 		public.GET("/", handler.AnnouncementHandler.GetHandler)
 	}
 
-	admin := userGroup.Group("/superadmin/announcement")
+	admin := userGroup.Group("/admin/announcement")
 	admin.Use(middleware.JWTAuthMiddleware())
-	admin.Use(middleware.SystemAdminAuthMiddleware())
+	admin.Use(middleware.ServiceAdminAuthMiddleware())
 	{
 		admin.POST("/create", handler.AnnouncementHandler.CreateHandler)
 		admin.POST("/update", handler.AnnouncementHandler.UpdatedHandler)
