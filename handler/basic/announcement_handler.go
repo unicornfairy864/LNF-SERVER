@@ -9,6 +9,15 @@ import (
 
 type AnnouncementHandlerGroup struct{}
 
+// AnnouncementcreateHandler  创建公告
+// @Summary      创建公告
+// @Description  系统管理员创建公告（草稿）
+// @Tags         announcement
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.LoginRequest  true  "创建公告请求体"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Router       /api/v1/admin/announcement/create [post]
 func (a *AnnouncementHandlerGroup) CreateHandler(c *gin.Context) {
 	rep := model.AnnouncementUpdateRequest{}
 	if err := c.ShouldBindJSON(&rep); err != nil {
@@ -21,6 +30,15 @@ func (a *AnnouncementHandlerGroup) CreateHandler(c *gin.Context) {
 	response.Success(c)
 }
 
+// AnnouncementUpdatedHandler  获取公告
+// @Summary      获取公告
+// @Description  系统管理员保存，发布，删除，下架公告
+// @Tags         announcement
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.LoginRequest  true  "获取公告请求体"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Router       /api/v1/admin/announcement/update [post]
 func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
 	rep := model.AnnouncementUpdateRequest{}
 	if err := c.ShouldBindJSON(&rep); err != nil {
@@ -33,6 +51,15 @@ func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
 	response.Success(c)
 }
 
+// AnnouncementGetHandler  获取公告
+// @Summary      获取公告
+// @Description  非系统管理员获取公告
+// @Tags         announcement
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.LoginRequest  true  "获取公告请求体"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Router       /api/v1/announcement [post]
 func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 	req := model.AnnouncementGetRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,6 +69,15 @@ func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 	response.SuccessWithData(c, service.AnnouncementService.GetAnnouncements(&req))
 }
 
+// AnnouncementAuthGetHandler  获取公告
+// @Summary      获取公告
+// @Description  系统管理员获取公告
+// @Tags         announcement
+// @Accept       json
+// @Produce      json
+// @Param        request  body      model.LoginRequest  true  "获取公告请求体"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Router       /api/v1/superadmin/announcement [post]
 func (a *AnnouncementHandlerGroup) AuthGetHandler(c *gin.Context) {
 	req := model.AnnouncementGetRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {
