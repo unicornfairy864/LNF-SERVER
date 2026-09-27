@@ -11,4 +11,6 @@ var (
 	UploadService   basic.UploadServiceGroup
 	TagService      advanced.TagServiceGroup
 	LocationService advanced.LocationServiceGroup
+
+	AnnouncementService basic.AnnouncementServiceGroup
 )

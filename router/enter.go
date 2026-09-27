@@ -12,4 +12,6 @@ var (
 
 	LocationRouter advanced.LocationRouter
 	TagRouter      advanced.TagRouter
+
+	AnnouncementRouter basic.AnnouncementRouter
 )

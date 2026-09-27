@@ -12,4 +12,6 @@ var (
 
 	LocationHandler advanced.LocationHandler
 	TagHandler      advanced.TagHandler
+
+	AnnouncementHandler basic.AnnouncementHandlerGroup
 )

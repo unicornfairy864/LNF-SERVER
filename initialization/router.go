@@ -19,6 +19,7 @@ func InitRouter() (r *gin.Engine) {
 		router.UserRouter.CreateRouter(api)
 		router.ItemRouter.CreateRouter(api)
 		router.UploadRouter.CreateRouter(api)
+		router.AnnouncementRouter.CreateRouter(api)
 		// Advanced
 		router.LocationRouter.CreateRouter(api)
 		router.TagRouter.CreateRouter(api)
