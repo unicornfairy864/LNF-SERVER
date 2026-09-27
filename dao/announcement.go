@@ -20,10 +20,10 @@ func (a *AnnouncementGroup) UpdateAnnouncement(announcement *model.Announcement)
 
 // 取小于等于给定ID的公告
 func (a *AnnouncementGroup) GetAnnouncementByID(id int64) *model.Announcement {
-	var an *model.Announcement
-	global.LNF_DB.Where("id <= ?", id).Last(&an)
-	if an == nil || an.IsDeleted == 1 {
+	var an model.Announcement
+	err := global.LNF_DB.Where("id <= ?", id).Last(&an)
+	if err != nil || an.IsDeleted == 1 {
 		return nil
 	}
-	return an
+	return &an
 }
