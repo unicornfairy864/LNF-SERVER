@@ -9,14 +9,14 @@ import (
 
 type AnnouncementHandlerGroup struct{}
 
-// AnnouncementcreateHandler  创建公告
+// CreateHandler  创建公告
 // @Summary      创建公告
 // @Description  系统管理员创建公告（草稿）
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.LoginRequest  true  "创建公告请求体"
-// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Param        request  body      model.AnnouncementUpdateRequest  true  "创建/更新公告请求体"
+// @Success      200      {object}  response.CommonResponse{}
 // @Router       /api/v1/admin/announcement/create [post]
 func (a *AnnouncementHandlerGroup) CreateHandler(c *gin.Context) {
 	rep := model.AnnouncementUpdateRequest{}
@@ -36,7 +36,7 @@ func (a *AnnouncementHandlerGroup) CreateHandler(c *gin.Context) {
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.LoginRequest  true  "更新公告请求体"
+// @Param        request  body      model.AnnouncementUpdateRequest  true  "创建/更新公告请求体"
 // @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
 // @Router       /api/v1/admin/announcement/update [post]
 func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
@@ -51,14 +51,14 @@ func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
 	response.Success(c)
 }
 
-// AnnouncementGetHandler  获取公告
+// GetHandler  获取公告
 // @Summary      获取公告
 // @Description  非系统管理员获取公告，从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值，注意：返回条数不一定等于请求条数
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.LoginRequest  true  "获取公告请求体"
-// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Param        request  body      model.AnnouncementGetRequest  true  "获取公告请求体"
+// @Success      200      {object}  response.CommonResponse{data=[]model.Announcement}
 // @Router       /api/v1/announcement [post]
 func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 	req := model.AnnouncementGetRequest{}
@@ -75,15 +75,15 @@ func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 	return
 }
 
-// AnnouncementAuthGetHandler  获取公告
+// AuthGetHandler  获取公告
 // @Summary      获取公告
 // @Description  系统管理员获取公告，从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值，注意：返回条数不一定等于请求条数
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.LoginRequest  true  "获取公告请求体"
-// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
-// @Router       /api/v1/superadmin/announcement [post]
+// @Param        request  body      model.AnnouncementGetRequest  true  "获取公告请求体"
+// @Success      200      {object}  response.CommonResponse{data=[]model.Announcement}
+// @Router       /api/v1/admin/announcement [post]
 func (a *AnnouncementHandlerGroup) AuthGetHandler(c *gin.Context) {
 	req := model.AnnouncementGetRequest{}
 	if err := c.ShouldBindJSON(&req); err != nil {

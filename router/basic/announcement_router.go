@@ -16,7 +16,7 @@ func (a *AnnouncementRouter) CreateRouter(api *gin.RouterGroup) {
 		public.GET("/", handler.AnnouncementHandler.GetHandler)
 	}
 
-	admin := userGroup.Group("/superadmin/announcement")
+	admin := userGroup.Group("/admin/announcement")
 	admin.Use(middleware.JWTAuthMiddleware())
 	admin.Use(middleware.SystemAdminAuthMiddleware())
 	{
