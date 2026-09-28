@@ -16,8 +16,10 @@ func (s *SlMiddleware) ReceiveMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 解析 Header
 		auth := c.Request.Header.Get("Authorization")
-		utils.LogJson(auth)
-		utils.LogJson(global.LNF_CONFIG.ChenSong.ReceiveToken)
+		for key, values := range c.Request.Header {
+			utils.LogJson(key)
+			utils.LogJson(values)
+		}
 		if !strings.HasPrefix(auth, "Bearer ") {
 			response.FailWithCode(c, response.CodeUnauthorized)
 			c.Abort()
