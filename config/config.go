@@ -1,7 +1,7 @@
 package config
 
 type Config struct {
-	Api      ApiConfig      `mapstructure:"api"`
+	OpenAI   OpenAIConfig   `mapstructure:"openai"`
 	Mysql    MysqlConfig    `mapstructure:"mysql"`
 	Redis    RedisConfig    `mapstructure:"redis"`
 	Server   ServerConfig   `mapstructure:"server"`

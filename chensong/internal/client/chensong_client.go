@@ -10,6 +10,8 @@ import (
 
 type ChenSongClient struct{}
 
+var Client = &ChenSongClient{}
+
 func (c *ChenSongClient) Request(actionUri, method string, RequestBody interface{}) (*model.SnowLumaResponse, error) {
 	req, err := global.LNF_Resty.R().
 		SetHeader("Authorization", "Bearer "+global.LNF_CONFIG.ChenSong.ApiToken).

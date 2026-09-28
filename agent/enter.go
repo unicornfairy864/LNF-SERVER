@@ -1,3 +1,9 @@
 package agent
 
-type Client struct{}
+import (
+	"github.com/unicornfairy864/LNF-SERVER/agent/internal/client"
+)
+
+var (
+	Client client.Client
+)

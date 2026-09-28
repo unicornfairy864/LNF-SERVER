@@ -12,3 +12,7 @@ func LogJson(data interface{}) {
 	str, _ := json.Marshal(data)
 	fmt.Println(string(str))
 }
+
+func LogString(msg string) {
+	fmt.Println(msg)
+}
