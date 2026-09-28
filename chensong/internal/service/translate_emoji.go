@@ -30,7 +30,7 @@ d. 选不出通顺字就不硬译，按无谐音处理。
 1. 只输出包含可谐音emoji的最短完整短句：保留该短句原有文字与标点，emoji原位替换为汉字；其余语义独立的短句整句丢弃。
 2. 纯情绪/装饰emoji无谐音义（😂🤣🙏👍🤡💀[捂脸][强]等）：直接删除。
 3. 图片、@、CQ码、QQ表情代码、URL等非文字内容：忽略。
-4. 删除后若短句只剩标点或无意义残句，该短句也丢弃。
+4. 删除后若短句只剩标点或无意义残句，该短句也丢弃；若答案只有一个字，丢弃。
 
 【输出规则】
 1. 只输出还原结果，不加引号、不解释、不重复输入。
@@ -74,7 +74,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 		return response.CodeSuccess
 	}
 	if req.MessageType == "group" {
-		_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.UserID)
+		_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.GroupID)
 	} else {
 		_, err = client.Client.SendPrivateMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.UserID)
 	}
