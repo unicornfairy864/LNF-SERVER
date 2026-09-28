@@ -178,7 +178,7 @@ func (userService *UserServiceGroup) QQGetCode(qq, nickname, jti string) respons
 		return response.CodeQQUserNotInGroup
 	}
 	// 发送消息
-	res, err := chensong.Client.SendGroupMessage("[CQ:at,qq=" + qq + "] " + nickname + "，你好像在尝试绑定，我找到了验证码： " + QQCode + " 。")
+	res, err := chensong.Client.SendGroupMessage("[CQ:at,qq="+qq+"] "+nickname+"，你好像在尝试绑定，我找到了验证码： "+QQCode+" 。", global.LNF_CONFIG.ChenSong.ActivatedGroup)
 	if err != nil || res.Status != "ok" {
 		return response.CodeChenSongError
 	}

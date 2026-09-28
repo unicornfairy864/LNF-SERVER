@@ -30,9 +30,9 @@ func (c *ChenSongClient) Request(actionUri, method string, RequestBody interface
 	return &result, nil
 }
 
-func (c *ChenSongClient) SendGroupMessage(msg string) (*model.SnowLumaResponse, error) {
+func (c *ChenSongClient) SendGroupMessage(msg string, group int64) (*model.SnowLumaResponse, error) {
 	res, err := c.Request("/send_group_msg", "POST", model.SnowLumaSendGroupMessage{
-		GroupID: global.LNF_CONFIG.ChenSong.ActivatedGroup,
+		GroupID: group,
 		Message: msg,
 	})
 	if err != nil {

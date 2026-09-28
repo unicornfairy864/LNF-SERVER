@@ -8,6 +8,7 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/client"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/model"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/utils"
+	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 )
 
@@ -60,6 +61,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	if text == "" {
 		return response.CodeTest
 	}
+	_, _ = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), global.LNF_CONFIG.ChenSong.ActivatedGroup)
 	if goemoji.Count(text) == 0 {
 		return response.CodeTest
 	}
@@ -68,7 +70,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 		return response.CodeChenSongError
 	}
 	if req.MessageType == "group" {
-		_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text))
+		_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.UserID)
 	} else {
 		_, err = client.Client.SendPrivateMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.UserID)
 	}
