@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	UserRouter   basic.UserRouter
-	ItemRouter   basic.ItemRouter
-	UploadRouter basic.UploadRouter
-
-	LocationRouter advanced.LocationRouter
-	TagRouter      advanced.TagRouter
-
+	UserRouter         basic.UserRouter
+	ItemRouter         basic.ItemRouter
+	UploadRouter       basic.UploadRouter
 	AnnouncementRouter basic.AnnouncementRouter
+
+	LocationRouter     advanced.LocationRouter
+	TagRouter          advanced.TagRouter
+	NotificationRouter advanced.NotificationRouter
 )

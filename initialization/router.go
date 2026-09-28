@@ -23,6 +23,7 @@ func InitRouter() (r *gin.Engine) {
 		// Advanced
 		router.LocationRouter.CreateRouter(api)
 		router.TagRouter.CreateRouter(api)
+		router.NotificationRouter.CreateRouter(api)
 		// ChenSong
 		chensongGroup := api.Group("chensong")
 		chensongGroup.Use(chensong.SlMiddleware.ReceiveMiddleWare()).POST("/receive", chensong.SlHandler.ReceiverHandler)

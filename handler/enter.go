@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	UserHandler   basic.UserHandlerGroup
-	ItemHandler   basic.ItemHandlerGroup
-	UploadHandler basic.UploadHandlerGroup
-
-	LocationHandler advanced.LocationHandler
-	TagHandler      advanced.TagHandler
-
+	UserHandler         basic.UserHandlerGroup
+	ItemHandler         basic.ItemHandlerGroup
+	UploadHandler       basic.UploadHandlerGroup
 	AnnouncementHandler basic.AnnouncementHandlerGroup
+
+	LocationHandler     advanced.LocationHandler
+	TagHandler          advanced.TagHandler
+	NotificationHandler advanced.NotificationHandlerGroup
 )

@@ -13,4 +13,5 @@ var (
 	LocationService advanced.LocationServiceGroup
 
 	AnnouncementService basic.AnnouncementServiceGroup
+	NotificationService advanced.NotificationServiceGroup
 )
