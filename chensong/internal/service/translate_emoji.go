@@ -64,6 +64,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	}
 	_, _ = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), global.LNF_CONFIG.ChenSong.ActivatedGroup)
 	utils2.LogJson(text)
+	utils2.LogJson(goemoji.Count(text))
 	if goemoji.Count(text) == 0 {
 		return response.CodeTest
 	}
