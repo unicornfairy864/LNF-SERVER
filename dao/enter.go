@@ -10,7 +10,5 @@ var (
 	RedisDao     RedisGroup
 
 	AnnouncementDao AnnouncementGroup
-
-// CommentDao      CommentGroup
-// NotificationDao NotificationGroup
+	NotificationDao NotificationGroup
 )

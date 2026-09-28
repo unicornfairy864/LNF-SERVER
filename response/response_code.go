@@ -93,6 +93,11 @@ const (
 	CodeNotificationNotFound     Code = 60001 // 通知不存在
 	CodeNotificationNoPermission Code = 60002 // 无权查看该通知
 	CodeNotificationAlreadyRead  Code = 60003 // 通知已读
+	CodeNotificationQueryFailed  Code = 60004 // 通知查询失败
+	CodeNotificationCreateFailed Code = 60005 // 通知创建失败
+	CodeNotificationUpdateFailed Code = 60006 // 通知更新失败
+	CodeNotificationDeleteFailed Code = 60007 // 通知删除失败
+	CodeNotificationSendFailed   Code = 60008 // 通知发送失败
 )
 
 // ==================== 举报 7xxxx ====================
@@ -202,6 +207,11 @@ var Msg = map[Code]string{
 	CodeNotificationNotFound:     "通知不存在",
 	CodeNotificationNoPermission: "无权查看该通知",
 	CodeNotificationAlreadyRead:  "通知已读",
+	CodeNotificationQueryFailed:  "通知查询失败",
+	CodeNotificationCreateFailed: "通知创建失败",
+	CodeNotificationUpdateFailed: "通知更新失败",
+	CodeNotificationDeleteFailed: "通知删除失败",
+	CodeNotificationSendFailed:   "通知发送失败",
 
 	// 举报
 	CodeReportNotFound:       "举报记录不存在",

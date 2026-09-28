@@ -128,6 +128,11 @@
 60001 | CodeNotificationNotFound | Notification Not Found | 通知不存在 | 按 id 查询无记录
 60002 | CodeNotificationNoPermission | No Permission On Notification | 无权查看该通知 | 通知不属于当前用户
 60003 | CodeNotificationAlreadyRead | Notification Already Read | 通知已读 | 重复标记已读
+60004 | CodeNotificationQueryFailed | Notification Query Failed | 通知查询失败 | 列表查询、未读数统计等数据库读取异常
+60005 | CodeNotificationCreateFailed | Notification Create Failed | 通知创建失败 | 单条或批量插入通知记录时数据库写入异常
+60006 | CodeNotificationUpdateFailed | Notification Update Failed | 通知更新失败 | 标记已读、批量已读等更新操作数据库异常
+60007 | CodeNotificationDeleteFailed | Notification Delete Failed | 通知删除失败 | 批量软删除通知时数据库操作异常或事务回滚
+60008 | CodeNotificationSendFailed | Notification Send Failed | 通知发送失败 | 发送通知（含全体发送）时查询用户失败或批量插入失败
 
 ## 九、举报模块（7xxxx）
 
