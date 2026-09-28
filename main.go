@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/SkywalkerDarren/goemoji"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/initialization"
 	"github.com/unicornfairy864/LNF-SERVER/utils"
@@ -59,4 +60,5 @@ func main() {
 func test() {
 	fmt.Print("这是测试")
 	utils.LogJson(time.Now())
+	utils.LogJson(goemoji.Count("👻"))
 }
