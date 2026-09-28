@@ -61,7 +61,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 		return response.CodeTest
 	}
 	if goemoji.Count(text) == 0 {
-		return response.CodeSuccess
+		return response.CodeTest
 	}
 	text, err := agent.Client.EasyRequest(systemPrompt, text)
 	if err != nil {
