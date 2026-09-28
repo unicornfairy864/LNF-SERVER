@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/response"
+	"github.com/unicornfairy864/LNF-SERVER/utils"
 )
 
 type SlMiddleware struct {
@@ -15,6 +16,8 @@ func (s *SlMiddleware) ReceiveMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 解析 Header
 		auth := c.Request.Header.Get("Authorization")
+		utils.LogJson(auth)
+		utils.LogJson(global.LNF_CONFIG.ChenSong.ReceiveToken)
 		if !strings.HasPrefix(auth, "Bearer ") {
 			response.FailWithCode(c, response.CodeUnauthorized)
 			c.Abort()
