@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,15 +14,19 @@ import (
 type SlHandler struct{}
 
 func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
-	var body string
-	if err := c.ShouldBindBodyWithPlain(&body); err != nil {
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Printf("read body failed: %v", err)
 		response.Fail(c)
 		return
 	}
+	body := string(bodyBytes)
 	// 将 body 原封不动保存到 项目根/chensong/logs/chensong_log_<time>.txt
 	// 运行目录即项目根（config.yaml 同样从 "." 读取），故使用相对路径
 	logDir := filepath.Join("chensong", "logs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		log.Printf("mkdir %s failed: %v", logDir, err)
 		response.Fail(c)
 		return
 	}
