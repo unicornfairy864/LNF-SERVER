@@ -41,11 +41,11 @@ func buildItemQuery(q *model.ListItemQuery, userID int64, defaultStatuses []int8
 // GetItemPage 分页查询物品；userID>0 时只查该用户；defaultStatuses 仅在 q.Status 为空时生效（状态 IN 查询）
 func (itemGroup *ItemGroup) GetItemPage(q *model.ListItemQuery, userID int64, defaultStatuses []int8) (items []model.Item, total int64, err error) {
 	var count int64
-	if err = buildItemQuery(q, userID, defaultStatus).Count(&count).Error; err != nil {
+	if err = buildItemQuery(q, userID, defaultStatuses).Count(&count).Error; err != nil {
 		return nil, 0, err
 	}
 	offset := (q.Page - 1) * q.PageSize
-	err = buildItemQuery(q, userID, defaultStatus).
+	err = buildItemQuery(q, userID, defaultStatuses).
 		Order("created_at DESC, id DESC").
 		Offset(offset).Limit(q.PageSize).
 		Find(&items).Error
