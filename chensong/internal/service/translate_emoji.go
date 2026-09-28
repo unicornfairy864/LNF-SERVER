@@ -8,7 +8,6 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/client"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/model"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/utils"
-	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 	utils2 "github.com/unicornfairy864/LNF-SERVER/utils"
 )
@@ -62,17 +61,16 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	if text == "" {
 		return response.CodeTest
 	}
-	_, _ = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), global.LNF_CONFIG.ChenSong.ActivatedGroup)
-	utils2.LogJson(text)
-	utils2.LogJson(goemoji.Count(text))
 	if goemoji.Count(text) == 0 {
 		return response.CodeTest
 	}
 	text, err := agent.Client.EasyRequest(systemPrompt, text)
 	if err != nil {
+		utils2.LogJson(err.Error())
 		return response.CodeChenSongError
 	}
-	if text == "" {
+	utils2.LogString(text)
+	if text == "" || text == "false" {
 		return response.CodeSuccess
 	}
 	if req.MessageType == "group" {
