@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/unicornfairy864/LNF-SERVER/response"
+	"github.com/unicornfairy864/LNF-SERVER/utils"
 )
 
 type SlHandler struct{}
@@ -22,6 +23,7 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 		return
 	}
 	body := string(bodyBytes)
+	utils.LogJson(body)
 	// 将 body 原封不动保存到 项目根/chensong/logs/chensong_log_<time>.txt
 	// 运行目录即项目根（config.yaml 同样从 "." 读取），故使用相对路径
 	logDir := filepath.Join("chensong", "logs")
