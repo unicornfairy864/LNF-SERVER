@@ -10,6 +10,7 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/utils"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/response"
+	utils2 "github.com/unicornfairy864/LNF-SERVER/utils"
 )
 
 const systemPrompt = `你是QQ群聊的emoji谐音解码器。输入为一条群消息文本，任务：把其中emoji按谐音还原为汉字，输出还原后的句子。
@@ -62,6 +63,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 		return response.CodeTest
 	}
 	_, _ = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), global.LNF_CONFIG.ChenSong.ActivatedGroup)
+	utils2.LogJson(text)
 	if goemoji.Count(text) == 0 {
 		return response.CodeTest
 	}
