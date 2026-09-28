@@ -1,6 +1,8 @@
 package basic
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -32,7 +34,7 @@ func (a *AnnouncementHandlerGroup) CreateHandler(c *gin.Context) {
 
 // AnnouncementUpdatedHandler  更新公告
 // @Summary      更新公告
-// @Description  系统管理员保存，发布，删除，下架公告(更新阅读数还未完成，请先忽略)
+// @Description  系统管理员保存，发布，下架公告(更新阅读数还未完成，请先忽略)
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
@@ -47,6 +49,29 @@ func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
 	err := service.AnnouncementService.UpdatedAnnouncement(&rep)
 	if err != response.CodeSuccess {
 		response.FailWithCode(c, err)
+	}
+	response.Success(c)
+}
+
+// AnnouncementDeleteHandler  删除公告
+// @Summary      删除公告
+// @Description  系统管理员删除公告
+// @Tags         announcement
+// @Accept       json
+// @Produce      json
+// @Param        id      path      int64  true  "公告ID"
+// @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
+// @Router       /api/v1/admin/announcement/{id} [delete]
+func (a *AnnouncementHandlerGroup) DeleteHandler(c *gin.Context) {
+	idstr := c.Param("id")
+	id, err := strconv.ParseInt(idstr, 10, 64)
+	if err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	errcode := service.AnnouncementService.DeleteAnnouncement(id)
+	if errcode != response.CodeSuccess {
+		response.FailWithCode(c, errcode)
 	}
 	response.Success(c)
 }
