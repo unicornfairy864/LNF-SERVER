@@ -37,6 +37,14 @@ func (a *AnnouncementServiceGroup) UpdatedAnnouncement(anrq *model.AnnouncementU
 	return response.CodeSuccess
 }
 
+func (a *AnnouncementServiceGroup) DeleteAnnouncement(id int64) response.Code {
+	err := dao.AnnouncementDao.DeleteAnnouncement(id)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	return response.CodeSuccess
+}
+
 // 从最新忽视ignore_pieces条后读取limit条，如无auth权限不返回草稿，已下架
 func (a *AnnouncementServiceGroup) GetAnnouncements(anrq *model.AnnouncementGetRequest) []model.Announcement {
 	announcements := []model.Announcement{}

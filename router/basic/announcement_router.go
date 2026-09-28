@@ -22,6 +22,7 @@ func (a *AnnouncementRouter) CreateRouter(api *gin.RouterGroup) {
 	{
 		admin.POST("/create", handler.AnnouncementHandler.CreateHandler)
 		admin.POST("/update", handler.AnnouncementHandler.UpdatedHandler)
+		admin.DELETE("/:id", handler.AnnouncementHandler.DeleteHandler)
 		admin.GET("/", handler.AnnouncementHandler.AuthGetHandler)
 	}
 }

@@ -18,6 +18,11 @@ func (a *AnnouncementGroup) UpdateAnnouncement(announcement *model.Announcement)
 	return err
 }
 
+func (a *AnnouncementGroup) DeleteAnnouncement(id int64) error {
+	err := global.LNF_DB.Delete(id).Error
+	return err
+}
+
 // 取小于等于给定ID的公告
 func (a *AnnouncementGroup) GetAnnouncementByID(id int64) *model.Announcement {
 	var an model.Announcement
