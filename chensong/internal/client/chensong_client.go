@@ -41,6 +41,17 @@ func (c *ChenSongClient) SendGroupMessage(msg string) (*model.SnowLumaResponse, 
 	return res, nil
 }
 
+func (c *ChenSongClient) SendPrivateMessage(msg string, user int64) (*model.SnowLumaResponse, error) {
+	res, err := c.Request("/send_private_msg", "POST", model.SnowLumaSendPrivateMessage{
+		UserID:  user,
+		Message: msg,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func (c *ChenSongClient) GetGroupMemberList() (*[]model.OB11Member, error) {
 	res, err := c.Request("/get_group_member_list", "POST", struct {
 		GroupID int64 `json:"group_id"`

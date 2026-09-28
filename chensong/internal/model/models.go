@@ -7,6 +7,11 @@ type SnowLumaSendGroupMessage struct {
 	Message string `json:"message"`
 }
 
+type SnowLumaSendPrivateMessage struct {
+	UserID  int64  `json:"user_id"`
+	Message string `json:"message"`
+}
+
 type SnowLumaResponse struct {
 	Status  string          `json:"status"`
 	Retcode int64           `json:"retcode"`

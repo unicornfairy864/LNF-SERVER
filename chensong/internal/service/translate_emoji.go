@@ -58,7 +58,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	}
 	text := utils.CleanEvent(req)
 	if text == "" {
-		return response.CodeSuccess
+		return response.CodeTest
 	}
 	if goemoji.Count(text) == 0 {
 		return response.CodeSuccess
@@ -67,7 +67,11 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	if err != nil {
 		return response.CodeChenSongError
 	}
-	_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text))
+	if req.MessageType == "group" {
+		_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text))
+	} else {
+		_, err = client.Client.SendPrivateMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.UserID)
+	}
 	if err != nil {
 		return response.CodeChenSongError
 	}
