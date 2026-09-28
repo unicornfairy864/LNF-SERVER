@@ -23,6 +23,12 @@ func (a *AnnouncementGroup) DeleteAnnouncement(id int64) error {
 	return err
 }
 
+func (a *AnnouncementGroup) GetAmmount() (int64, error) {
+	var count int64
+	err := global.LNF_DB.Count(&count).Error
+	return count, err
+}
+
 // 取小于等于给定ID的公告
 func (a *AnnouncementGroup) GetAnnouncementByID(id int64) *model.Announcement {
 	var an model.Announcement

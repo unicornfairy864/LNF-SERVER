@@ -50,6 +50,11 @@ type AnnouncementResponse struct {
 	UpdatedAt   time.Time  `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP" json:"updated_at"   comment:"更新时间"`
 }
 
+type AnnouncementListResponse struct {
+	Total         int64                  `json:"total"`
+	Announcements []AnnouncementResponse `json:"announcements"`
+}
+
 func ToAnnouncement(r *AnnouncementUpdateRequest) *Announcement {
 	if r == nil {
 		return nil
@@ -82,5 +87,12 @@ func ToResponse(a *Announcement) *AnnouncementResponse {
 		PublishedAt: a.PublishedAt,
 		CreatedAt:   a.CreatedAt,
 		UpdatedAt:   a.UpdatedAt,
+	}
+}
+
+func ToListResponse(total int64, announcements []AnnouncementResponse) *AnnouncementListResponse {
+	return &AnnouncementListResponse{
+		Total:         total,
+		Announcements: announcements,
 	}
 }
