@@ -30,13 +30,13 @@ func (a *AnnouncementHandlerGroup) CreateHandler(c *gin.Context) {
 	response.Success(c)
 }
 
-// AnnouncementUpdatedHandler  获取公告
-// @Summary      获取公告
-// @Description  系统管理员保存，发布，删除，下架公告
+// AnnouncementUpdatedHandler  更新公告
+// @Summary      更新公告
+// @Description  系统管理员保存，发布，删除，下架公告(更新阅读数还未完成，请先忽略)
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
-// @Param        request  body      model.LoginRequest  true  "获取公告请求体"
+// @Param        request  body      model.LoginRequest  true  "更新公告请求体"
 // @Success      200      {object}  response.CommonResponse{data=model.UserResponse}
 // @Router       /api/v1/admin/announcement/update [post]
 func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
@@ -53,7 +53,7 @@ func (a *AnnouncementHandlerGroup) UpdatedHandler(c *gin.Context) {
 
 // AnnouncementGetHandler  获取公告
 // @Summary      获取公告
-// @Description  非系统管理员获取公告
+// @Description  非系统管理员获取公告，从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值，注意：返回条数不一定等于请求条数
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
@@ -77,7 +77,7 @@ func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 
 // AnnouncementAuthGetHandler  获取公告
 // @Summary      获取公告
-// @Description  系统管理员获取公告
+// @Description  系统管理员获取公告，从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值，注意：返回条数不一定等于请求条数
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
