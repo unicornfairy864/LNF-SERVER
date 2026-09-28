@@ -44,7 +44,7 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 	// TranslateEmoji
 	code = service.TranslateEmoji(req)
 	if code == response.CodeSuccess {
-		utils.LogJson("Success")
+		utils.LogJson("SuccessToTranslateEmoji")
 	} else {
 		utils.LogJson(strconv.Itoa(int(code)) + " " + response.Msg[code])
 	}

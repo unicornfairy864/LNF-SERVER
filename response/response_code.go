@@ -124,6 +124,11 @@ const (
 	CodeAnnouncementInvalid      Code = 90003 // 公告参数或状态错误
 )
 
+// ==================== 机器人 10xxxx ====================
+const (
+	CodeOpenAIError Code = 100001 // Agent寄了
+)
+
 // ==================== 测试 -xxxx ====================
 const (
 	CodeTest Code = -1
@@ -230,4 +235,7 @@ var Msg = map[Code]string{
 	CodeAnnouncementNotFound:     "公告不存在",
 	CodeAnnouncementNoPermission: "无权操作该公告",
 	CodeAnnouncementInvalid:      "公告参数或状态错误",
+
+	// Agent
+	CodeOpenAIError: "Agent寄了",
 }

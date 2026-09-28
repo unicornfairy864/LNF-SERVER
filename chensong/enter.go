@@ -9,7 +9,7 @@ import (
 // ÕâÊÇ³ÂËÉ»úÆ÷ÈËÔÚ±¾ÏîÄ¿µÄÖ÷ÒªÊµÏÖ
 
 var (
-	Client       client.ChenSongClient
+	Client       = client.Client
 	SlHandler    handler.SlHandler
 	SlMiddleware middleware.SlMiddleware
 )

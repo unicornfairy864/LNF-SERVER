@@ -1,7 +1,13 @@
 package service
 
 import (
+	"fmt"
+
+	"github.com/SkywalkerDarren/goemoji"
+	"github.com/unicornfairy864/LNF-SERVER/agent"
+	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/client"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/model"
+	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/utils"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 )
 
@@ -49,6 +55,21 @@ d. 选不出通顺字就不硬译，按无谐音处理。
 func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	if req.PostType != "message" {
 		return response.CodeSuccess
+	}
+	text := utils.CleanEvent(req)
+	if text == "" {
+		return response.CodeSuccess
+	}
+	if goemoji.Count(text) == 0 {
+		return response.CodeSuccess
+	}
+	text, err := agent.Client.EasyRequest(systemPrompt, text)
+	if err != nil {
+		return response.CodeChenSongError
+	}
+	_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text))
+	if err != nil {
+		return response.CodeChenSongError
 	}
 	return response.CodeSuccess
 }
