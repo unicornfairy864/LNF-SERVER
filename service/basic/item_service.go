@@ -32,6 +32,9 @@ const (
 	creditLogTypeClaimReward int64 = 1
 )
 
+// listDefaultStatuses 列表接口未显式指定 status 时的默认状态范围：已发布(0) + 已认领(1)
+var listDefaultStatuses = []int8{itemStatusPublished, itemStatusClaimed}
+
 // normalizePage 归一化分页参数
 func normalizePage(q *model.ListItemQuery) {
 	if q.Page <= 0 {
@@ -93,24 +96,23 @@ func validateTagIDs(tagIDs []int64) ([]int64, response.Code) {
 	return dedup, response.CodeSuccess
 }
 
-// ListPublicService 公开物品列表（未指定 status 时默认只看已发布 status=0）
+// ListPublicService 公开物品列表（未指定 status 时默认返回已发布与已认领 status=0/1）
 func (itemService *ItemServiceGroup) ListPublicService(q *model.ListItemQuery) (*model.ItemListResponse, response.Code) {
 	normalizePage(q)
-	status := int8(0)
-	items, total, err := dao.ItemDao.GetItemPage(q, 0, &status)
+	items, total, err := dao.ItemDao.GetItemPage(q, 0, listDefaultStatuses)
 	if err != nil {
 		return nil, response.CodeDatabaseError
 	}
 	return pageResponse(q, total, items), response.CodeSuccess
 }
 
-// ListMyService 我的发布列表（默认不过滤状态；分页默认10，page_size 上限50）
+// ListMyService 我的发布列表（未指定 status 时默认返回已发布与已认领；分页默认10，page_size 上限50）
 func (itemService *ItemServiceGroup) ListMyService(userID int64, q *model.ListItemQuery) (*model.ItemListResponse, response.Code) {
 	normalizePage(q)
 	if q.PageSize > itemMyMaxPageSize {
 		return nil, response.CodeParamError
 	}
-	items, total, err := dao.ItemDao.GetItemPage(q, userID, nil)
+	items, total, err := dao.ItemDao.GetItemPage(q, userID, listDefaultStatuses)
 	if err != nil {
 		return nil, response.CodeDatabaseError
 	}

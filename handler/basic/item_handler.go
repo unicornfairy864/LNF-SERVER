@@ -24,12 +24,12 @@ func parseItemID(c *gin.Context) (int64, bool) {
 
 // ListItemHandler 公开分页查询物品列表
 // @Summary      公开分页查询物品列表
-// @Description  按类型/状态/地点/标签/关键词筛选物品，分页返回 ItemResponse 数组<br />未指定 status 时默认只返回已发布（status=0）的未删除物品
+// @Description  按类型/状态/地点/标签/关键词筛选物品，分页返回 ItemResponse 数组<br />未指定 status 时默认返回已发布与已认领（status=0/1）的未删除物品
 // @Tags         item
 // @Accept       json
 // @Produce      json
 // @Param        type        query   int     false  "类型: 0丢失 1拾到"
-// @Param        status      query   int     false  "状态: 0已发布 1已认领 2已关闭，默认0"
+// @Param        status      query   int     false  "状态: 0已发布 1已认领 2已关闭，默认0/1"
 // @Param        location_id query   int     false  "地点ID"
 // @Param        tag_id      query   int     false  "标签ID"
 // @Param        keyword     query   string  false  "标题/描述关键词"
@@ -144,12 +144,12 @@ func (itemHandler *ItemHandlerGroup) DeleteItemHandler(c *gin.Context) {
 
 // ListMyItemHandler 登录用户查询自己的发布记录
 // @Summary      登录用户查询自己的发布记录
-// @Description  查询当前用户发布的物品，默认返回全部状态；筛选与分页参数同公开列表接口
+// @Description  查询当前用户发布的物品，未指定 status 时默认返回已发布与已认领（status=0/1）；筛选与分页参数同公开列表接口
 // @Tags         item
 // @Accept       json
 // @Produce      json
 // @Param        type        query   int     false  "类型: 0丢失 1拾到"
-// @Param        status      query   int     false  "状态: 0已发布 1已认领 2已关闭，默认全部"
+// @Param        status      query   int     false  "状态: 0已发布 1已认领 2已关闭，默认0/1"
 // @Param        keyword     query   string  false  "标题/描述关键词"
 // @Param        page        query   int     false  "页码，默认1"
 // @Param        page_size   query   int     false  "每页数量，默认10，最大50"

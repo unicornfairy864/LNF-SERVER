@@ -12,7 +12,7 @@ import (
 type ItemGroup struct{}
 
 // buildItemQuery 组装物品分页查询条件（每次调用返回全新 DB，避免 Count 污染链）
-func buildItemQuery(q *model.ListItemQuery, userID int64, defaultStatus *int8) *gorm.DB {
+func buildItemQuery(q *model.ListItemQuery, userID int64, defaultStatuses []int8) *gorm.DB {
 	db := global.LNF_DB.Model(&model.Item{}).Where("is_deleted = 0")
 	if userID > 0 {
 		db = db.Where("user_id = ?", userID)
@@ -20,12 +20,10 @@ func buildItemQuery(q *model.ListItemQuery, userID int64, defaultStatus *int8) *
 	if q.Type != nil {
 		db = db.Where("type = ?", *q.Type)
 	}
-	status := q.Status
-	if status == nil {
-		status = defaultStatus
-	}
-	if status != nil {
-		db = db.Where("status = ?", *status)
+	if q.Status != nil {
+		db = db.Where("status = ?", *q.Status)
+	} else if len(defaultStatuses) > 0 {
+		db = db.Where("status IN ?", defaultStatuses)
 	}
 	if q.LocationID != nil {
 		db = db.Where("location_id = ?", *q.LocationID)
@@ -40,8 +38,8 @@ func buildItemQuery(q *model.ListItemQuery, userID int64, defaultStatus *int8) *
 	return db
 }
 
-// GetItemPage 分页查询物品；userID>0 时只查该用户；defaultStatus 仅在 q.Status 为空时生效
-func (itemGroup *ItemGroup) GetItemPage(q *model.ListItemQuery, userID int64, defaultStatus *int8) (items []model.Item, total int64, err error) {
+// GetItemPage 分页查询物品；userID>0 时只查该用户；defaultStatuses 仅在 q.Status 为空时生效（状态 IN 查询）
+func (itemGroup *ItemGroup) GetItemPage(q *model.ListItemQuery, userID int64, defaultStatuses []int8) (items []model.Item, total int64, err error) {
 	var count int64
 	if err = buildItemQuery(q, userID, defaultStatus).Count(&count).Error; err != nil {
 		return nil, 0, err

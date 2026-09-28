@@ -268,6 +268,10 @@ func (userHandler *UserHandlerGroup) AddUserCreditHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
+	if req.OperatorID != c.GetInt64(middleware.ContextID) {
+		response.FailWithCode(c, response.CodeUnauthorized)
+		return
+	}
 	code := service.UserService.ChangeUserCreditRequest(&req)
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
