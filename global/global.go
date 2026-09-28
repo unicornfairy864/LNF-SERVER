@@ -2,6 +2,7 @@ package global
 
 import (
 	"github.com/go-resty/resty/v2"
+	"github.com/openai/openai-go/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"github.com/unicornfairy864/LNF-SERVER/config"
@@ -19,4 +20,7 @@ var (
 
 	// Http Connection
 	LNF_Resty *resty.Client
+
+	// OpenAI SDK
+	LNF_OpenAI *openai.Client
 )

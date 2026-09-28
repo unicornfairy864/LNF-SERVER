@@ -30,10 +30,11 @@ jwt:
   iss: "your-app-name"
 
 # Agent
-api:
+openai:
   openai_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   openai_base_url: "https://api.openai.com/v1"
   default_model: "gpt-4o-mini"
+  temperature: 0.1
 
 # Storage (upload)
 storage:

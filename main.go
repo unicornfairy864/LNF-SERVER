@@ -44,6 +44,9 @@ func main() {
 	// Scheduler：认领超时自动关闭
 	initialization.StartClaimAutoCloseScheduler()
 
+	// OpenAI Client
+	initialization.InitOpenAI()
+
 	// Swagger
 	r.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
