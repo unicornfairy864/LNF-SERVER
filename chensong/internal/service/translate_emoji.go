@@ -91,7 +91,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	}
 	utils2.LogString(text)
 	if text == "" || text == "false" {
-		return response.CodeSuccess
+		return response.CodeNoNeed
 	}
 	if req.MessageType == "group" {
 		_, err = client.Client.SendGroupMessage(fmt.Sprintf("[CQ:reply,id=%d] %s", req.MessageID, text), req.GroupID)
