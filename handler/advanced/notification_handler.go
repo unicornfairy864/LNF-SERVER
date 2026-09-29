@@ -19,13 +19,12 @@ type NotificationHandlerGroup struct{}
 // @Produce json
 // @Param limit query int false "每页数量"
 // @Param offset query int false "偏移量"
-// @Param type query int false "类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动"
+// @Param type query int false "类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换"
 // @Param is_read query int false "是否已读: 0未读 1已读"
 // @Param admin_id query int false "发布管理员ID"
-// @Success 200 {object} response.Response{data=[]model.NotificationItem}
-// @Failure 400 {object} response.Response
+// @Success 200 {object} response.CommonResponse{data=[]model.NotificationItem}
+// @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications [get]
-// @Security ApiKeyAuth
 func (h *NotificationHandlerGroup) List(c *gin.Context) {
 	userID := c.GetInt64("ContextID")
 	var req model.NotificationListRequest
@@ -47,10 +46,9 @@ func (h *NotificationHandlerGroup) List(c *gin.Context) {
 // @Description 获取当前用户的未读通知数量，走 Redis 缓存（5 分钟过期）
 // @Accept json
 // @Produce json
-// @Success 200 {object} response.Response{data=int64}
-// @Failure 400 {object} response.Response
+// @Success 200 {object} response.CommonResponse{data=int64}
+// @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications/unread-count [get]
-// @Security ApiKeyAuth
 func (h *NotificationHandlerGroup) UnreadCount(c *gin.Context) {
 	userID := c.GetInt64("ContextID")
 	count, code := service.NotificationService.UnreadCount(userID)
@@ -68,11 +66,10 @@ func (h *NotificationHandlerGroup) UnreadCount(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path int true "通知ID"
-// @Success 200 {object} response.Response{data=model.Notification}
-// @Failure 400 {object} response.Response
-// @Failure 404 {object} response.Response
+// @Success 200 {object} response.CommonResponse{data=model.Notification}
+// @Failure 400 {object} response.CommonResponse
+// @Failure 404 {object} response.CommonResponse
 // @Router /api/v1/notifications/{id} [get]
-// @Security ApiKeyAuth
 func (h *NotificationHandlerGroup) GetAndRead(c *gin.Context) {
 	userID := c.GetInt64("ContextID")
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -95,10 +92,9 @@ func (h *NotificationHandlerGroup) GetAndRead(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param body body model.NotificationIDsRequest true "通知ID列表"
-// @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Success 200 {object} response.CommonResponse
+// @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications/read [put]
-// @Security ApiKeyAuth
 func (h *NotificationHandlerGroup) BatchMarkRead(c *gin.Context) {
 	userID := c.GetInt64("ContextID")
 	var req model.NotificationIDsRequest
@@ -121,10 +117,9 @@ func (h *NotificationHandlerGroup) BatchMarkRead(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param body body model.NotificationIDsRequest true "通知ID列表"
-// @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Success 200 {object} response.CommonResponse
+// @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications [delete]
-// @Security ApiKeyAuth
 func (h *NotificationHandlerGroup) BatchDelete(c *gin.Context) {
 	userID := c.GetInt64("ContextID")
 	var req model.NotificationIDsRequest
@@ -147,10 +142,9 @@ func (h *NotificationHandlerGroup) BatchDelete(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param body body model.NotificationSendRequest true "发送通知请求"
-// @Success 200 {object} response.Response
-// @Failure 400 {object} response.Response
+// @Success 200 {object} response.CommonResponse
+// @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/admin/notifications [post]
-// @Security ApiKeyAuth
 func (h *NotificationHandlerGroup) Send(c *gin.Context) {
 	adminID := c.GetInt64("ContextID")
 	var req model.NotificationSendRequest

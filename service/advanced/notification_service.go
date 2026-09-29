@@ -2,6 +2,7 @@ package advanced
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/unicornfairy864/LNF-SERVER/dao"
@@ -18,24 +19,52 @@ func unreadKey(userID int64) string {
 	return fmt.Sprintf("notification:unread:%d", userID)
 }
 
+// notificationDefaultLimit List 未传 limit 时的缺省值
+// （limit=0 会生成 LIMIT 0 恒空列表，负数会退化为无 LIMIT 全表返回）
+const notificationDefaultLimit = 10
+
 // Send 发送通知（支持全体，异步）
 // 这里并发有风险，炸了优先查这里
 func (s *NotificationServiceGroup) Send(req *model.NotificationSendRequest, adminID int64) response.Code {
-	go s.sendAsync(req, adminID)
+	// 目标校验放同步段，错误可即时返回调用方：
+	// SendToAll 与 UserIDs 互斥（同时传不再静默忽略显式列表）；
+	// 显式列表过滤不存在/已删除用户，全部无效则拒绝，避免写出孤儿通知
+	var targets []int64
+	if req.SendToAll {
+		if len(req.UserIDs) > 0 {
+			return response.CodeParamError
+		}
+	} else {
+		if len(req.UserIDs) == 0 {
+			return response.CodeParamError
+		}
+		for _, u := range dao.UserDao.GetUserListByIDs(req.UserIDs) {
+			if u.IsDeleted == 0 {
+				targets = append(targets, u.ID)
+			}
+		}
+		if len(targets) == 0 {
+			return response.CodeParamError
+		}
+	}
+	go s.sendAsync(req, targets, adminID)
 	return response.CodeSuccess
 }
 
-// sendAsync 异步执行发送
-func (s *NotificationServiceGroup) sendAsync(req *model.NotificationSendRequest, adminID int64) {
+// sendAsync 异步执行发送（targets 为同步段过滤后的显式目标；SendToAll 现场拉取全体未删除用户）
+func (s *NotificationServiceGroup) sendAsync(req *model.NotificationSendRequest, targets []int64, adminID int64) {
 	if req.SendToAll {
 		var userIDs []int64
-		if err := global.LNF_DB.Model(&modelbasic.User{}).Pluck("id", &userIDs).Error; err != nil {
+		if err := global.LNF_DB.Model(&modelbasic.User{}).
+			Where("is_deleted = 0").
+			Pluck("id", &userIDs).Error; err != nil {
+			log.Printf("[notification] SendToAll 拉取全体用户失败: %v", err)
 			return
 		}
 		s.batchCreate(userIDs, req, adminID)
 		return
 	}
-	s.batchCreate(req.UserIDs, req, adminID)
+	s.batchCreate(targets, req, adminID)
 }
 
 // batchCreate 构造并写入通知
@@ -48,6 +77,7 @@ func (s *NotificationServiceGroup) batchCreate(userIDs []int64, req *model.Notif
 		list = append(list, model.ToNotification(req, adminID, uid))
 	}
 	if err := dao.NotificationDao.BatchCreate(list); err != nil {
+		log.Printf("[notification] batchCreate 写入失败 admin_id=%d type=%d 目标数=%d: %v", adminID, req.Type, len(userIDs), err)
 		return
 	}
 	for _, uid := range userIDs {
@@ -57,6 +87,13 @@ func (s *NotificationServiceGroup) batchCreate(userIDs []int64, req *model.Notif
 
 // List 获取列表
 func (s *NotificationServiceGroup) List(userID int64, req *model.NotificationListRequest) ([]model.NotificationItem, response.Code) {
+	// limit/offset 兑底：未传或非法统一归位（0 生成 LIMIT 0 恒空，负数退化为全表返回）
+	if req.Limit <= 0 {
+		req.Limit = notificationDefaultLimit
+	}
+	if req.Offset < 0 {
+		req.Offset = 0
+	}
 	list, err := dao.NotificationDao.List(userID, req)
 	if err != nil {
 		return nil, response.CodeNotificationQueryFailed
@@ -112,7 +149,12 @@ func (s *NotificationServiceGroup) BatchDelete(ids []int64, userID int64) respon
 	return response.CodeSuccess
 }
 
-// Create 内部方法，供认领/评论/积分等模块调用
+// Create 内部方法，供各模块系统触发点调用（adminID=0 表示系统触发；失败由调用方记日志，不影响主流程）。
+// 已接入触发点（2026-09-30）：
+//  1. item 认领关闭/确认/自行关闭 → type=3 认领结果（service/basic/item_service.go）
+//  2. user QQ 绑定成功 → type=0 系统通知（service/basic/user_service.go）
+//  3. shop 兑换事务提交成功 → type=5 积分变动 + type=6 商品兑换（本包 shop_service.go，
+//     先积分变动后发货提醒；群内 at 提醒由 chensong 发送）
 func (s *NotificationServiceGroup) Create(adminID, userID int64, ntype int8, title, content string, relatedID *int64) error {
 	n := &model.Notification{
 		AdminID:   adminID,
