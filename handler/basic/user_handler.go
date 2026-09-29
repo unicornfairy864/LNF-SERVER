@@ -199,7 +199,9 @@ func (userHandler *UserHandlerGroup) QQBindHandler(c *gin.Context) {
 		response.FailWithCode(c, response.CodeParamError)
 		return
 	}
-	code := service.UserService.QQBind(c.GetInt64(middleware.ContextID), c.GetString(middleware.ContextID), strconv.FormatInt(req.QQ, 10), strconv.FormatInt(req.Code, 10))
+	// 第二参数为 jti（会话标识）：从 ContextJti 取，与 QQGetCodeHandler 一致；
+	// 原误传 c.GetString(ContextID)（用户ID当字符串，恒为""），导致验证码会话键错位、绑定必失败
+	code := service.UserService.QQBind(c.GetInt64(middleware.ContextID), c.GetString(middleware.ContextJti), strconv.FormatInt(req.QQ, 10), strconv.FormatInt(req.Code, 10))
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
 		return

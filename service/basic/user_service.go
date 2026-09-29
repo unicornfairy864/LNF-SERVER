@@ -3,6 +3,7 @@ package basic
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -18,6 +19,9 @@ import (
 )
 
 type UserServiceGroup struct{}
+
+// 通知类型（见 notifications.sql type 注释）：0 系统通知
+const notificationTypeSystem int8 = 0
 
 func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*model.User, response.Code) {
 	// 判断表单是否符合要求
@@ -233,6 +237,12 @@ func (userService *UserServiceGroup) QQBind(id int64, jti, reqQQ, reqCode string
 	err = dao.UserDao.UpdateUserByVK(id, map[string]interface{}{"qq": reqQQ})
 	if err != nil {
 		return response.CodeDatabaseError
+	}
+	// 数据落库成功：发送绑定成功通知（type=0 系统通知，系统触发 adminID=0，无关联实体）；
+	// 发送失败仅记日志，不影响绑定主流程。notificationService 为包内共享实例（见 item_service.go）
+	if nerr := notificationService.Create(0, id, notificationTypeSystem,
+		"QQ绑定成功", fmt.Sprintf("你已成功绑定QQ号 %s，现在可以使用积分商城的兑换功能。", reqQQ), nil); nerr != nil {
+		log.Printf("[user] QQ绑定成功通知发送失败 user_id=%d qq=%s: %v", id, reqQQ, nerr)
 	}
 	return response.CodeSuccess
 }
