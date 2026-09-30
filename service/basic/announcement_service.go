@@ -45,11 +45,14 @@ func (a *AnnouncementServiceGroup) DeleteAnnouncement(id int64) response.Code {
 	return response.CodeSuccess
 }
 
-// 从最新忽视ignore_pieces条后读取limit条，如无auth权限不返回草稿，已下架
+// 从给定id（不给定默认最新）开始忽视ignore_pieces条后读取limit条，如无auth权限不返回草稿，已下架
 func (a *AnnouncementServiceGroup) GetAnnouncements(anrq *model.AnnouncementGetRequest) *model.AnnouncementListResponse {
 	announcements := []model.AnnouncementResponse{}
 	ignore := anrq.IgnorePieces
 	last := int64(999999)
+	if anrq.StartedID >= 0 {
+		last = anrq.StartedID
+	}
 	limit := anrq.Limit
 	for limit > 0 && last > 0 {
 		an := model.ToResponse(dao.AnnouncementDao.GetAnnouncementByID(last))
