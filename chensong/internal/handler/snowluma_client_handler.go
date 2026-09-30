@@ -42,7 +42,13 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 	// Services
 	var code response.Code
 	utils.LogJson(req)
+	if req.PostType != "message" {
+		response.Success(c)
+		return
+	}
+	utils.LogJson("ServiceStart")
 	// TranslateEmoji
+	utils.LogJson("TranslateEmojiStart")
 	code = service.TranslateEmoji(req)
 	if code == response.CodeSuccess {
 		utils.LogJson("SuccessToTranslateEmoji")
@@ -50,5 +56,7 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 		utils.LogJson(strconv.Itoa(int(code)) + " " + response.Msg[code])
 	}
 	//
+
+	utils.LogJson("ServiceEnd")
 	response.Success(c)
 }
