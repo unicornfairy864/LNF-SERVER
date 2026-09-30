@@ -83,7 +83,7 @@ d. 以上都选不出通顺字 → 不再硬凑谐音，回到【判定流程】
 
 func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 	if req.PostType != "message" {
-		return response.CodeSuccess
+		return response.CodeNotMessage
 	}
 	text := utils.CleanEvent(req)
 	if text == "" {

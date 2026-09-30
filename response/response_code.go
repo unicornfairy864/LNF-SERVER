@@ -140,8 +140,9 @@ const (
 
 // ==================== 测试 -xxxx ====================
 const (
-	CodeTest   Code = -1
-	CodeNoNeed Code = -2
+	CodeTest       Code = -1
+	CodeNoNeed     Code = -2
+	CodeNotMessage Code = -3
 )
 
 // Msg 全局消息映射
@@ -256,4 +257,5 @@ var Msg = map[Code]string{
 	// Agent
 	CodeOpenAIError: "Agent寄了",
 	CodeNoNeed:      "NoNeed",
+	CodeNotMessage:  "不是message类型",
 }
