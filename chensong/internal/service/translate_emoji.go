@@ -97,7 +97,7 @@ func TranslateEmoji(req model.GroupMessageEvent) response.Code {
 		utils2.LogJson(err.Error())
 		return response.CodeChenSongError
 	}
-	utils2.LogString(text)
+	utils2.LogString("Result: " + text)
 	if text == "" || text == "false" {
 		return response.CodeNoNeed
 	}
