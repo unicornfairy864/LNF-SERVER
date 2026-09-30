@@ -32,6 +32,7 @@ type AnnouncementUpdateRequest struct {
 type AnnouncementGetRequest struct {
 	Auth         bool  `json:"auth"`
 	AdminID      int64 `json:"admin_id"`
+	StartedID    int64 `json:"started_id"`
 	IgnorePieces int64 `json:"ignore_pieces"`
 	Limit        int64 `json:"limit"`
 }
