@@ -14,4 +14,5 @@ var (
 	LocationHandler     advanced.LocationHandler
 	TagHandler          advanced.TagHandler
 	NotificationHandler advanced.NotificationHandlerGroup
+	ShopHandler         advanced.ShopHandlerGroup
 )

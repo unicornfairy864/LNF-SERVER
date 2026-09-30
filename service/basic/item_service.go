@@ -1,6 +1,8 @@
 package basic
 
 import (
+	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	modeladv "github.com/unicornfairy864/LNF-SERVER/model/advanced"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"github.com/unicornfairy864/LNF-SERVER/response"
+	"github.com/unicornfairy864/LNF-SERVER/service/advanced"
 )
 
 type ItemServiceGroup struct{}
@@ -16,8 +19,9 @@ type ItemServiceGroup struct{}
 const (
 	itemDefaultPage     = 1
 	itemDefaultPageSize = 10
+	itemMaxPageSize     = 50
 	itemMyMaxPageSize   = 50
-	itemMaxTitleLen     = 100
+	itemMaxTitleLen     = 90
 	itemMaxImages       = 3
 
 	// 物品状态（items.status）
@@ -28,19 +32,29 @@ const (
 	// 认领自动关闭单批扫描上限
 	itemAutoCloseBatchSize = 200
 
+	// 检索时 location 计分只检测该层级的地点（非 level3 的传入 ID 自动忽略且不计入条件总数）
+	itemSearchLocationLevel = 3
+
 	// 积分流水类型（见 credit_logs.sql type 注释）：1 认领成功奖励
 	creditLogTypeClaimReward int64 = 1
+
+	// 通知类型（见 notifications.sql type 注释）：3 认领结果
+	notificationTypeClaimResult int8 = 3
 )
 
 // listDefaultStatuses 列表接口未显式指定 status 时的默认状态范围：已发布(0) + 已认领(1)
 var listDefaultStatuses = []int8{itemStatusPublished, itemStatusClaimed}
+
+// notificationService 通知服务实例（service/basic 包内共享：item 认领关闭/确认 + user QQ 绑定）；
+// 直接依赖 service/advanced 而非 service 包单例，避免 basic ↔ service 循环引用
+var notificationService = &advanced.NotificationServiceGroup{}
 
 // normalizePage 归一化分页参数
 func normalizePage(q *model.ListItemQuery) {
 	if q.Page <= 0 {
 		q.Page = itemDefaultPage
 	}
-	if q.PageSize <= 0 {
+	if q.PageSize <= 0 || q.PageSize > itemMaxPageSize {
 		q.PageSize = itemDefaultPageSize
 	}
 }
@@ -121,16 +135,85 @@ func (itemService *ItemServiceGroup) ListMyService(userID int64, q *model.ListIt
 
 // pageResponse 组装分页响应
 func pageResponse(q *model.ListItemQuery, total int64, items []model.Item) *model.ItemListResponse {
+	return buildPagedList(q.Page, q.PageSize, total, items)
+}
+
+// buildPagedList 组装分页响应（页码/页大小显式传入，供列表与检索共用）
+func buildPagedList(page int, pageSize int, total int64, items []model.Item) *model.ItemListResponse {
 	responses := make([]model.ItemResponse, 0, len(items))
 	for i := range items {
 		responses = append(responses, *buildResponse(&items[i]))
 	}
 	return &model.ItemListResponse{
 		Total:    total,
-		Page:     q.Page,
-		PageSize: q.PageSize,
+		Page:     page,
+		PageSize: pageSize,
 		Items:    responses,
 	}
+}
+
+// SearchService 多条件最小匹配检索（tag + location 计分，返回 match_count >= min_match 的物品）
+// 计分：match_count = |item.tags ∩ tag_ids| + (item.location_id ∈ location_ids(仅level3) ? 1 : 0)
+// 校验：min_match 必传且 ≥1；status 必传可多选（仅 0/1，禁 2）；
+// 条件总数 = 去重后真实存在的 tag 数 + level3 地点数（"剔除计"：无法得分的条件不计入），
+// 要求 min_match ≤ 条件总数（相等 = 全部条件必须满足），两组均为空时条件总数为 0 同样被拦截
+func (itemService *ItemServiceGroup) SearchService(q *model.ItemMatchQuery) (*model.ItemListResponse, response.Code) {
+	// min_match ≥1（binding 已保证，防御性复核）
+	if q.MinMatch < 1 {
+		return nil, response.CodeParamError
+	}
+	// status 必传、多选、仅允许 0/1（binding 已保证，此处去重+防御）
+	statuses := make([]int8, 0, len(q.Status))
+	seenStatus := make(map[int8]struct{}, len(q.Status))
+	for _, s := range q.Status {
+		if s != itemStatusPublished && s != itemStatusClaimed {
+			return nil, response.CodeParamError
+		}
+		if _, ok := seenStatus[s]; ok {
+			continue
+		}
+		seenStatus[s] = struct{}{}
+		statuses = append(statuses, s)
+	}
+	if len(statuses) == 0 {
+		return nil, response.CodeParamError
+	}
+	// tag 去重后仅保留真实存在的（与 location "剔除计"口径一致：无法得分的条件不计入条件总数）
+	seenTag := make(map[int64]struct{}, len(q.TagIDs))
+	dedupTags := make([]int64, 0, len(q.TagIDs))
+	for _, id := range q.TagIDs {
+		if _, ok := seenTag[id]; ok {
+			continue
+		}
+		seenTag[id] = struct{}{}
+		dedupTags = append(dedupTags, id)
+	}
+	tagIDs := make([]int64, 0, len(dedupTags))
+	for _, tag := range dao.TagDao.GetTagsByIDs(dedupTags) {
+		tagIDs = append(tagIDs, tag.ID)
+	}
+	// location 仅保留 level=3（非 level3 / 不存在的 ID 自动忽略，且不计入条件总数）
+	locationIDs := make([]int64, 0, len(q.LocationIDs))
+	for _, loc := range dao.LocationDao.GetLocationsByIDs(q.LocationIDs) {
+		if loc.Level == itemSearchLocationLevel {
+			locationIDs = append(locationIDs, loc.ID)
+		}
+	}
+	// 条件总数与 min_match 校验
+	if q.MinMatch > len(tagIDs)+len(locationIDs) {
+		return nil, response.CodeParamError
+	}
+	if q.Page <= 0 {
+		q.Page = itemDefaultPage
+	}
+	if q.PageSize <= 0 || q.PageSize > itemMaxPageSize {
+		q.PageSize = itemDefaultPageSize
+	}
+	items, total, err := dao.ItemDao.GetItemsByMinMatch(q, tagIDs, locationIDs, q.MinMatch, statuses)
+	if err != nil {
+		return nil, response.CodeDatabaseError
+	}
+	return buildPagedList(q.Page, q.PageSize, total, items), response.CodeSuccess
 }
 
 // GetDetailService 物品详情（浏览量 +1）
@@ -204,12 +287,7 @@ func (itemService *ItemServiceGroup) UpdateService(userID int64, req *model.Upda
 	if req.Description != nil {
 		updates["description"] = *req.Description
 	}
-	if req.Status != nil {
-		if *req.Status < 0 || *req.Status > 2 {
-			return response.CodeParamError
-		}
-		updates["status"] = *req.Status
-	}
+	// status 状态流转由专门接口管理（claim/withdraw/confirm/close），不允许通过 update 修改
 	if req.LocationID != nil {
 		if *req.LocationID > 0 && dao.LocationDao.GetLocationByID(*req.LocationID).ID == 0 {
 			return response.CodeItemLocationInvalid
@@ -306,6 +384,48 @@ func claimBeneficiary(item *model.Item) int64 {
 		return *item.ClaimUserID
 	}
 	return 0
+}
+
+// notifyClaimClosed 认领关闭结果通知（type=3 认领结果，系统触发 adminID=0，relatedID=物品ID）。
+// auto 区分超时自动关闭与发布者手动确认；isBeneficiary 为接收者是否积分受益人
+// （拾物帖受益人=发帖者，失物帖受益人=认领者）；发送失败仅记日志，不影响关闭/发分主流程
+func notifyClaimClosed(receiverID int64, item *model.Item, credit int64, isBeneficiary bool, auto bool) {
+	if receiverID == 0 {
+		return
+	}
+	title, verb := "认领已确认", "已被发布者确认"
+	if auto {
+		title, verb = "认领已超时自动确认", "因认领超时已自动确认"
+	}
+	role := "你认领的物品"
+	if receiverID == item.UserID {
+		role = "你发布的物品"
+	}
+	content := fmt.Sprintf("%s「%s」%s，物品已关闭", role, item.Title, verb)
+	if isBeneficiary {
+		content += fmt.Sprintf("，拾金不昧积分奖励 %d 分已发放至你的账户。", credit)
+	} else {
+		content += "。"
+	}
+	relatedID := item.ID
+	if err := notificationService.Create(0, receiverID, notificationTypeClaimResult, title, content, &relatedID); err != nil {
+		log.Printf("[item] 认领关闭通知发送失败 item_id=%d receiver_id=%d: %v", item.ID, receiverID, err)
+	}
+}
+
+// notifySelfCloseToClaimer 发帖者自行找回关闭物品时，通知仍在认领中的认领者
+// （type=3 认领结果，系统触发 adminID=0，relatedID=物品ID；该路径不发积分，
+// 与 notifyClaimClosed 的确认/超时语义区分）；发送失败仅记日志，不影响关闭主流程
+func notifySelfCloseToClaimer(claimUserID int64, item *model.Item) {
+	if claimUserID == 0 {
+		return
+	}
+	content := fmt.Sprintf("你认领的物品「%s」已被发布者自行找回并关闭，本次认领结束。", item.Title)
+	relatedID := item.ID
+	if err := notificationService.Create(0, claimUserID, notificationTypeClaimResult,
+		"认领已结束", content, &relatedID); err != nil {
+		log.Printf("[item] 自行关闭认领中止通知发送失败 item_id=%d claim_user_id=%d: %v", item.ID, claimUserID, err)
+	}
 }
 
 // ClaimService 认领物品（登录用户；是否要求绑定QQ由 server.claim_qq_required 控制）
@@ -405,6 +525,10 @@ func (itemService *ItemServiceGroup) ConfirmClaimService(userID int64, itemID in
 		}
 		return response.CodeClaimNotFound
 	}
+	// 事务提交成功：通知认领者（确认者=发帖者本人，不自我通知）；
+	// 失物帖(type=0)认领者为积分受益人，文案带积分发放说明
+	notifyClaimClosed(*item.ClaimUserID, &item, global.LNF_CONFIG.Server.ClaimCredit,
+		beneficiary == *item.ClaimUserID, false)
 	return response.CodeSuccess
 }
 
@@ -427,6 +551,11 @@ func (itemService *ItemServiceGroup) CloseSelfService(userID int64, itemID int64
 	if affected == 0 {
 		return response.CodeItemClosed
 	}
+	// 关闭前存在进行中的认领（status=1）时，通知认领者其认领随关闭结束（该路径不发积分）；
+	// item 为关闭前读取的内存副本，ClaimUserID 仍可用（CloseItem 已清空 DB 侧字段）
+	if item.Status == itemStatusClaimed && item.ClaimUserID != nil && *item.ClaimUserID != item.UserID {
+		notifySelfCloseToClaimer(*item.ClaimUserID, &item)
+	}
 	return response.CodeSuccess
 }
 
@@ -448,8 +577,17 @@ func (itemService *ItemServiceGroup) AutoCloseExpiredClaimsService() {
 		if beneficiary == 0 {
 			continue
 		}
-		// 条件更新保证并发下只关闭/发分一次
-		_, _ = dao.ItemDao.CloseItemWithCredit(item.ID, beneficiary,
+		// 条件更新保证并发下只关闭/发分一次；affected==1 时通知发帖者与认领者双方
+		affected, cerr := dao.ItemDao.CloseItemWithCredit(item.ID, beneficiary,
 			global.LNF_CONFIG.Server.ClaimCredit, creditLogTypeClaimReward, "认领超时自动关闭奖励")
+		if cerr != nil || affected == 0 {
+			continue
+		}
+		notifyClaimClosed(item.UserID, item, global.LNF_CONFIG.Server.ClaimCredit,
+			beneficiary == item.UserID, true)
+		if item.ClaimUserID != nil {
+			notifyClaimClosed(*item.ClaimUserID, item, global.LNF_CONFIG.Server.ClaimCredit,
+				beneficiary == *item.ClaimUserID, true)
+		}
 	}
 }

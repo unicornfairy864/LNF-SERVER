@@ -14,6 +14,7 @@ func (i *ItemRouter) CreateRouter(api *gin.RouterGroup) {
 	public := userGroup.Group("/item")
 	{
 		public.GET("/list", handler.ItemHandler.ListItemHandler)
+		public.GET("/search", handler.ItemHandler.SearchItemHandler)
 		public.GET("/:itemID", handler.ItemHandler.GetItemHandler)
 	}
 	// Private

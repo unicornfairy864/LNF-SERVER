@@ -8,6 +8,8 @@ var (
 	TagDao       TagGroup
 	LocationDao  LocationGroup
 	RedisDao     RedisGroup
+	GoodDao      GoodGroup
+	OrderDao     OrderGroup
 
 	AnnouncementDao AnnouncementGroup
 	NotificationDao NotificationGroup

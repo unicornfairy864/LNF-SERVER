@@ -51,6 +51,35 @@ func (itemHandler *ItemHandlerGroup) ListItemHandler(c *gin.Context) {
 	response.SuccessWithData(c, res)
 }
 
+// SearchItemHandler 多条件最小匹配检索物品
+// @Summary      多条件最小匹配检索物品（tag+location 计分）
+// @Description  match_count = |物品标签 ∩ tag_ids| + (物品地点 ∈ location_ids 中 level=3 的 ? 1 : 0)，返回 match_count >= min_match 的物品；<br />location_ids 中非 level3 的 ID 自动忽略且不计入条件总数，tag_ids 去重后不存在的同理；<br />min_match 必传且 ≥1，且 ≤ 条件总数（相等 = 全部条件必须满足）；两组均为空报参数错误；<br />status 必传可多选（仅 0已发布/1已认领，传 2 报参数错误）；type 可选；<br />排序 created_at DESC，仅返回 is_deleted=0 的物品
+// @Tags         item
+// @Accept       json
+// @Produce      json
+// @Param        tag_ids       query   array   false  "标签ID列表，逗号分隔或重复参数，如 tag_ids=1,2,3"
+// @Param        location_ids  query   array   false  "地点ID列表（仅 level=3 生效），如 location_ids=4,5"
+// @Param        min_match     query   int     true   "最少满足条件数（≥1 且 ≤ 条件总数）"
+// @Param        type          query   int     false  "类型: 0丢失 1拾到"
+// @Param        status        query   array   true   "状态多选: 0已发布 1已认领（禁2），如 status=0,1"
+// @Param        page          query   int     false  "页码，默认1"
+// @Param        page_size     query   int     false  "每页数量，默认10，最大100"
+// @Success      200  {object}  response.CommonResponse{data=model.ItemListResponse}
+// @Router       /api/v1/item/search [get]
+func (itemHandler *ItemHandlerGroup) SearchItemHandler(c *gin.Context) {
+	req := model.ItemMatchQuery{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	res, code := service.ItemService.SearchService(&req)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.SuccessWithData(c, res)
+}
+
 // GetItemHandler 公开获取物品详情
 // @Summary      公开获取物品详情
 // @Description  返回物品详情（含地点链、标签、图片），浏览量 +1；物品不存在或已删除返回 20001

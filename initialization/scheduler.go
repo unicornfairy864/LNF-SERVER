@@ -7,10 +7,10 @@ import (
 )
 
 // claimAutoCloseScanInterval 认领超时自动关闭的扫描间隔
-const claimAutoCloseScanInterval = time.Minute
+const claimAutoCloseScanInterval = 5 * time.Minute
 
 // StartClaimAutoCloseScheduler 启动认领超时自动关闭后台任务
-// 每分钟扫描一次认领时间超过 server.claim_auto_close 的物品，
+// 每 5 分钟扫描一次认领时间超过 server.claim_auto_close 的物品，
 // 按"确认由他人找回"语义自动关闭并发放积分
 func StartClaimAutoCloseScheduler() {
 	go func() {

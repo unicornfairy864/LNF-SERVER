@@ -4,10 +4,13 @@ import "time"
 
 // Notification 通知表
 type Notification struct {
-	ID        int64      `gorm:"column:id;primaryKey;autoIncrement"                        json:"id"         comment:"主键ID"`
-	AdminID   int64      `gorm:"column:admin_id;not null"                                  json:"admin_id"   comment:"发布管理员ID"`
-	UserID    int64      `gorm:"column:user_id;not null"                                   json:"user_id"    comment:"接收用户ID"`
-	Type      int8       `gorm:"column:type;not null"                                      json:"type"       comment:"类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动"`
+	ID      int64 `gorm:"column:id;primaryKey;autoIncrement"                        json:"id"         comment:"主键ID"`
+	AdminID int64 `gorm:"column:admin_id;not null"                                  json:"admin_id"   comment:"发布管理员ID"`
+	UserID  int64 `gorm:"column:user_id;not null"                                   json:"user_id"    comment:"接收用户ID"`
+	// 通知类型触发点（2026-09-30 shop 兑换已接入，占位注释移除）：
+	//  5 积分变动：shop 兑换扣分成功后写入（service/advanced/shop_service.go）
+	//  6 商品兑换：兑换成功后写入发货提醒（同上）
+	Type      int8       `gorm:"column:type;not null"                                      json:"type"       comment:"类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换"`
 	Title     string     `gorm:"column:title;type:varchar(100);not null"                   json:"title"      comment:"通知标题"`
 	Content   string     `gorm:"column:content;type:text"                                  json:"content"    comment:"通知内容（支持markdown格式）"`
 	RelatedID *int64     `gorm:"column:related_id"                                         json:"related_id" comment:"关联ID（物品ID/认领ID/评论ID等）"`

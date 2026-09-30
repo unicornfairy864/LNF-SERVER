@@ -14,4 +14,5 @@ var (
 	LocationRouter     advanced.LocationRouter
 	TagRouter          advanced.TagRouter
 	NotificationRouter advanced.NotificationRouter
+	ShopRouter         advanced.ShopRouter
 )

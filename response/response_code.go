@@ -100,6 +100,15 @@ const (
 	CodeNotificationSendFailed   Code = 60008 // 通知发送失败
 )
 
+// ==================== 积分商城 11xxxx ====================
+const (
+	CodeGoodsNotFound       Code = 11001 // 商品不存在
+	CodeGoodsStockNotEnough Code = 11002 // 商品库存不足
+	CodeGoodsNameInvalid    Code = 11003 // 商品名称无效
+	CodeGoodsPriceInvalid   Code = 11004 // 商品价格无效
+	CodeShopQQRequired      Code = 11005 // 使用商城功能需先绑定QQ
+)
+
 // ==================== 举报 7xxxx ====================
 const (
 	CodeReportNotFound       Code = 70001 // 举报记录不存在
@@ -224,6 +233,13 @@ var Msg = map[Code]string{
 	CodeReportDuplicate:      "已举报过该内容",
 	CodeReportSelfContent:    "不能举报自己的内容",
 	CodeReportAlreadyHandled: "举报已被处理",
+
+	// 积分商城
+	CodeGoodsNotFound:       "商品不存在",
+	CodeGoodsStockNotEnough: "商品库存不足",
+	CodeGoodsNameInvalid:    "商品名称无效",
+	CodeGoodsPriceInvalid:   "商品价格无效",
+	CodeShopQQRequired:      "使用商城功能需先绑定QQ",
 
 	// 地点
 	CodeLocationNotFound:    "地点不存在",

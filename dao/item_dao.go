@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"strings"
 	"time"
 
 	"github.com/unicornfairy864/LNF-SERVER/global"
@@ -36,6 +37,56 @@ func buildItemQuery(q *model.ListItemQuery, userID int64, defaultStatuses []int8
 		db = db.Where("(title LIKE ? OR description LIKE ?)", kw, kw)
 	}
 	return db
+}
+
+// buildMinMatchExpr 构造最小匹配计分表达式（match_count = 标签命中数 + 地点命中分）
+// 与 service 约定：tagIDs/locationIDs 已去重且已剔除无法得分的 ID（tag 不存在、location 非 level3），
+// 因此允许其中一个为空（此时该维度计 0 分），不允许两个都为空
+func buildMinMatchExpr(tagIDs []int64, locationIDs []int64) (string, []interface{}) {
+	exprs := make([]string, 0, 2)
+	args := make([]interface{}, 0, 2)
+	if len(tagIDs) > 0 {
+		exprs = append(exprs,
+			"(SELECT COUNT(*) FROM item_tags it WHERE it.item_id = items.id AND it.tag_id IN (?))")
+		args = append(args, tagIDs)
+	} else {
+		exprs = append(exprs, "0")
+	}
+	if len(locationIDs) > 0 {
+		exprs = append(exprs,
+			"(CASE WHEN items.location_id IN (?) THEN 1 ELSE 0 END)")
+		args = append(args, locationIDs)
+	} else {
+		exprs = append(exprs, "0")
+	}
+	return strings.Join(exprs, " + "), args
+}
+
+// GetItemsByMinMatch 多条件最小匹配分页查询：
+// match_count = |item.tags ∩ tagIDs| + (item.location_id ∈ locationIDs ? 1 : 0) >= minMatch
+// statuses 由 service 保证非空（仅 0/1）；排序 created_at DESC, id DESC
+func (itemGroup *ItemGroup) GetItemsByMinMatch(q *model.ItemMatchQuery, tagIDs []int64, locationIDs []int64, minMatch int, statuses []int8) (items []model.Item, total int64, err error) {
+	matchExpr, matchArgs := buildMinMatchExpr(tagIDs, locationIDs)
+	base := func() *gorm.DB {
+		db := global.LNF_DB.Table("items").
+			Where("is_deleted = 0").
+			Where("("+matchExpr+") >= ?", append(matchArgs, minMatch)...).
+			Where("status IN ?", statuses)
+		if q.Type != nil {
+			db = db.Where("type = ?", *q.Type)
+		}
+		return db
+	}
+	var count int64
+	if err = base().Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+	err = base().
+		Order("created_at DESC, id DESC").
+		Offset((q.Page - 1) * q.PageSize).
+		Limit(q.PageSize).
+		Find(&items).Error
+	return items, count, err
 }
 
 // GetItemPage 分页查询物品；userID>0 时只查该用户；defaultStatuses 仅在 q.Status 为空时生效（状态 IN 查询）

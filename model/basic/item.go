@@ -86,7 +86,6 @@ type UpdateItemRequest struct {
 	ID             int64      `json:"id" binding:"required"`
 	Title          *string    `json:"title,omitempty"`
 	Description    *string    `json:"description,omitempty"`
-	Status         *int8      `json:"status,omitempty"`
 	LocationID     *int64     `json:"location_id,omitempty"`
 	LocationDetail *string    `json:"location_detail,omitempty"`
 	LostFoundTime  *time.Time `json:"lost_found_time,omitempty"`
@@ -110,6 +109,20 @@ type ListItemQuery struct {
 	Keyword    string `form:"keyword,omitempty"`
 	Page       int    `form:"page,omitempty" binding:"omitempty,min=1"`
 	PageSize   int    `form:"page_size,omitempty" binding:"omitempty,min=1,max=100"`
+}
+
+// ItemMatchQuery 多条件最小匹配检索查询（GET 参数）
+// 语义：match_count = |item.tags ∩ tag_ids| + (item.location_id ∈ location_ids(仅level=3) ? 1 : 0)
+// 返回 match_count >= min_match 的物品
+// collection_format:"csv" 使逗号分隔（tag_ids=1,2,3）与重复参数（tag_ids=1&tag_ids=2）两种写法均可绑定
+type ItemMatchQuery struct {
+	TagIDs      []int64 `form:"tag_ids" collection_format:"csv"`
+	LocationIDs []int64 `form:"location_ids" collection_format:"csv"`
+	MinMatch    int     `form:"min_match" binding:"required,min=1"`
+	Type        *int8   `form:"type,omitempty" binding:"omitempty,oneof=0 1"`
+	Status      []int8  `form:"status" collection_format:"csv" binding:"required,min=1,max=2,dive,oneof=0 1"` // 必传可多选，禁 2
+	Page        int     `form:"page,omitempty" binding:"omitempty,min=1"`
+	PageSize    int     `form:"page_size,omitempty" binding:"omitempty,min=1,max=100"`
 }
 
 // ItemListResponse 物品分页列表响应
