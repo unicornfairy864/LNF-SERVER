@@ -99,10 +99,10 @@
 ### Location
 
 ```json
-{"id": 3, "name": "教学楼A", "parent_id": 1, "level": 2, "address": null, "sort_order": 0, "created_at": "...", "updated_at": "..."}
+{"id": 3, "name": "教学楼A", "parent_id": 1, "level": 2, "sort_order": 0, "created_at": "...", "updated_at": "..."}
 ```
 
-- `address` omitempty。`parent_id=0` 为根节点；`level` 从 1 开始。
+- `address` omitempty：为 null 时**整个键缺失**（上例即无该键）。`parent_id=0` 为根节点；`level` 从 1 开始。
 
 ### UploadImageResponse（`/upload/image`）
 
@@ -120,7 +120,7 @@
 
 // 详情 Notification
 {"id": 1, "admin_id": 0, "user_id": 2, "type": 3, "title": "...", "content": "...",
- "related_id": 10, "is_read": 1, "read_at": "...", "created_at": "..."}
+ "related_id": 10, "is_read": 1, "read_at": "...", "created_at": "...", "updated_at": "..."}
 ```
 
 - `type`：`0` 系统通知 / `1` 物品匹配 / `2` 认领申请 / `3` 认领结果 / `4` 评论回复 / `5` 积分变动 / `6` 商品兑换。
@@ -186,7 +186,7 @@
 | `add-credit.type` | 0 拾金不昧 / 1 认领成功 / 2 违规扣分 / 3 系统调整 |
 | `notification.type` | 0 系统 / 1 物品匹配 / 2 认领申请 / 3 认领结果 / 4 评论回复 / 5 积分变动 / 6 商品兑换 |
 | `announcement.type` | 0 系统公告 / 1 活动公告 / 2 维护通知 / 3 其他 |
-| `announcement.status` | 1 已发布 / 2 已下架（0 已废弃：无草稿态，历史 0 值行不可见） |
+| `announcement.status` | 1 已发布 / 2 已下架（0 已废弃：无草稿态；公开端与缺省列表不可见，管理列表可显式 `status=0` 查看） |
 | `goods.is_deleted`（下架） | 不可见即下架，前端无感知 |
 
 ---
@@ -498,7 +498,7 @@ Query：
 | POST `/admin/announcement/create` | `{title, content, type, is_top}` | **创建即发布**：status=1、published_at=当前时间、admin_id 取自 JWT（不信任 body）。成功 `data: {}`（**不返回 id**，跳详情可先拉列表第一条） |
 | POST `/admin/announcement/update` | `{id, title?, content?, type?, status?, is_top?}` | 增量更新（传了才改，指针语义）；status 仅 1已发布/2已下架（下架/重新上架）；`published_at` 保持首次发布时间、`view_count`/`created_at` 不可更新 |
 | DELETE `/admin/announcement/:id` | — | 软删（is_deleted=1）：公开/管理列表与详情均不可见 |
-| GET `/admin/announcement` | `page?`、`page_size?`、`status?` | 管理列表：**含已下架**（id DESC）；`status` 可选筛选 1/2（缺省 = 1+2 全查，0 废弃行不可见）；`status` 非 1/2 → `1` |
+| GET `/admin/announcement` | `page?`、`page_size?`、`status?` | 管理列表：**含已下架**（id DESC）；`status` 可选 0/1/2——缺省 = 1+2 全查，`1`/`2` 按状态筛，**`0` = 查历史废弃行**（清理后恒为空）；其他值 → `1` |
 
 create 请求体字段：
 
@@ -515,7 +515,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 
 | 码 | 场景 |
 |---|---|
-| `1` | 绑定失败（缺字段、JSON 类型错、page/page_size 越界、路径 id 非法、管理列表 status 非 1/2） |
+| `1` | 绑定失败（缺字段、JSON 类型错、page/page_size 越界、路径 id 非法、管理列表 status 非 0/1/2） |
 | `2` | 未登录 / 非 role=2 调管理端点 |
 | `6` | DB 异常 |
 | `90001` | 公告不存在/不可见：update、delete、公开详情（含已下架、已删除） |
@@ -524,7 +524,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 #### 注意事项
 
 - 详情接口使 `view_count +1`，勿在轮询/预取中滥用。
-- **无草稿态**（创建即发布）；`status=0` 已废弃——历史 status=0 垃圾行在任何列表/详情中不可见（后端提供清理 SQL）。
+- **无草稿态**（创建即发布）；`status=0` 已废弃——历史垃圾行在公开列表/详情**任何情况都不可见**、缺省管理列表也不返回，仅管理列表显式传 `status=0` 可查（排查用；后端提供清理 SQL）。
 - `page_size` 上限 100 正常生效，与 item 的静默行为不同，不要照搬 item 的分页容错假设。
 - 公告只会出现已发布内容；`status=2` 已下架仅管理列表可见，公开详情返回 `90001`。
 
@@ -540,6 +540,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 | is_read | int? | 0 未读 / 1 已读 |
 | admin_id | int64? | 按发布者筛选 |
 
+- 筛选参数不筛就**省略**：`type`/`is_read`/`admin_id` 传 `0` 或空串（如 `type=`）都会被读成 0 并实际参与筛选（不报错），例：`type=0` 只查系统通知。
 - `data` = NotificationItem[]，`created_at DESC`。错误：`60004`。
 
 #### GET `/notifications/unread-count`（private）未读数
@@ -573,6 +574,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 ```
 
 - `user_ids` 与 `send_to_all` 二选一：同传 → `1`；`send_to_all=false` 且 `user_ids` 空/全无效 → `1`。
+- `type` 必填，**`0`（系统通知）是合法值**（缺字段才报 `1`，0 不触发参数错误）。
 - 异步执行：**接口立即返回成功，实际写入失败仅记后端日志**（无 `60008` 返回路径）。
 - 错误：`1`（参数）、`2`（role 不足）。
 
@@ -645,7 +647,8 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 21. 通知相关：`admin_id=0` 的通知是系统触发；批量删除会跳过"管理端群发给自己的那条"，前端勿把它做成可勾选。
 22. QQ 绑定验证码会话 3 分钟内最多 3 次比对机会，但**第 4 次提交仍会比对、第 5 次才报 `10011`**；`get-code` 对同一 QQ 的限制以 QQ 号维度判重（`10007`）。
 23. 公告分页与 item 不同：`/announcement`、`/admin/announcement` 的 `page_size` binding 1-100 **上限正常生效**（>100 或负数 → `1`，无 51-100 静默按 10 的坑）；0/缺省 → 10。
-24. 公告 create 的 `type`、`is_top` **必填且 0 也要显式传**（缺字段 → `1`）；update 为指针增量，`{"id": n}` 空增量静默成功；`status` 只有 1/2（0 草稿态已废弃）。
+24. 公告 create 的 `type`、`is_top` **必填且 0 也要显式传**（缺字段 → `1`）；update 为指针增量，`{"id": n}` 空增量静默成功；update 的 `status` 仅 1/2（传 0/3 → `90003`，与列表 query 的 `status=0` 含义不同）。
+25. 数值筛选参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` 查历史废弃行）；不筛就省略参数。`POST /admin/notifications` 的 `type=0`（系统通知）合法，缺字段才报 `1`。
 
 ---
 

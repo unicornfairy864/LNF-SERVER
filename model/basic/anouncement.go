@@ -20,11 +20,11 @@ type Announcement struct {
 
 // AnnouncementListQuery 公告列表查询条件（GET query）
 // page/page_size 缺省（未传或为 0）由 service 归一化为 1/10；负数与 page_size>100 由 binding 拦截 → 1
-// status 仅管理端生效（公开端强制 status=1），可选 1/2
+// status 仅管理端生效（公开端强制 status=1），可选 0/1/2：0 是合法值（查历史废弃行），bind 不报错
 type AnnouncementListQuery struct {
 	Page     int   `form:"page,omitempty" binding:"omitempty,min=1"`
 	PageSize int   `form:"page_size,omitempty" binding:"omitempty,min=1,max=100"`
-	Status   *int8 `form:"status,omitempty" binding:"omitempty,oneof=1 2"`
+	Status   *int8 `form:"status,omitempty" binding:"omitempty,oneof=0 1 2"`
 }
 
 // CreateAnnouncementRequest 创建公告请求（创建即发布：status=1、published_at=now、admin_id 取自 JWT）

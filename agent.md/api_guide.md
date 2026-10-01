@@ -218,7 +218,7 @@ Query 参数（均可选）：
   [0 已发布] ───────────→ [1 已认领] ──────────────→ [2 已关闭]
       ↑  撤回 claim/cancel      │
       └─────────────────────────┘
-      任意状态：发布者 close 关闭（不发积分）
+      0/1 状态：发布者 close 关闭（不发积分）
       删除 delete：任意状态下仅本人可删（列表/详情不可见）
 ```
 
@@ -257,7 +257,7 @@ Query 参数（均可选）：
 ### 普通用户 / 游客
 
 - `GET /tag/list`（无需登录）：返回全部标签，按 sort_order 升序，用于发帖选标签和列表筛选器。
-- 标签字段：`{id, name, color, sort_order, created_at, updated_at}`（color 可能为 null）。
+- 标签字段：`{id, name, color, sort_order, created_at, updated_at}`（color 为 null 时整个键缺失）。
 
 ### 管理员（role≥1）
 
@@ -274,7 +274,7 @@ Query 参数（均可选）：
 ### 普通用户 / 游客
 
 - `GET /location/list`（无需登录）：`parent_id=0` 返回根节点（级联选择器第一级）；传 `parent_id=某id` 返回其子地点；都不传返回全部。按 sort_order 升序。
-- 地点字段：`{id, name, parent_id, level, address, sort_order, created_at, updated_at}`（address 可能为 null）。
+- 地点字段：`{id, name, parent_id, level, address, sort_order, created_at, updated_at}`（address 为 null 时整个键缺失）。
 - `GET /item/:itemID/locations`（无需登录）：返回该物品地点的完整链路（根→叶），用于详情页"校区→楼栋→房间"展示；物品无地点时返回 `[]`；物品不存在 → `20001`。
 - `/item/search` 只有 **level=3** 的地点参与计分，检索入口的地点选择器应只展示第 3 层。
 
@@ -297,7 +297,7 @@ Query 参数（均可选）：
 
 | 接口 | 说明 |
 |---|---|
-| `GET /notifications?limit=10&offset=0&type=&is_read=&admin_id=` | 我的通知列表（`created_at` 倒序；limit 缺省 10） |
+| `GET /notifications?limit=10&offset=0` | 我的通知列表（`created_at` 倒序；limit 缺省 10）。`type`/`is_read`/`admin_id` 不筛就**省略**——传 0 或空串（如 `type=`）都会按 0 参与筛选且不报错（`type=0` 只看系统通知） |
 | `GET /notifications/unread-count` | 未读数量（int64；有 5 分钟 Redis 缓存，已读/删除后立刻刷新） |
 | `GET /notifications/:id` | 通知详情，**未读会自动标记已读**；不存在/非本人 → `60001` |
 | `PUT /notifications/read` | 批量已读，请求体 `{"ids": [1,2]}`（必填非空）；只操作自己的未读记录 |
@@ -306,7 +306,7 @@ Query 参数（均可选）：
 ### 管理侧（role≥1）
 
 - `POST /admin/notifications`：请求体 `{"user_ids": [1,2], "send_to_all": false, "type": 0, "title": "≤100字", "content": "...", "related_id": null}`。
-- `user_ids` 与 `send_to_all` 二选一（同传或全空 → `1`）；**异步发送，接口立即返回成功**（写入失败只记后端日志，不报错给前端）。
+- `user_ids` 与 `send_to_all` 二选一（同传、全空或全部为无效 id → `1`）；**`type` 必填，`0`（系统通知）是合法值**；**异步发送，接口立即返回成功**（写入失败只记后端日志，不报错给前端）。
 
 ---
 
@@ -356,9 +356,9 @@ Query 参数（均可选）：
 | `POST /admin/announcement/create` | `{"title": "必填", "content": "必填markdown", "type": 0, "is_top": 0}` | **创建即发布**（status=1、发布时间=当前时间、发布人=登录管理员 JWT）；成功 `data: {}`（**不返回 id**，跳详情可先拉列表第一条）。`type`/`is_top` 必填且 **0 也要显式传**（缺字段 → `1`）；标题空白或超 100 字节、内容空白、type 非 0-3、is_top 非 0/1 → `90003` |
 | `POST /admin/announcement/update` | `{"id": 1, ...要改的字段}`（增量） | 可改 title/content/type/status/is_top；`status` 仅 `1` 重新上架 / `2` 下架（传 0/3 → `90003`）；发布时间保持首次不变，view_count/created_at 不可改；不存在/已删除 → `90001`；只传 id → 成功但无操作 |
 | `DELETE /admin/announcement/:id` | — | 软删（is_deleted=1）：公开/管理列表与详情均不可见；不存在 → `90001`、id 非法 → `1` |
-| `GET /admin/announcement` | `page` / `page_size` / `status` | 管理列表：**含已下架**，id 倒序；`status` 可选筛选（仅 1/2，其他值 → `1`），缺省返回 1+2 全部 |
+| `GET /admin/announcement` | `page` / `page_size` / `status` | 管理列表：**含已下架**，id 倒序；`status` 可选 0/1/2——缺省 = 1+2 全部，`1`/`2` 按状态筛，**`0` = 查历史废弃行**（清理后恒为空），其他值 → `1` |
 
-> 注意：以上四个接口非 role=2 调用返回 `2`；历史 `status=0` 垃圾数据在任何接口都不可见（后端提供清理 SQL，由运维在数据库执行）。
+> 注意：以上四个接口非 role=2 调用返回 `2`；历史 `status=0` 垃圾数据在公开列表/详情任何情况不可见、缺省管理列表也不返回，仅管理列表显式 `status=0` 可查（后端提供清理 SQL，由运维在数据库执行）。注意区分：update 请求体的 `status=0` 仍是业务错误（`90003`），只有列表 query 的 `status=0` 合法。
 
 ---
 
@@ -397,7 +397,7 @@ Query 参数（均可选）：
 22. role=2 创建公告 → 公开列表立即可见（创建即发布：status=1、published_at 非空、admin_id=登录管理员）；缺 type/is_top → `1`；标题全空白或 type=9 → `90003`。
 23. update `status=2` 下架 → 公开列表与详情不可见（详情 `90001`），管理列表仍可见 → `status=1` 重新上架恢复；传 `status=0/3` → `90003`。
 24. 公开详情浏览量：连续两次 `GET /announcement/:id`，view_count 每次 +1 且返回值含本次 +1；id 非法（如 `abc`、`0`）→ `1`。
-25. 列表分页边界：page 缺省/0 → 第 1 页；page_size=100 正常返回；page_size=101 或负数 → `1`；无数据时 `announcements: []` 而非 null。
+25. 列表分页边界：page 缺省/0 → 第 1 页；page_size=100 正常返回；page_size=101 或负数 → `1`；无数据时 `announcements: []` 而非 null；管理列表 `status=0` 合法（返回历史废弃行，清理后为空）、`status=3` → `1`。
 26. `DELETE /admin/announcement/:id` 软删 → 公开/管理列表均不可见、详情 `90001`；删除不存在的 id → `90001`；普通用户（role=0）调任一管理端点 → `2`；空请求体 create → `1`。
 
 ---
@@ -413,6 +413,7 @@ Query 参数（均可选）：
 7. 用户名/昵称/密码长度限制按**字节**计算（1 汉字=3 字节），前端校验规则需与后端一致；item 标题 ≤100、location_detail ≤200、contact ≤100 同理。
 8. 认领超 24h 自动关闭并发分（每 5 分钟扫描），状态可能无操作自行变化。
 9. item 系接口 page_size 传 51-100 会静默按 10 返回（不报错）；shop、announcement 接口无此问题（上限 100 正常生效）。统一传 ≤50 最稳。
+10. 数值筛选 query 参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` = 查历史废弃行，清理后为空）；不筛请直接省略参数。发通知 `type=0`（系统通知）是合法值，缺字段才报 `1`；注意 update 请求体的 `status=0` 另当别论（`90003`）。
 
 ---
 

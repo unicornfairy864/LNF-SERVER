@@ -304,3 +304,24 @@
    ```
 4. 遗留提醒：Redis 中可能残留全角键 `jwt：user:X:version` 垃圾数据（bug 1 遗留，无影响）；联调部署由用户执行。
 
+
+
+### 7.5 进度记录（2026-10-01 追加：0 值 bind 修复 + 两文档全面审计完善）
+
+**代码（仅本问题相关，已过 build/vet/gofmt，swag 已重新生成）：**
+
+| 文件 | 改动 |
+|---|---|
+| `model/basic/anouncement.go` | `AnnouncementListQuery.Status`：`oneof=1 2` → **`oneof=0 1 2`**——`status=0`（含空串 `status=` 解析出的 0）正常读入不报 bind 错，语义 = 查历史废弃行；3+ 仍 → `1` |
+| `model/advanced/notification.go` | `NotificationSendRequest.Type`：`int8 required` → **`*int8 required`**——原写法导致 **`type:0`（系统通知）bind 失败报 `1`（文档示例自身都发不出去）**；现缺字段仍 → `1`，0 正常读入。`ToNotification` 同步解引用 |
+| `service/advanced/notification_service.go` | `batchCreate` 日志 `req.Type` → `*req.Type`（指针适配） |
+
+同类穷举核查（`binding:"required"`/`oneof` 全量扫描）：其余 0 值合法字段（logout_all、role、status、credit、add-credit type、announcement create type/is_top、item type/status、shop min_price 等）均已用指针或 omitempty 模式正确处理，**无第三处**。
+
+**文档同步（api_agent.md / api_guide.md）：**
+
+- agent §1 枚举、§2.6 公告（端点表/错误表/注意事项）、§2.7 通知（列表空值规则 + 发送 type=0 合法）、§3 新增陷阱 25（数值 query 0/空串统一规则）、§1 Location 示例删 `address:null` 与说明对齐、通知详情示例补 `updated_at`。
+- guide §三 状态图 close 改"0/1 状态"（原文"任意状态"与代码矛盾）、§五/§六 color/address omitempty 说法修正、§七 通知示例 URL 删空参数并说明 0 值规则 + 发送错误码补"全部无效"、§九 公告 status 0/1/2 语义与 update `status=0`→90003 的区分说明、§十 用例 25 补 status=0/3、§十一 新增第 10 条统一规则。
+- `common_response_code.md` 无需改（90003 仍针对 update/create 请求体，未涉及 query bind）。
+
+**语义口径（文档已按此写）**：列表 query `status=0`/`type=0`/空串 → 读入 0 并筛选（公告 = 查废弃行，公开列表不受影响强制 status=1）；update 请求体 `status=0` → `90003` 不变；缺字段 → `1` 不变。

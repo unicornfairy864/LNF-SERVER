@@ -2824,7 +2824,7 @@ const docTemplate = `{
                     "maxLength": 100
                 },
                 "type": {
-                    "description": "通知类型",
+                    "description": "通知类型；0（系统通知）是合法值，指针 required：缺字段→1，0 正常读入",
                     "type": "integer"
                 },
                 "user_ids": {
