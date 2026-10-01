@@ -2,7 +2,7 @@
 
 > 读者：前端测试人员。
 > 配套文档：`api_agent.md`（给前端 AI 的精确对接文档，含字段表与调用示例）；`common_response_code.md`（完整错误码表）。
-> 范围：user、item（含 tag / location / image upload）、notification（站内通知）、shop（积分商城）模块。announcement（公告）模块当前存在实现缺陷不可用（见第六节之末）。
+> 范围：user、item（含 tag / location / image upload）、notification（站内通知）、shop（积分商城）、announcement（公告）模块。
 
 ---
 
@@ -339,9 +339,26 @@ Query 参数（均可选）：
 
 ---
 
-## 九、announcement 模块（公告）⚠️ 当前不可用
+## 九、announcement 模块（公告）
 
-后端已注册路由（`GET /announcement/` 公开读取；`POST /admin/announcement/create`、`POST /admin/announcement/update`、`DELETE /admin/announcement/:id`、`GET /admin/announcement/`，均 role=2），但存在多处实现缺陷（读取接口恒返回 `90001`、参数绑定失败后未中断、管理端读取看不到草稿等），**修复前前端与测试均不要接入**，等后端修复后另行提供契约。
+### 普通用户 / 游客
+
+- `GET /announcement?page=1&page_size=10`（无需登录）：已发布公告列表，按 id 倒序（新的在前）。返回 `{total, page, page_size, announcements}`；`page` 缺省 1，`page_size` 缺省 10、**上限 100 正常生效**（>100 或负数 → `1`，与 item 的 51-100 静默按 10 不同）。无结果时 `announcements` 为 `[]`。
+- `GET /announcement/:id`（无需登录）：公告详情，**仅已发布（status=1）可见**；**每次调用浏览量 +1（返回值已含本次 +1）**，勿轮询滥用。不存在/已下架/已删除 → `90001`；id 非正整数 → `1`。
+- 公告字段：`{id, admin_id, title, content(markdown 正文), type, status, is_top, view_count, published_at, created_at, updated_at}`；`published_at` 可能为 null（键缺失）。
+- 状态 `status`：`1` 已发布 / `2` 已下架；**没有草稿态（0 已废弃）**，创建即发布。
+- 类型 `type`：`0` 系统公告 / `1` 活动公告 / `2` 维护通知 / `3` 其他。
+
+### 管理员（role=2）
+
+| 接口 | 请求体 / Query | 说明与错误 |
+|---|---|---|
+| `POST /admin/announcement/create` | `{"title": "必填", "content": "必填markdown", "type": 0, "is_top": 0}` | **创建即发布**（status=1、发布时间=当前时间、发布人=登录管理员 JWT）；成功 `data: {}`（**不返回 id**，跳详情可先拉列表第一条）。`type`/`is_top` 必填且 **0 也要显式传**（缺字段 → `1`）；标题空白或超 100 字节、内容空白、type 非 0-3、is_top 非 0/1 → `90003` |
+| `POST /admin/announcement/update` | `{"id": 1, ...要改的字段}`（增量） | 可改 title/content/type/status/is_top；`status` 仅 `1` 重新上架 / `2` 下架（传 0/3 → `90003`）；发布时间保持首次不变，view_count/created_at 不可改；不存在/已删除 → `90001`；只传 id → 成功但无操作 |
+| `DELETE /admin/announcement/:id` | — | 软删（is_deleted=1）：公开/管理列表与详情均不可见；不存在 → `90001`、id 非法 → `1` |
+| `GET /admin/announcement` | `page` / `page_size` / `status` | 管理列表：**含已下架**，id 倒序；`status` 可选筛选（仅 1/2，其他值 → `1`），缺省返回 1+2 全部 |
+
+> 注意：以上四个接口非 role=2 调用返回 `2`；历史 `status=0` 垃圾数据在任何接口都不可见（后端提供清理 SQL，由运维在数据库执行）。
 
 ---
 
@@ -376,6 +393,13 @@ Query 参数（均可选）：
 **通知流**
 21. 列表分页/筛选（type/is_read）；未读数与已读联动；详情自动已读；批量已读/删除；"群发给自己的那条"删除被跳过。
 
+**公告流**
+22. role=2 创建公告 → 公开列表立即可见（创建即发布：status=1、published_at 非空、admin_id=登录管理员）；缺 type/is_top → `1`；标题全空白或 type=9 → `90003`。
+23. update `status=2` 下架 → 公开列表与详情不可见（详情 `90001`），管理列表仍可见 → `status=1` 重新上架恢复；传 `status=0/3` → `90003`。
+24. 公开详情浏览量：连续两次 `GET /announcement/:id`，view_count 每次 +1 且返回值含本次 +1；id 非法（如 `abc`、`0`）→ `1`。
+25. 列表分页边界：page 缺省/0 → 第 1 页；page_size=100 正常返回；page_size=101 或负数 → `1`；无数据时 `announcements: []` 而非 null。
+26. `DELETE /admin/announcement/:id` 软删 → 公开/管理列表均不可见、详情 `90001`；删除不存在的 id → `90001`；普通用户（role=0）调任一管理端点 → `2`；空请求体 create → `1`。
+
 ---
 
 ## 十一、已知注意事项与风险（重要）
@@ -388,8 +412,7 @@ Query 参数（均可选）：
 6. 列表/批量查询等场景 `data` 可能为 `null`（如 batch 全部未命中），前端需做兜底。
 7. 用户名/昵称/密码长度限制按**字节**计算（1 汉字=3 字节），前端校验规则需与后端一致；item 标题 ≤100、location_detail ≤200、contact ≤100 同理。
 8. 认领超 24h 自动关闭并发分（每 5 分钟扫描），状态可能无操作自行变化。
-9. item 系接口 page_size 传 51-100 会静默按 10 返回（不报错）；shop 接口无此问题。统一传 ≤50 最稳。
-10. **公告模块不可用**（2026-10-01）：多处实现缺陷暂勿接入，修复方案已提交待确认。
+9. item 系接口 page_size 传 51-100 会静默按 10 返回（不报错）；shop、announcement 接口无此问题（上限 100 正常生效）。统一传 ≤50 最稳。
 
 ---
 
@@ -423,5 +446,6 @@ Query 参数（均可选）：
 | 20002 | 物品已关闭 | | 11004 | 商品价格非法 |
 | 20003 | 物品已被认领 | | 11005 | 兑换需先绑定 QQ |
 | 20005 | 无权操作该物品 | | 20006 | 物品类型非法 |
+| 90001 | 公告不存在/不可见 | | 90003 | 公告参数或状态错误 |
 
 完整错误码以后端 `response/response_code.go` 与 `common_response_code.md` 为准。

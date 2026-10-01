@@ -19,7 +19,7 @@
 6xxxx | 通知 | notifications | ✅ 已实现
 7xxxx | 举报 | reports | ❌ 未实现（仅错误码占位）
 8xxxx | 地点 | locations | ✅ 已实现
-9xxxx | 公告 | announcements | ⚠️ 部分实现（见第九节）
+9xxxx | 公告 | announcements | ✅ 已实现（见第十一节）
 10xxxx（11001-11005） | 积分商城 | goods / orders | ✅ 已实现
 100001 | 机器人 Agent | chensong | ❌ 未接线（占位）
 -x（-1/-2/-3） | 内部测试 | chensong 内部 | 内部使用
@@ -164,14 +164,13 @@
 
 ## 十一、公告模块（9xxxx）
 
-对应 announcements：admin_id、title、content、type(0系统公告 1活动公告 2维护通知 3其他)、status(0草稿 1已发布 2已下架)、is_top、published_at、is_deleted。
-⚠️ 实现现状（2026-10-01）：模块存在大量实现缺陷（读取接口因 dao 层 `*gorm.DB` 误当 error 判空恒返回 90001、handler 绑定失败未 return、`/admin/announcement` GET 未置 Auth 导致管理员也只能看已发布等），除 create 勉强可用外整体不可用，详见对接文档说明。
+对应 announcements：admin_id、title、content、type(0系统公告 1活动公告 2维护通知 3其他)、status(1已发布 2已下架，0已废弃不迁移——历史 status=0 垃圾行在任何列表/详情中均不可见)、is_top、view_count、published_at、is_deleted。
 
 错误码 | 英文常量 | 英文含义 | 中文含义 | 触发场景
 ---|---|---|---|---
-90001 | CodeAnnouncementNotFound | Announcement Not Found | 公告不存在 | update 时按 id 无记录；当前读取接口因实现缺陷也恒返回此码
+90001 | CodeAnnouncementNotFound | Announcement Not Found | 公告不存在 | 按 id 查不到未删除公告，或（公开详情时）公告非已发布状态：`/admin/announcement/update`、`/admin/announcement/{id}` DELETE、公开详情 `GET /announcement/{id}`（已下架/已删除同样返回此码）
 90002 | CodeAnnouncementNoPermission | No Permission On Announcement | 无权操作该公告 | 预留（管理接口权限由中间件返回 `2` 拦截）
-90003 | CodeAnnouncementInvalid | Invalid Announcement | 公告参数或状态错误 | 预留（handler 层未做参数校验，非法值直接落库）
+90003 | CodeAnnouncementInvalid | Invalid Announcement | 公告参数或状态错误 | create/update 业务校验：title trim 后为空或超 100 字节、content trim 后为空、type 不在 0-3、status 不在 1-2（下架/重新上架以外的值）、is_top 不在 0/1
 
 ## 十二、积分商城模块（11xxxx）
 

@@ -2,7 +2,7 @@
 
 > 读者：前端 AI / 代码生成代理。本文提供精确的接口契约、字段表、行为语义与陷阱清单，供直接生成对接代码。
 > 读者：人类可读版见 `api_guide.md`。Swagger：`http://111.229.234.32:8080/api/v1/swagger/index.html`
-> 范围：user、item（含 tag、location、image upload）、notification（站内通知）、shop（积分商城）、announcement（公告，当前不可用，见 2.6）。
+> 范围：user、item（含 tag、location、image upload）、notification（站内通知）、shop（积分商城）、announcement（公告，见 2.6）。
 > 依据：后端代码现状（2026-10-01），与 handler swagger 注释冲突处以本文实现语义为准。
 
 ---
@@ -154,6 +154,26 @@
 {"order_no": "...", "goods_id": 1, "goods_name": "...", "price": 20, "credit": 80, "created_at": "..."}
 ```
 
+### AnnouncementListResponse（`/announcement`、`/admin/announcement`）
+
+```json
+{"total": 42, "page": 1, "page_size": 10, "announcements": [ /* AnnouncementResponse[] */ ]}
+```
+
+### AnnouncementResponse（公告列表项与详情同构）
+
+```json
+{
+  "id": 1, "admin_id": 2, "title": "系统公告", "content": "…（markdown 正文）",
+  "type": 0, "status": 1, "is_top": 0, "view_count": 3,
+  "published_at": "2026-10-01T12:00:00+08:00",
+  "created_at": "...", "updated_at": "..."
+}
+```
+
+- `published_at` 可空指针（omitempty）：正常创建即发布后恒有值，键仍可能缺失，类型定义用可选。
+- 不含 `is_deleted` 字段；列表翻到底时 `announcements` 为 `[]`（非 null）。
+
 ### 枚举
 
 | 字段 | 取值 |
@@ -166,7 +186,7 @@
 | `add-credit.type` | 0 拾金不昧 / 1 认领成功 / 2 违规扣分 / 3 系统调整 |
 | `notification.type` | 0 系统 / 1 物品匹配 / 2 认领申请 / 3 认领结果 / 4 评论回复 / 5 积分变动 / 6 商品兑换 |
 | `announcement.type` | 0 系统公告 / 1 活动公告 / 2 维护通知 / 3 其他 |
-| `announcement.status` | 0 草稿 / 1 已发布 / 2 已下架 |
+| `announcement.status` | 1 已发布 / 2 已下架（0 已废弃：无草稿态，历史 0 值行不可见） |
 | `goods.is_deleted`（下架） | 不可见即下架，前端无感知 |
 
 ---
@@ -454,18 +474,59 @@ Query：
 - update 改 parent_id 时后端在同一事务中重算整棵子树 level。
 - 非 role≥1 → `2`。
 
-### 2.6 announcement 模块 ⚠️ 当前整体不可用
+### 2.6 announcement 模块（公告）
 
-路由存在：`GET /announcement/`（public）、`POST /admin/announcement/create`、`POST /admin/announcement/update`、`DELETE /admin/announcement/:id`、`GET /admin/announcement/`（均 role=2）。
+#### 公开端点
 
-**实现缺陷（2026-10-01 复核，修复前前端不要接入）**：
+| 接口 | Query | 说明 |
+|---|---|---|
+| GET `/announcement` | `page?`、`page_size?` | 已发布（status=1 且未删除）公告列表，`id DESC`（新→旧）；`data` = AnnouncementListResponse |
+| GET `/announcement/:id` | — | 公告详情（**仅 status=1 可见**）；**每次调用 view_count +1（返回值已含本次 +1）** |
 
-1. dao 层 `GetAnnouncementByID` 将 `*gorm.DB` 误当 error 判空，**恒返回空** → 所有读取/更新路径恒 `90001`。
-2. handler 绑定失败后**未 return**，会先写 `1` 再继续执行（POST create 无 body 时甚至可能落库一条全零公告）。
-3. 管理端 GET 未置 Auth 标志，管理员也只能看到已发布公告（草稿/下架不可见）。
-4. delete 走硬删且 gorm 调用方式有误（恒 `6`）。
+| Query | 类型 | 说明 |
+|---|---|---|
+| page | int | 缺省/0 → 1；负数 → `1` |
+| page_size | int | 缺省/0 → 10；binding 1-100：负数或 >100 → `1`（**上限 100 正常生效，无 item 的 51-100 静默坑**） |
 
-数据模型（AnnouncementResponse）：`{id, admin_id, title, content, type, status, is_top, view_count, published_at, created_at, updated_at}`。待后端修复后另行补齐接口契约。
+- 详情错误：`90001` 不存在/已下架/已删除、`1` 路径 id 非正整数或非数字。
+- 列表无结果时 `data.announcements = []`（非 null），`total` 与列表同口径。
+
+#### 管理端点（JWT + role=2，非 role=2 → `2`）
+
+| 接口 | 请求体 / Query | 说明 |
+|---|---|---|
+| POST `/admin/announcement/create` | `{title, content, type, is_top}` | **创建即发布**：status=1、published_at=当前时间、admin_id 取自 JWT（不信任 body）。成功 `data: {}`（**不返回 id**，跳详情可先拉列表第一条） |
+| POST `/admin/announcement/update` | `{id, title?, content?, type?, status?, is_top?}` | 增量更新（传了才改，指针语义）；status 仅 1已发布/2已下架（下架/重新上架）；`published_at` 保持首次发布时间、`view_count`/`created_at` 不可更新 |
+| DELETE `/admin/announcement/:id` | — | 软删（is_deleted=1）：公开/管理列表与详情均不可见 |
+| GET `/admin/announcement` | `page?`、`page_size?`、`status?` | 管理列表：**含已下架**（id DESC）；`status` 可选筛选 1/2（缺省 = 1+2 全查，0 废弃行不可见）；`status` 非 1/2 → `1` |
+
+create 请求体字段：
+
+| 字段 | 类型 | 必填 | 校验 |
+|---|---|---|---|
+| title | string | ✅ | 空字符串 → `1`（binding required）；纯空白或 >100 字节 → `90003` |
+| content | string | ✅ | 空字符串 → `1`；纯空白 → `90003`。markdown 正文，不限长 |
+| type | 0\|1\|2\|3 | ✅（**0 也要显式传**，缺字段/类型错 → `1`） | 0 系统公告 / 1 活动公告 / 2 维护通知 / 3 其他；越界 → `90003` |
+| is_top | 0\|1 | ✅（**0 也要显式传**） | 0 否 / 1 是；越界 → `90003` |
+
+update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、传了才改，取值校验同 create（`status` 传 0/3 → `90003`）；仅 id 的空增量 → 成功但无操作；id 不存在/已删除 → `90001`。
+
+#### 错误码
+
+| 码 | 场景 |
+|---|---|
+| `1` | 绑定失败（缺字段、JSON 类型错、page/page_size 越界、路径 id 非法、管理列表 status 非 1/2） |
+| `2` | 未登录 / 非 role=2 调管理端点 |
+| `6` | DB 异常 |
+| `90001` | 公告不存在/不可见：update、delete、公开详情（含已下架、已删除） |
+| `90003` | 业务校验失败：title/content 空白、title 超 100 字节、type/status/is_top 越界 |
+
+#### 注意事项
+
+- 详情接口使 `view_count +1`，勿在轮询/预取中滥用。
+- **无草稿态**（创建即发布）；`status=0` 已废弃——历史 status=0 垃圾行在任何列表/详情中不可见（后端提供清理 SQL）。
+- `page_size` 上限 100 正常生效，与 item 的静默行为不同，不要照搬 item 的分页容错假设。
+- 公告只会出现已发布内容；`status=2` 已下架仅管理列表可见，公开详情返回 `90001`。
 
 ### 2.7 notification 模块（站内通知）
 
@@ -583,6 +644,8 @@ Query：
 20. `/item/search` 的条件总数是"剔除计"：不存在/非 level3 的 ID 不计入，`min_match` 超过有效条件总数 → `1`。
 21. 通知相关：`admin_id=0` 的通知是系统触发；批量删除会跳过"管理端群发给自己的那条"，前端勿把它做成可勾选。
 22. QQ 绑定验证码会话 3 分钟内最多 3 次比对机会，但**第 4 次提交仍会比对、第 5 次才报 `10011`**；`get-code` 对同一 QQ 的限制以 QQ 号维度判重（`10007`）。
+23. 公告分页与 item 不同：`/announcement`、`/admin/announcement` 的 `page_size` binding 1-100 **上限正常生效**（>100 或负数 → `1`，无 51-100 静默按 10 的坑）；0/缺省 → 10。
+24. 公告 create 的 `type`、`is_top` **必填且 0 也要显式传**（缺字段 → `1`）；update 为指针增量，`{"id": n}` 空增量静默成功；`status` 只有 1/2（0 草稿态已废弃）。
 
 ---
 
@@ -605,7 +668,8 @@ Query：
 14 GET  /shop/goods/list                 商城列表
 15 POST /shop/goods/{id}/redeem          兑换（需已绑 QQ，扣积分+发通知）
 16 GET  /shop/orders                     我的兑换记录
-17 POST /user/logout                     {"logout_all": 0}
+17 GET  /announcement?page=1&page_size=10 公告列表（详情会 +1 浏览量）
+18 POST /user/logout                     {"logout_all": 0}
 ```
 
 ---
@@ -622,5 +686,6 @@ Query：
 | 11001 | 商品不存在/已下架 | | 11002 | 商品库存不足 |
 | 11003 | 商品名非法/重名 | | 11004 | 商品价格非法 |
 | 11005 | 兑换需先绑定 QQ | | 60001 | 通知不存在 |
+| 90001 | 公告不存在/不可见 | | 90003 | 公告参数或状态错误 |
 
 完整错误码表见 `common_response_code.md`（与 `response/response_code.go` 对齐）。

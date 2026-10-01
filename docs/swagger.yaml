@@ -17,7 +17,20 @@ definitions:
     - operator_id
     - type
     type: object
-  model.Announcement:
+  model.AnnouncementListResponse:
+    properties:
+      announcements:
+        items:
+          $ref: '#/definitions/model.AnnouncementResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  model.AnnouncementResponse:
     properties:
       admin_id:
         type: integer
@@ -26,8 +39,6 @@ definitions:
       created_at:
         type: string
       id:
-        type: integer
-      is_deleted:
         type: integer
       is_top:
         type: integer
@@ -44,28 +55,11 @@ definitions:
       view_count:
         type: integer
     type: object
-  model.AnnouncementGetRequest:
-    properties:
-      admin_id:
-        type: integer
-      auth:
-        type: boolean
-      ignore_pieces:
-        type: integer
-      limit:
-        type: integer
-      started_id:
-        type: integer
-    type: object
   model.AnnouncementUpdateRequest:
     properties:
-      admin_id:
-        type: integer
       content:
         type: string
       id:
-        type: integer
-      is_deleted:
         type: integer
       is_top:
         type: integer
@@ -75,6 +69,8 @@ definitions:
         type: string
       type:
         type: integer
+    required:
+    - id
     type: object
   model.BatchRequest:
     properties:
@@ -104,6 +100,22 @@ definitions:
     required:
     - id
     - status
+    type: object
+  model.CreateAnnouncementRequest:
+    properties:
+      content:
+        type: string
+      is_top:
+        type: integer
+      title:
+        type: string
+      type:
+        type: integer
+    required:
+    - content
+    - is_top
+    - title
+    - type
     type: object
   model.CreateGoodRequest:
     properties:
@@ -1047,47 +1059,23 @@ paths:
       tags:
       - user
   /api/v1/admin/announcement:
-    post:
+    get:
       consumes:
       - application/json
-      description: |-
-        系统管理员获取公告，从给定id（默认最新）的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值
-        分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能
+      description: 管理员视角：含已发布与已下架（status=0 历史废弃行不可见），按 id 倒序；status 可选筛选 1已发布/2已下架；page/page_size
+        行为同公开列表
       parameters:
-      - description: 获取公告请求体
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/model.AnnouncementGetRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.CommonResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/model.Announcement'
-                  type: array
-              type: object
-      summary: 获取公告
-      tags:
-      - announcement
-  /api/v1/admin/announcement/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: 系统管理员删除公告
-      parameters:
-      - description: 公告ID
-        format: int64
-        in: path
-        name: id
-        required: true
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10，最大100
+        in: query
+        name: page_size
+        type: integer
+      - description: '状态筛选: 1已发布 2已下架，默认全部'
+        in: query
+        name: status
         type: integer
       produces:
       - application/json
@@ -1099,8 +1087,30 @@ paths:
             - $ref: '#/definitions/response.CommonResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/model.UserResponse'
+                  $ref: '#/definitions/model.AnnouncementListResponse'
               type: object
+      summary: 管理端分页获取公告列表
+      tags:
+      - announcement
+  /api/v1/admin/announcement/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 系统管理员软删除公告（is_deleted=1），删除后公开/管理列表与详情均不可见；公告不存在返回 90001，id 非正整数返回
+        1
+      parameters:
+      - description: 公告ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
       summary: 删除公告
       tags:
       - announcement
@@ -1108,14 +1118,15 @@ paths:
     post:
       consumes:
       - application/json
-      description: 系统管理员创建公告（草稿）
+      description: 系统管理员创建公告，创建即发布：status=1、published_at=当前时间、admin_id 取自 JWT（不信任请求体）；标题空白或超100字节、内容空白、type
+        不在 0-3、is_top 不在 0/1 返回 90003；缺字段/JSON 类型错返回 1；成功 data 为 {}
       parameters:
-      - description: 创建/更新公告请求体
+      - description: 创建公告请求体
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/model.AnnouncementUpdateRequest'
+          $ref: '#/definitions/model.CreateAnnouncementRequest'
       produces:
       - application/json
       responses:
@@ -1130,9 +1141,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: 系统管理员保存，发布，下架公告(更新阅读数还未完成，请先忽略)
+      description: 系统管理员增量更新：id 必传，其余字段传了才更新（指针语义），view_count/published_at/created_at
+        不可更新；status 仅允许 1已发布/2已下架（传 0/3 返回 90003），published_at 保持首次发布时间不变；公告不存在返回
+        90001
       parameters:
-      - description: 创建/更新公告请求体
+      - description: 更新公告请求体
         in: body
         name: request
         required: true
@@ -1144,12 +1157,7 @@ paths:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/response.CommonResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/model.UserResponse'
-              type: object
+            $ref: '#/definitions/response.CommonResponse'
       summary: 更新公告
       tags:
       - announcement
@@ -1224,19 +1232,20 @@ paths:
       tags:
       - Notification
   /api/v1/announcement:
-    post:
+    get:
       consumes:
       - application/json
-      description: |-
-        非系统管理员获取公告，从给定id（默认最新）从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值
-        分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能
+      description: 仅返回已发布（status=1）且未删除的公告，按 id 倒序（新→旧）；page 缺省为 1，page_size 缺省为 10、上限
+        100，越界报参数错误 1；data = {total, page, page_size, announcements}
       parameters:
-      - description: 获取公告请求体
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/model.AnnouncementGetRequest'
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10，最大100
+        in: query
+        name: page_size
+        type: integer
       produces:
       - application/json
       responses:
@@ -1247,11 +1256,36 @@ paths:
             - $ref: '#/definitions/response.CommonResponse'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/model.Announcement'
-                  type: array
+                  $ref: '#/definitions/model.AnnouncementListResponse'
               type: object
-      summary: 获取公告
+      summary: 公开分页获取已发布公告列表
+      tags:
+      - announcement
+  /api/v1/announcement/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 返回公告详情（仅已发布可见），每次访问浏览量 +1 且返回值包含本次 +1；公告不存在/已下架/已删除返回 90001，id
+        非正整数返回 1
+      parameters:
+      - description: 公告ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.AnnouncementResponse'
+              type: object
+      summary: 公开获取公告详情
       tags:
       - announcement
   /api/v1/item/{itemID}:

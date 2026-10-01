@@ -50,8 +50,8 @@ const docTemplate = `{
             }
         },
         "/api/v1/admin/announcement": {
-            "post": {
-                "description": "系统管理员获取公告，从给定id（默认最新）的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值\n分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能",
+            "get": {
+                "description": "管理员视角：含已发布与已下架（status=0 历史废弃行不可见），按 id 倒序；status 可选筛选 1已发布/2已下架；page/page_size 行为同公开列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -61,16 +61,25 @@ const docTemplate = `{
                 "tags": [
                     "announcement"
                 ],
-                "summary": "获取公告",
+                "summary": "管理端分页获取公告列表",
                 "parameters": [
                     {
-                        "description": "获取公告请求体",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.AnnouncementGetRequest"
-                        }
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "状态筛选: 1已发布 2已下架，默认全部",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -85,10 +94,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/model.Announcement"
-                                            }
+                                            "$ref": "#/definitions/model.AnnouncementListResponse"
                                         }
                                     }
                                 }
@@ -100,7 +106,7 @@ const docTemplate = `{
         },
         "/api/v1/admin/announcement/create": {
             "post": {
-                "description": "系统管理员创建公告（草稿）",
+                "description": "系统管理员创建公告，创建即发布：status=1、published_at=当前时间、admin_id 取自 JWT（不信任请求体）；标题空白或超100字节、内容空白、type 不在 0-3、is_top 不在 0/1 返回 90003；缺字段/JSON 类型错返回 1；成功 data 为 {}",
                 "consumes": [
                     "application/json"
                 ],
@@ -113,7 +119,41 @@ const docTemplate = `{
                 "summary": "创建公告",
                 "parameters": [
                     {
-                        "description": "创建/更新公告请求体",
+                        "description": "创建公告请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateAnnouncementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/announcement/update": {
+            "post": {
+                "description": "系统管理员增量更新：id 必传，其余字段传了才更新（指针语义），view_count/published_at/created_at 不可更新；status 仅允许 1已发布/2已下架（传 0/3 返回 90003），published_at 保持首次发布时间不变；公告不存在返回 90001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "announcement"
+                ],
+                "summary": "更新公告",
+                "parameters": [
+                    {
+                        "description": "更新公告请求体",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -132,55 +172,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/announcement/update": {
-            "post": {
-                "description": "系统管理员保存，发布，下架公告(更新阅读数还未完成，请先忽略)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "announcement"
-                ],
-                "summary": "更新公告",
-                "parameters": [
-                    {
-                        "description": "创建/更新公告请求体",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.AnnouncementUpdateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.CommonResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/announcement/{id}": {
             "delete": {
-                "description": "系统管理员删除公告",
+                "description": "系统管理员软删除公告（is_deleted=1），删除后公开/管理列表与详情均不可见；公告不存在返回 90001，id 非正整数返回 1",
                 "consumes": [
                     "application/json"
                 ],
@@ -194,7 +188,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "format": "int64",
                         "description": "公告ID",
                         "name": "id",
                         "in": "path",
@@ -205,19 +198,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.CommonResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/response.CommonResponse"
                         }
                     }
                 }
@@ -332,8 +313,8 @@ const docTemplate = `{
             }
         },
         "/api/v1/announcement": {
-            "post": {
-                "description": "非系统管理员获取公告，从给定id（默认最新）从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值\n分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能",
+            "get": {
+                "description": "仅返回已发布（status=1）且未删除的公告，按 id 倒序（新→旧）；page 缺省为 1，page_size 缺省为 10、上限 100，越界报参数错误 1；data = {total, page, page_size, announcements}",
                 "consumes": [
                     "application/json"
                 ],
@@ -343,16 +324,19 @@ const docTemplate = `{
                 "tags": [
                     "announcement"
                 ],
-                "summary": "获取公告",
+                "summary": "公开分页获取已发布公告列表",
                 "parameters": [
                     {
-                        "description": "获取公告请求体",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.AnnouncementGetRequest"
-                        }
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
+                        "name": "page_size",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -367,10 +351,51 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/model.Announcement"
-                                            }
+                                            "$ref": "#/definitions/model.AnnouncementListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/announcement/{id}": {
+            "get": {
+                "description": "返回公告详情（仅已发布可见），每次访问浏览量 +1 且返回值包含本次 +1；公告不存在/已下架/已删除返回 90001，id 非正整数返回 1",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "announcement"
+                ],
+                "summary": "公开获取公告详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "公告ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.AnnouncementResponse"
                                         }
                                     }
                                 }
@@ -2159,7 +2184,27 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Announcement": {
+        "model.AnnouncementListResponse": {
+            "type": "object",
+            "properties": {
+                "announcements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.AnnouncementResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.AnnouncementResponse": {
             "type": "object",
             "properties": {
                 "admin_id": {
@@ -2172,9 +2217,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
-                },
-                "is_deleted": {
                     "type": "integer"
                 },
                 "is_top": {
@@ -2200,39 +2242,16 @@ const docTemplate = `{
                 }
             }
         },
-        "model.AnnouncementGetRequest": {
-            "type": "object",
-            "properties": {
-                "admin_id": {
-                    "type": "integer"
-                },
-                "auth": {
-                    "type": "boolean"
-                },
-                "ignore_pieces": {
-                    "type": "integer"
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "started_id": {
-                    "type": "integer"
-                }
-            }
-        },
         "model.AnnouncementUpdateRequest": {
             "type": "object",
+            "required": [
+                "id"
+            ],
             "properties": {
-                "admin_id": {
-                    "type": "integer"
-                },
                 "content": {
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
-                },
-                "is_deleted": {
                     "type": "integer"
                 },
                 "is_top": {
@@ -2289,6 +2308,29 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CreateAnnouncementRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "is_top",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "is_top": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "integer"
                 }
             }
