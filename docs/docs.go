@@ -49,6 +49,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/announcement": {
+            "post": {
+                "description": "系统管理员获取公告，从给定id（默认最新）的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值\n分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "announcement"
+                ],
+                "summary": "获取公告",
+                "parameters": [
+                    {
+                        "description": "获取公告请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AnnouncementGetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Announcement"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/announcement/create": {
             "post": {
                 "description": "系统管理员创建公告（草稿）",
@@ -64,12 +113,46 @@ const docTemplate = `{
                 "summary": "创建公告",
                 "parameters": [
                     {
-                        "description": "创建公告请求体",
+                        "description": "创建/更新公告请求体",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.LoginRequest"
+                            "$ref": "#/definitions/model.AnnouncementUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/announcement/update": {
+            "post": {
+                "description": "系统管理员保存，发布，下架公告(更新阅读数还未完成，请先忽略)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "announcement"
+                ],
+                "summary": "更新公告",
+                "parameters": [
+                    {
+                        "description": "创建/更新公告请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AnnouncementUpdateRequest"
                         }
                     }
                 ],
@@ -95,9 +178,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/announcement/update": {
-            "post": {
-                "description": "系统管理员保存，发布，删除，下架公告",
+        "/api/v1/admin/announcement/{id}": {
+            "delete": {
+                "description": "系统管理员删除公告",
                 "consumes": [
                     "application/json"
                 ],
@@ -107,16 +190,15 @@ const docTemplate = `{
                 "tags": [
                     "announcement"
                 ],
-                "summary": "获取公告",
+                "summary": "删除公告",
                 "parameters": [
                     {
-                        "description": "获取公告请求体",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.LoginRequest"
-                        }
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "公告ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -209,9 +291,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/notifications": {
+            "post": {
+                "description": "发送通知，支持发给全体用户或指定用户，异步执行，admin_id 从登录态提取",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "发送通知（管理侧）",
+                "parameters": [
+                    {
+                        "description": "发送通知请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.NotificationSendRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/announcement": {
             "post": {
-                "description": "非系统管理员获取公告",
+                "description": "非系统管理员获取公告，从给定id（默认最新）从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值\n分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能",
                 "consumes": [
                     "application/json"
                 ],
@@ -229,7 +351,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.LoginRequest"
+                            "$ref": "#/definitions/model.AnnouncementGetRequest"
                         }
                     }
                 ],
@@ -245,7 +367,10 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.UserResponse"
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Announcement"
+                                            }
                                         }
                                     }
                                 }
@@ -325,7 +450,7 @@ const docTemplate = `{
         },
         "/api/v1/item/list": {
             "get": {
-                "description": "按类型/状态/地点/标签/关键词筛选物品，分页返回 ItemResponse 数组\u003cbr /\u003e未指定 status 时默认只返回已发布（status=0）的未删除物品",
+                "description": "按类型/状态/地点/标签/关键词筛选物品，分页返回 ItemResponse 数组\u003cbr /\u003e未指定 status 时默认返回已发布与已认领（status=0/1）的未删除物品",
                 "consumes": [
                     "application/json"
                 ],
@@ -345,7 +470,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "状态: 0已发布 1已认领 2已关闭，默认0",
+                        "description": "状态: 0已发布 1已认领 2已关闭，默认0/1",
                         "name": "status",
                         "in": "query"
                     },
@@ -404,7 +529,7 @@ const docTemplate = `{
         },
         "/api/v1/item/mine": {
             "get": {
-                "description": "查询当前用户发布的物品，默认返回全部状态；筛选与分页参数同公开列表接口",
+                "description": "查询当前用户发布的物品，未指定 status 时默认返回已发布与已认领（status=0/1）；筛选与分页参数同公开列表接口",
                 "consumes": [
                     "application/json"
                 ],
@@ -424,7 +549,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "状态: 0已发布 1已认领 2已关闭，默认全部",
+                        "description": "状态: 0已发布 1已认领 2已关闭，默认0/1",
                         "name": "status",
                         "in": "query"
                     },
@@ -443,6 +568,87 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "每页数量，默认10，最大50",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.ItemListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/search": {
+            "get": {
+                "description": "match_count = |物品标签 ∩ tag_ids| + (物品地点 ∈ location_ids 中 level=3 的 ? 1 : 0)，返回 match_count \u003e= min_match 的物品；\u003cbr /\u003elocation_ids 中非 level3 的 ID 自动忽略且不计入条件总数，tag_ids 去重后不存在的同理；\u003cbr /\u003emin_match 必传且 ≥1，且 ≤ 条件总数（相等 = 全部条件必须满足）；两组均为空报参数错误；\u003cbr /\u003estatus 必传可多选（仅 0已发布/1已认领，传 2 报参数错误）；type 可选；\u003cbr /\u003e排序 created_at DESC，仅返回 is_deleted=0 的物品",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "多条件最小匹配检索物品（tag+location 计分）",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "description": "标签ID列表，逗号分隔或重复参数，如 tag_ids=1,2,3",
+                        "name": "tag_ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "description": "地点ID列表（仅 level=3 生效），如 location_ids=4,5",
+                        "name": "location_ids",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最少满足条件数（≥1 且 ≤ 条件总数）",
+                        "name": "min_match",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "类型: 0丢失 1拾到",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "description": "状态多选: 0已发布 1已认领（禁2），如 status=0,1",
+                        "name": "status",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
                         "name": "page_size",
                         "in": "query"
                     }
@@ -903,9 +1109,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/superadmin/announcement": {
-            "post": {
-                "description": "系统管理员获取公告",
+        "/api/v1/notifications": {
+            "get": {
+                "description": "获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页",
                 "consumes": [
                     "application/json"
                 ],
@@ -913,18 +1119,39 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "announcement"
+                    "Notification"
                 ],
-                "summary": "获取公告",
+                "summary": "获取通知列表",
                 "parameters": [
                     {
-                        "description": "获取公告请求体",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.LoginRequest"
-                        }
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "偏移量",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "是否已读: 0未读 1已读",
+                        "name": "is_read",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "发布管理员ID",
+                        "name": "admin_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -939,7 +1166,495 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.UserResponse"
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.NotificationItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "批量软删除指定通知，跳过自己发给自己的记录，只返回返回码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "批量删除通知",
+                "parameters": [
+                    {
+                        "description": "通知ID列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.NotificationIDsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/read": {
+            "put": {
+                "description": "批量将指定通知标记为已读，不限制条数，不返回条数",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "批量标记通知已读",
+                "parameters": [
+                    {
+                        "description": "通知ID列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.NotificationIDsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/unread-count": {
+            "get": {
+                "description": "获取当前用户的未读通知数量，走 Redis 缓存（5 分钟过期）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "获取未读通知数量",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}": {
+            "get": {
+                "description": "获取通知详情，若未读则自动标记为已读",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "获取通知详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "通知ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Notification"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/goods/create": {
+            "post": {
+                "description": "创建积分商城商品；name 必填且 ≤100 字符，重名（未下架集合内）返回 11003；\u003cbr /\u003eprice 取值 1~1000000，非法返回 11004；stock/sort_order 缺省 0",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "管理员创建商品",
+                "parameters": [
+                    {
+                        "description": "创建商品请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateGoodRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/goods/delete": {
+            "post": {
+                "description": "软删除（is_deleted=1）即下架，商品不再出现在公开列表/详情/兑换中；\u003cbr /\u003e商品不存在返回 11001；历史订单为快照设计，不受影响",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "管理员下架商品（软删）",
+                "parameters": [
+                    {
+                        "description": "下架商品请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.DeleteGoodRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/goods/list": {
+            "get": {
+                "description": "仅返回未下架（is_deleted=0）商品，sort_order 升序、创建时间降序；\u003cbr /\u003e支持名称关键词模糊匹配与积分区间筛选：闭区间含边界，只传其一为单边筛选，\u003cbr /\u003emin_price/max_price 传负数或 min\u003emax 返回参数错误",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "公开分页查询商品列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "商品名称关键词（LIKE 模糊匹配）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "积分下限（闭区间，含边界），0 或不传表示不限",
+                        "name": "min_price",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "积分上限（闭区间，含边界），0 或不传表示不限",
+                        "name": "max_price",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.GoodListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/goods/update": {
+            "post": {
+                "description": "按 id 增量更新给定字段（指针语义，非整体替换）；软删商品返回 11001；\u003cbr /\u003e重名返回 11003，price 非法返回 11004",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "管理员增量更新商品",
+                "parameters": [
+                    {
+                        "description": "更新商品请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateGoodRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/goods/{goodsID}": {
+            "get": {
+                "description": "返回未下架商品详情；商品不存在或已下架返回 11001",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "公开获取商品详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "商品ID",
+                        "name": "goodsID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Good"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/goods/{goodsID}/redeem": {
+            "post": {
+                "description": "单事务完成「条件扣库存（stock\u003e0 防超卖）+ 扣积分（行锁，不足回滚）+ 写订单快照」；\u003cbr /\u003e仅绑定 QQ（5~11 位）的用户可兑换，未绑定返回 11005；\u003cbr /\u003e商品不存在/已下架返回 11001，库存不足返回 11002，积分不足返回 50001，用户不存在/禁用返回 10006；\u003cbr /\u003e兑换成功后异步发送群消息（失败不影响兑换结果）；返回订单号与兑换后剩余积分",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "积分兑换商品",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "商品ID",
+                        "name": "goodsID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.RedeemGoodsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/shop/orders": {
+            "get": {
+                "description": "分页返回当前用户的兑换订单（created_at 降序）；订单为快照设计，商品改名/下架不影响历史记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "shop"
+                ],
+                "summary": "查询我的兑换记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OrderListResponse"
                                         }
                                     }
                                 }
@@ -1444,6 +2159,96 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Announcement": {
+            "type": "object",
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_deleted": {
+                    "type": "integer"
+                },
+                "is_top": {
+                    "type": "integer"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "view_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.AnnouncementGetRequest": {
+            "type": "object",
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "auth": {
+                    "type": "boolean"
+                },
+                "ignore_pieces": {
+                    "type": "integer"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "started_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.AnnouncementUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_deleted": {
+                    "type": "integer"
+                },
+                "is_top": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.BatchRequest": {
             "type": "object",
             "required": [
@@ -1484,6 +2289,34 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CreateGoodRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "description": "缺省 0",
+                    "type": "integer"
+                },
+                "stock": {
+                    "description": "缺省 0",
                     "type": "integer"
                 }
             }
@@ -1587,6 +2420,17 @@ const docTemplate = `{
                 }
             }
         },
+        "model.DeleteGoodRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.DeleteItemRequest": {
             "type": "object",
             "required": [
@@ -1594,6 +2438,58 @@ const docTemplate = `{
             ],
             "properties": {
                 "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.Good": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "stock": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.GoodListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Good"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -1779,6 +2675,177 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Notification": {
+            "type": "object",
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_deleted": {
+                    "type": "integer"
+                },
+                "is_read": {
+                    "type": "integer"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "related_id": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "通知类型触发点（2026-09-30 shop 兑换已接入，占位注释移除）：\n 5 积分变动：shop 兑换扣分成功后写入（service/advanced/shop_service.go）\n 6 商品兑换：兑换成功后写入发货提醒（同上）",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.NotificationIDsRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "description": "目标记录ID列表",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "model.NotificationItem": {
+            "type": "object",
+            "properties": {
+                "admin_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_read": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.NotificationSendRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "content": {
+                    "description": "通知内容",
+                    "type": "string"
+                },
+                "related_id": {
+                    "description": "关联ID，可选",
+                    "type": "integer"
+                },
+                "send_to_all": {
+                    "description": "是否发给全体用户",
+                    "type": "boolean"
+                },
+                "title": {
+                    "description": "通知标题",
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "type": {
+                    "description": "通知类型",
+                    "type": "integer"
+                },
+                "user_ids": {
+                    "description": "目标用户ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "model.Order": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "goods_id": {
+                    "type": "integer"
+                },
+                "goods_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "qq": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.OrderListResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Order"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.QQBindRequest": {
             "type": "object",
             "required": [
@@ -1801,6 +2868,30 @@ const docTemplate = `{
             ],
             "properties": {
                 "qq": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.RedeemGoodsResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "credit": {
+                    "description": "兑换后剩余积分",
+                    "type": "integer"
+                },
+                "goods_id": {
+                    "type": "integer"
+                },
+                "goods_name": {
+                    "type": "string"
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "price": {
                     "type": "integer"
                 }
             }
@@ -1842,6 +2933,35 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UpdateGoodRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "stock": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.UpdateItemRequest": {
             "type": "object",
             "required": [
@@ -1868,9 +2988,6 @@ const docTemplate = `{
                 },
                 "lost_found_time": {
                     "type": "string"
-                },
-                "status": {
-                    "type": "integer"
                 },
                 "tag_ids": {
                     "description": "TagIDs 非 nil 时整体替换物品标签关联",
@@ -2064,6 +3181,16 @@ const docTemplate = `{
                 60001,
                 60002,
                 60003,
+                60004,
+                60005,
+                60006,
+                60007,
+                60008,
+                11001,
+                11002,
+                11003,
+                11004,
+                11005,
                 70001,
                 70002,
                 70003,
@@ -2076,7 +3203,10 @@ const docTemplate = `{
                 90001,
                 90002,
                 90003,
-                -1
+                100001,
+                -1,
+                -2,
+                -3
             ],
             "x-enum-comments": {
                 "CodeAnnouncementInvalid": "公告参数或状态错误",
@@ -2100,6 +3230,10 @@ const docTemplate = `{
                 "CodeDatabaseError": "数据库操作失败",
                 "CodeForbidden": "无权限操作",
                 "CodeFormInvalid": "用户名/昵称/密码不符合规则",
+                "CodeGoodsNameInvalid": "商品名称无效",
+                "CodeGoodsNotFound": "商品不存在",
+                "CodeGoodsPriceInvalid": "商品价格无效",
+                "CodeGoodsStockNotEnough": "商品库存不足",
                 "CodeInvalidSigningMethod": "无效的加密方式",
                 "CodeItemAlreadyClaimed": "物品已被认领",
                 "CodeItemAlreadyPublished": "物品已发布",
@@ -2124,8 +3258,14 @@ const docTemplate = `{
                 "CodeLocationNotFound": "地点不存在",
                 "CodeNotFound": "资源不存在",
                 "CodeNotificationAlreadyRead": "通知已读",
+                "CodeNotificationCreateFailed": "通知创建失败",
+                "CodeNotificationDeleteFailed": "通知删除失败",
                 "CodeNotificationNoPermission": "无权查看该通知",
                 "CodeNotificationNotFound": "通知不存在",
+                "CodeNotificationQueryFailed": "通知查询失败",
+                "CodeNotificationSendFailed": "通知发送失败",
+                "CodeNotificationUpdateFailed": "通知更新失败",
+                "CodeOpenAIError": "Agent寄了",
                 "CodeParamError": "请求参数错误",
                 "CodeQQAlreadyRegistered": "QQ已被注册或账号已绑定QQ",
                 "CodeQQCodeError": "会话的QQ验证码错误",
@@ -2139,6 +3279,7 @@ const docTemplate = `{
                 "CodeReportNotFound": "举报记录不存在",
                 "CodeReportSelfContent": "不能举报自己的内容",
                 "CodeServerError": "服务器内部错误",
+                "CodeShopQQRequired": "使用商城功能需先绑定QQ",
                 "CodeSuccess": "操作成功",
                 "CodeTagDisabled": "标签已被禁用",
                 "CodeTagDuplicate": "标签名称已存在",
@@ -2219,6 +3360,16 @@ const docTemplate = `{
                 "通知不存在",
                 "无权查看该通知",
                 "通知已读",
+                "通知查询失败",
+                "通知创建失败",
+                "通知更新失败",
+                "通知删除失败",
+                "通知发送失败",
+                "商品不存在",
+                "商品库存不足",
+                "商品名称无效",
+                "商品价格无效",
+                "使用商城功能需先绑定QQ",
                 "举报记录不存在",
                 "已举报过该内容",
                 "不能举报自己的内容",
@@ -2231,6 +3382,9 @@ const docTemplate = `{
                 "公告不存在",
                 "无权操作该公告",
                 "公告参数或状态错误",
+                "Agent寄了",
+                "",
+                "",
                 ""
             ],
             "x-enum-varnames": [
@@ -2297,6 +3451,16 @@ const docTemplate = `{
                 "CodeNotificationNotFound",
                 "CodeNotificationNoPermission",
                 "CodeNotificationAlreadyRead",
+                "CodeNotificationQueryFailed",
+                "CodeNotificationCreateFailed",
+                "CodeNotificationUpdateFailed",
+                "CodeNotificationDeleteFailed",
+                "CodeNotificationSendFailed",
+                "CodeGoodsNotFound",
+                "CodeGoodsStockNotEnough",
+                "CodeGoodsNameInvalid",
+                "CodeGoodsPriceInvalid",
+                "CodeShopQQRequired",
                 "CodeReportNotFound",
                 "CodeReportDuplicate",
                 "CodeReportSelfContent",
@@ -2309,7 +3473,10 @@ const docTemplate = `{
                 "CodeAnnouncementNotFound",
                 "CodeAnnouncementNoPermission",
                 "CodeAnnouncementInvalid",
-                "CodeTest"
+                "CodeOpenAIError",
+                "CodeTest",
+                "CodeNoNeed",
+                "CodeNotMessage"
             ]
         },
         "response.CommonResponse": {

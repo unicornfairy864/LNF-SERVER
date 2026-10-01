@@ -17,12 +17,16 @@ import (
 type ItemServiceGroup struct{}
 
 const (
-	itemDefaultPage     = 1
-	itemDefaultPageSize = 10
-	itemMaxPageSize     = 50
-	itemMyMaxPageSize   = 50
-	itemMaxTitleLen     = 90
-	itemMaxImages       = 3
+	// 长度上限对齐 items.sql 列定义（title varchar(100)、location_detail varchar(200)、contact varchar(100)），
+	// 均按 UTF-8 字节数判定：字节数 ≤ 上限 ⇒ 字符数 ≤ 上限，不会超出列宽
+	itemDefaultPage          = 1
+	itemDefaultPageSize      = 10
+	itemMaxPageSize          = 50
+	itemMyMaxPageSize        = 50
+	itemMaxTitleLen          = 100
+	itemMaxLocationDetailLen = 200
+	itemMaxContactLen        = 100
+	itemMaxImages            = 3
 
 	// 物品状态（items.status）
 	itemStatusPublished int8 = 0 // 已发布
@@ -236,6 +240,16 @@ func (itemService *ItemServiceGroup) CreateService(userID int64, req *model.Crea
 	if strings.TrimSpace(req.Title) == "" || len(req.Title) > itemMaxTitleLen {
 		return response.CodeParamError
 	}
+	// 可选字段校验：location_detail ≤200、contact ≤100（字节），credit_reward ≥0
+	if req.LocationDetail != nil && len(*req.LocationDetail) > itemMaxLocationDetailLen {
+		return response.CodeParamError
+	}
+	if req.Contact != nil && len(*req.Contact) > itemMaxContactLen {
+		return response.CodeParamError
+	}
+	if req.CreditReward < 0 {
+		return response.CodeParamError
+	}
 	// 地点校验
 	if req.LocationID != nil {
 		if dao.LocationDao.GetLocationByID(*req.LocationID).ID == 0 {
@@ -295,12 +309,18 @@ func (itemService *ItemServiceGroup) UpdateService(userID int64, req *model.Upda
 		updates["location_id"] = *req.LocationID
 	}
 	if req.LocationDetail != nil {
+		if len(*req.LocationDetail) > itemMaxLocationDetailLen {
+			return response.CodeParamError
+		}
 		updates["location_detail"] = *req.LocationDetail
 	}
 	if req.LostFoundTime != nil {
 		updates["lost_found_time"] = *req.LostFoundTime
 	}
 	if req.Contact != nil {
+		if len(*req.Contact) > itemMaxContactLen {
+			return response.CodeParamError
+		}
 		updates["contact"] = *req.Contact
 	}
 	if req.CreditReward != nil {

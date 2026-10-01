@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/unicornfairy864/LNF-SERVER/middleware"
 	model "github.com/unicornfairy864/LNF-SERVER/model/advanced"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 	"github.com/unicornfairy864/LNF-SERVER/service"
@@ -26,7 +27,8 @@ type NotificationHandlerGroup struct{}
 // @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications [get]
 func (h *NotificationHandlerGroup) List(c *gin.Context) {
-	userID := c.GetInt64("ContextID")
+	// 2026-10-01 修复：原误用 "ContextID"，中间件实际写入 jwt:id（middleware.ContextID），导致恒取 0
+	userID := c.GetInt64(middleware.ContextID)
 	var req model.NotificationListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
@@ -50,7 +52,7 @@ func (h *NotificationHandlerGroup) List(c *gin.Context) {
 // @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications/unread-count [get]
 func (h *NotificationHandlerGroup) UnreadCount(c *gin.Context) {
-	userID := c.GetInt64("ContextID")
+	userID := c.GetInt64(middleware.ContextID)
 	count, code := service.NotificationService.UnreadCount(userID)
 	if code != response.CodeSuccess {
 		response.FailWithCode(c, code)
@@ -71,7 +73,7 @@ func (h *NotificationHandlerGroup) UnreadCount(c *gin.Context) {
 // @Failure 404 {object} response.CommonResponse
 // @Router /api/v1/notifications/{id} [get]
 func (h *NotificationHandlerGroup) GetAndRead(c *gin.Context) {
-	userID := c.GetInt64("ContextID")
+	userID := c.GetInt64(middleware.ContextID)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.FailWithCode(c, response.CodeParamError)
@@ -96,7 +98,7 @@ func (h *NotificationHandlerGroup) GetAndRead(c *gin.Context) {
 // @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications/read [put]
 func (h *NotificationHandlerGroup) BatchMarkRead(c *gin.Context) {
-	userID := c.GetInt64("ContextID")
+	userID := c.GetInt64(middleware.ContextID)
 	var req model.NotificationIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
@@ -121,7 +123,7 @@ func (h *NotificationHandlerGroup) BatchMarkRead(c *gin.Context) {
 // @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/notifications [delete]
 func (h *NotificationHandlerGroup) BatchDelete(c *gin.Context) {
-	userID := c.GetInt64("ContextID")
+	userID := c.GetInt64(middleware.ContextID)
 	var req model.NotificationIDsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
@@ -146,7 +148,7 @@ func (h *NotificationHandlerGroup) BatchDelete(c *gin.Context) {
 // @Failure 400 {object} response.CommonResponse
 // @Router /api/v1/admin/notifications [post]
 func (h *NotificationHandlerGroup) Send(c *gin.Context) {
-	adminID := c.GetInt64("ContextID")
+	adminID := c.GetInt64(middleware.ContextID)
 	var req model.NotificationSendRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithCode(c, response.CodeParamError)
