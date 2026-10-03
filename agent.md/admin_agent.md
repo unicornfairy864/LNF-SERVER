@@ -357,3 +357,14 @@ FROM ranked GROUP BY group_id ORDER BY group_id;
 - 漏斗验收：注册/发布/认领/归还各按对应时间字段distinct去重；同一用户多物品只计1，撤回后清空认领字段不计认领，自行关闭不计归还，确认和自动关闭计归还；注册层排除软删users，各items层排除软删items。各层非嵌套，不要求人数递减。
 - 需要用户手工修改共享文档：agent.md/api_agent.md与agent.md/api_guide.md的管理员统计接口表加入9个GET完整/api/v1路径，参数/响应以本文件第4节与批次2/3追加契约为准；6个聚合接口加入export=csv及CSV成功信封例外、BOM、文件名、行数、超时和流中失败行为。response_code无需新增。随后由用户手工执行swag init；AI不生成或修改docs目录。
 - 剩余风险：真实MySQL8查询/EXPLAIN、端到端权限验证待用户执行；updated_at归还近似可能受更新污染；多SQL不保证同事务快照；底层ResponseWriter不支持SetWriteDeadline时，仅context取消和逐行检查提供超时保护，阻塞网络写入需服务器写超时配置保证；CSV中的地点/标签文本未作Excel公式中和，导出给Excel使用时需注意不可信名称。
+
+### 2026-10-03 共享 API 文档同步（用户授权，仅新增）
+
+- 授权范围：用户明确允许对 `agent.md/api_agent.md`、`agent.md/api_guide.md` 与本文件 `agent.md/admin_agent.md` 执行 **only 写入（追加）**，不得删除既有内容；未授权修改 `docs/`、公共入口、`response_code.go` 或任何其他模块文件。
+- 同步依据：以本文件第 4 节（批次 1/2/3 接口设计）与批次 2/3 追加契约、以及 `router/advanced/admin_stats_router.go`、`handler/advanced/admin_stats_handler.go`、`service/advanced/admin_stats_service.go`、`dao/admin_stats_dao.go` 的实际实现为准；未采用需求文档中与代码不一致的描述。
+- `agent.md/api_agent.md`：末尾新增第 6 节“admin-stats 模块（管理员数据分析，role≥1）”，含 6.1 通用参数/时间语义/状态口径、6.2 九个 GET 的完整路径与参数默认值及响应示例、6.3 CSV 导出契约、6.4 枚举速查、6.5 陷阱清单；文件头部插入 1 行索引提示。
+- `agent.md/api_guide.md`：在错误码附录前新增第十二节“管理员数据分析模块（admin-stats，role≥1）”，含通用口径、九接口清单表、各接口响应要点与示例、CSV 导出说明、11 条建议测试点；文件头部插入 1 行索引提示。
+- 文档中固化的关键契约（与代码一致）：`/api/v1/admin/stats/*` 共 9 个 GET，JWT + `ServiceAdminAuthMiddleware`（role≥1，role=0/未登录为 code=2）；日期对与 `days` 互斥，日期不得为未来、跨度≤366 天；`items/*` 的 `days` 为滞留天数阈值（1-3650）且不接受日期参数；百分比 2 位小数、分母 0 返回 0；环比上期 0 且本期 >0 时 `change_percent=null` 且 `comparable=false`；`locations.limit` 默认 4（0-100，0 时已知桶上限 1000）；`distribution.dimension` 必填 type/tag，tag 桶上限 1000、untagged 单列、已删除标签关联保留空名桶；`return-duration` 的 `approximate` 恒为 true；`funnel` 为非嵌套近似且 `adjacent_ratios` 可 >100；CSV 仅覆盖 overview/trend/locations/distribution/return-duration/time-heatmap 六个报表，`funnel` 与两个 items 清单传入 `export=csv` 会被静默忽略并返回 JSON；CSV 成功响应不套 JSON 信封（BOM、`text/csv; charset=utf-8`、`管理员统计-{report}-{start}-{end}.csv`），最多 10000 数据行、整体 30 秒超时、每 200 行 flush，写流前失败仍为 HTTP 200 JSON（1/5/6），写流后失败中断且不追加 JSON。
+- 校验结果：`git --no-pager diff --numstat` 显示 `api_agent.md` 为 `190 0`、`api_guide.md` 为 `150 0`（均为纯新增、零删除），`git diff --check` 无空白错误；两文件原有章节、末尾附录、错误码表均逐字保留；追加后再次只读核对了 `^#+ ` 标题结构与文件尾部。
+- 同步过程中未改动本模块代码、未新增依赖、未触碰 `.clinerules/admin-stats.md` 与 `docs/`。
+- 仍需用户手工执行：`swag init` 以生成/更新 `docs/` Swagger 产物（本模块 handler 注释已含完整 `/api/v1/admin/stats/...` 路径与参数，可直接生成）；真实 MySQL 8 的 `EXPLAIN` 与端到端权限/数据库验收；若前端需要看板接口的其他字段扩展，需另立需求并按规则重新评估响应字段白名单。

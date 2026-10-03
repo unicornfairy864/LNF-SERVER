@@ -1,9 +1,10 @@
-package dao
+package test
 
 import (
-	model "github.com/unicornfairy864/LNF-SERVER/model/advanced"
 	"strings"
 	"testing"
+
+	model "github.com/unicornfairy864/LNF-SERVER/model/advanced"
 )
 
 func TestStatsLocationLimit(t *testing.T) {
