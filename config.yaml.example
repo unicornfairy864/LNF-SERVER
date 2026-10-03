@@ -29,12 +29,49 @@ jwt:
   buffer_time: 6h
   iss: "your-app-name"
 
+
+# ChenSong
+chensong:
+  api_url: "http://127.0.0.1:3000"
+  api_token: "your_snowluma_api_token"
+  activated_qq: 10000
+  activated_group: 1000000
+  bind_max_tries: 3
+  bind_timeout: 3m
+  receive_token: "your_hmac_sha1_receive_token"
+
+  # ---- LNF Agent（QQ 侧，见 agent.md/agent.md §6）----
+  # 关键词预过滤：命中且 @ 机器人才触发 agent
+  lnf_keywords: "丢,丢了,丢失,不见了,捡,捡到,拾到,招领,失物,认领"
+  lnf_cooldown: 60s
+  lnf_group_rate_per_minute: 3
+
+
 # Agent
 openai:
   openai_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   openai_base_url: "https://api.openai.com/v1"
   default_model: "gpt-4o-mini"
-  temperature: 0.1
+  temperature: 0
+  
+  # ---- Agent（失物招领对话助手，见 agent.md/agent.md §12）----
+  agent_enabled: true
+  agent_timeout: 30s
+  agent_max_input_chars: 500
+  agent_session_ttl: 30m
+  agent_top_k: 20
+  agent_strong_threshold: 0.80
+  agent_ambiguous_threshold: 0.50
+  agent_followup_max_rounds: 1
+  agent_rate_limit_per_minute: 10
+  agent_match_min_score: 2
+  agent_match_time_before_days: 1
+  agent_match_time_window_days: 30
+  agent_default_location_id: 140
+  agent_public_base_url: "http://111.229.234.32:8080"
+  agent_reverse_match_enabled: false
+  agent_reverse_match_days: 30
+
 
 # Storage (upload)
 storage:

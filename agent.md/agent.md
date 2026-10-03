@@ -16,6 +16,24 @@
 6. 新增/修改 handler 必须补 **swag 注释**。
 7. 全程考虑**安全性**与**反 prompt 注入**。
 
+### §0.1 AI 写权限边界（硬限制，2026-10-03 追加）
+
+**允许写**：
+- `agent.md/agent.md`（本工作记录）
+- §3 文件清单 + §14 批次范围内**已获批准**的代码/配置文件
+- 经用户逐次明确批准的其它文件
+
+**禁止（除非用户单独明确批准）**：
+- git 任何写操作（commit / push / branch / stash 等）
+- 删除任何文件
+- 执行项目目录之外的脚本、从网络下载或安装任何东西
+- 整体重写 `config.yaml`（其中含密钥与历史乱码值，**只能在指定位置新增行**，且不得改动既有行的字节）
+- 触碰本任务范围外的代码与文档（既有 `*_test.go`、`docs/` 生成物、`README.md`、`agent.md/common_response_code.md`）
+- 直接操作数据库（DDL / DML 一律交用户执行）
+- 未经打招呼运行 `go test` / `swag init`（`go build` / `go vet` 已获授权）
+
+**执行方式约定**：优先用文件编辑工具做定点修改；**不执行临时脚本**（如需批量改写，先给用户文本块由用户粘贴，或先展示脚本内容并获得批准）。
+
 ---
 
 ## §1 现状调研结论（已核实）
@@ -359,7 +377,6 @@ openai:
   agent_match_time_window_days: 30
   agent_default_location_id: 140
   agent_public_base_url: "http://111.229.234.32:8080"   # 多模态用：image_url 以 "/" 开头才拼接，否则视为绝对 URL
-  agent_vision_model: ""                                  # 空 = 关闭多模态
   agent_reverse_match_enabled: false                      # 批次 4
   agent_reverse_match_days: 30                            # 批次 4
 chensong:
@@ -369,6 +386,8 @@ chensong:
   lnf_group_rate_per_minute: 3
 ```
 同步修改：`config.yaml`、`config.yaml.example`、`config/openai_config.go`、`config/chensong.go`。
+
+> **多模态简化（2026-10-03 定稿）**：文本与图片**统一使用 `openai.default_model`**（需具备视觉能力，如 `glm-5.3-flash` / `deepseek-4.1`），不再单独配置视觉模型；若上游拒绝图片输入，代码自动降级为纯文本重试一次（仅当错误信息与 image/vision 相关时），不阻断主流程。
 
 ---
 
@@ -393,7 +412,7 @@ chensong:
 | 批次 | 内容 | 验收 |
 |---|---|---|
 | 0 | 设计定稿（本文件） | ✅ 用户已逐项答复；余 3 微确认（§15） |
-| 1 | LLM 基建（JSON mode/多模态/超时/重试/错误归一）+ 运行时词表 + prompt + schema + 配置段 | 用户提供 3~5 条样例文本 → 跑通「判类+抽取」JSON |
+| 1 | LLM 基建（JSON mode/多模态/超时/重试/错误归一）+ 运行时词表 + prompt + schema + 配置段 | ✅ 代码完成（`go build`+`go vet` 通过）；**验证改为用户 run dev + Postman**（login → POST `/agent/extract`，随批次 2 一并验收）；不新增 dev CLI |
 | 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | 用户 `go build` + Swagger 点测 |
 | 3 | QQBOT：前置拦截 + 关键词 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | 用户在真实群内测 |
 | 4 | more：反向匹配推送（站内 + QQ @）+ 相似帖子推荐接口 | 用户验证通知与推荐 |
@@ -431,4 +450,6 @@ chensong:
 | 2026-10-03 | v1：现状调研 + 架构设计 + 33 项待确认清单 | 已答复 |
 | 2026-10-03 | 顺手修正 item_handler 认领类 4 处 Swagger 注释（§16-1） | 完成 |
 | 2026-10-03 | v2：按 33 项答复定稿（范围/流程/召回规则/建帖确认/配置/会话/通知/批次） | 已完成 |
-| 2026-10-03 | v2.1：确认 3 项微确认（more-6 排后期 / QQ 触发=关键词且@ / 图片拼接规则）+ 清洗函数落在 `filter.go` | **定稿，等待用户指令开工批次 1** |
+| 2026-10-03 | v2.1：确认 3 项微确认（more-6 排后期 / QQ 触发=关键词且@ / 图片拼接规则）+ 清洗函数落在 `filter.go` | 定稿，等待用户指令开工批次 1 |
+| 2026-10-03 | **批次 1 完成**：LLM 基建（JSON mode/多模态/超时/重试/错误归一）、schema 校验层、运行时词表缓存、3 个 prompt、`openai`/`chensong` 配置结构；`go build ./...` + `go vet ./agent/... ./config/...` 通过（未经单测/未 swag init） | 待用户写入 config.yaml → 进批次 2 |
+| 2026-10-03 | 追加 §0.1 AI 写权限边界；确定配置由用户手动写入、验证方式为 run dev + Postman | 执行中 |
