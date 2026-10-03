@@ -46,6 +46,7 @@ func (a *AnnouncementServiceGroup) DeleteAnnouncement(id int64) response.Code {
 }
 
 // 从给定id（不给定默认最新）开始忽视ignore_pieces条后读取limit条，如无auth权限不返回草稿，已下架
+// 可以通过一次数据库交互预存多条优化性能
 func (a *AnnouncementServiceGroup) GetAnnouncements(anrq *model.AnnouncementGetRequest) *model.AnnouncementListResponse {
 	announcements := []model.AnnouncementResponse{}
 	ignore := anrq.IgnorePieces

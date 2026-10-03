@@ -79,7 +79,8 @@ func (a *AnnouncementHandlerGroup) DeleteHandler(c *gin.Context) {
 // GetHandler  获取公告
 // @Summary      获取公告
 // @Description  非系统管理员获取公告，从给定id（默认最新）从最新的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值
-// @Description  分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能
+// @Description  分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，
+// @Description  ignore依旧可以使用，但是请尽量不要使用不然可能出现重复返回，并且影响性能
 // @Tags         announcement
 // @Accept       json
 // @Produce      json
@@ -103,7 +104,8 @@ func (a *AnnouncementHandlerGroup) GetHandler(c *gin.Context) {
 // AuthGetHandler  获取公告
 // @Summary      获取公告
 // @Description  系统管理员获取公告，从给定id（默认最新）的公告开始读取一定条数，允许跳过一定条数，获取全部直接输一个过大值
-// @Description  分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，不然可能出现重复返回，并且影响性能
+// @Description  分页查询第一次StartedId带0，之后请带上上一次返回的最小（最老）id-1，
+// @Description  ignore依旧可以使用，但是请尽量不要使用不然可能出现重复返回，并且影响性能
 // @Tags         announcement
 // @Accept       json
 // @Produce      json

@@ -13,4 +13,5 @@ var (
 
 	AnnouncementDao AnnouncementGroup
 	NotificationDao NotificationGroup
+	CommentDao      CommentGroup
 )

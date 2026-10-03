@@ -100,7 +100,7 @@ const (
 	CodeNotificationSendFailed   Code = 60008 // 通知发送失败
 )
 
-// ==================== 积分商城 11xxxx ====================
+// ==================== 积分商城 11xxx ====================
 const (
 	CodeGoodsNotFound       Code = 11001 // 商品不存在
 	CodeGoodsStockNotEnough Code = 11002 // 商品库存不足
@@ -136,6 +136,20 @@ const (
 // ==================== 机器人 10xxxx ====================
 const (
 	CodeOpenAIError Code = 100001 // Agent寄了
+)
+
+// ==================== 评论 11xxxx ====================
+const (
+	CodeCommentNotFound          Code = 110001 // 评论不存在或已删除
+	CodeCommentContentInvalid    Code = 110002 // 评论内容非法
+	CodeCommentNoPermission      Code = 110003 // 无权操作评论
+	CodeCommentOperationFailed   Code = 110004 // 评论操作失败
+	CodeCommentItemUnavailable   Code = 110005 // 物品不可评论
+	CodeCommentReplyInvalid      Code = 110006 // 回复无效
+	CodeCommentAuditInvalid      Code = 110007 // 审核状态异常
+	CodeCommentInteractionFailed Code = 110008 // 互动失败
+	CodeCommentQueryInvalid      Code = 110009 // 查询参数或查询失败
+	CodeCommentLimitExceeded     Code = 110010 // 评论受限
 )
 
 // ==================== 测试 -xxxx ====================
@@ -253,6 +267,18 @@ var Msg = map[Code]string{
 	CodeAnnouncementNotFound:     "公告不存在",
 	CodeAnnouncementNoPermission: "无权操作该公告",
 	CodeAnnouncementInvalid:      "公告参数或状态错误",
+
+	// 评论
+	CodeCommentNotFound:          "评论不存在或已删除",
+	CodeCommentContentInvalid:    "评论内容非法",
+	CodeCommentNoPermission:      "无权操作评论",
+	CodeCommentOperationFailed:   "评论操作失败",
+	CodeCommentItemUnavailable:   "物品不可评论",
+	CodeCommentReplyInvalid:      "回复无效",
+	CodeCommentAuditInvalid:      "审核状态异常",
+	CodeCommentInteractionFailed: "互动失败",
+	CodeCommentQueryInvalid:      "查询参数或查询失败",
+	CodeCommentLimitExceeded:     "评论受限",
 
 	// Agent
 	CodeOpenAIError: "Agent寄了",

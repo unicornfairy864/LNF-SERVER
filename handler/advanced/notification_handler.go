@@ -15,6 +15,7 @@ type NotificationHandlerGroup struct{}
 // @Tags Notification
 // @Summary 获取通知列表
 // @Description 获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页
+// @Description 分页可能出现重复返回问题，出现问题优先注意这里，解决方法参照公告模块
 // @Accept json
 // @Produce json
 // @Param limit query int false "每页数量"

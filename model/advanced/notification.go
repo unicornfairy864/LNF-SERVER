@@ -27,11 +27,11 @@ func (Notification) TableName() string {
 
 // NotificationListRequest 列表查询参数
 type NotificationListRequest struct {
-	Limit   int    `form:"limit"    json:"limit"`    // 每次取多少条
-	Offset  int    `form:"offset"   json:"offset"`   // 从哪开始
-	Type    *int8  `form:"type"     json:"type"`     // 按类型筛选，nil 不筛
-	IsRead  *int8  `form:"is_read"  json:"is_read"`  // 按已读筛选，nil 不筛
-	AdminID *int64 `form:"admin_id" json:"admin_id"` // 按发布者筛选（区分我收到的/我发出的）
+	Limit   int    `form:"limit"      json:"limit"`    // 每次取多少条
+	Offset  int    `form:"offset"     json:"offset"`   // 忽略条数
+	Type    *int8  `form:"type"       json:"type"`     // 按类型筛选，nil 不筛
+	IsRead  *int8  `form:"is_read"    json:"is_read"`  // 按已读筛选，nil 不筛
+	AdminID *int64 `form:"admin_id"   json:"admin_id"` // 按发布者筛选（区分我收到的/我发出的）
 }
 
 // NotificationSendRequest 发送通知请求

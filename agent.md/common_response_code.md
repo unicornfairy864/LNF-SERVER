@@ -20,6 +20,7 @@
 7xxxx | 举报 | reports
 8xxxx | 地点 | locations
 9xxxx | 公告 | announcements
+01xxx | 评论 | comments
 
 ## 二、通用 / 系统（0xxxx）
 
@@ -164,5 +165,23 @@
 错误码 | 英文常量 | 英文含义 | 中文含义 | 触发场景
 ---|---|---|---|---
 90001 | CodeAnnouncementNotFound | Announcement Not Found | 公告不存在 | 按 id 查询无记录或 is_deleted=1
-90002 | CodeAnnouncementNoPermission | No Permission On Announcement | 无权操作该公告 | 当前用户非管理员或无权操作该公告
+90002 | CodeAnnouncementNoPermission | No Permision On Announcement | 无权操作该公告 | 当前用户非管理员或无权操作该公告
 90003 | CodeAnnouncementInvalid | Invalid Announcement | 公告参数或状态错误 | 标题/内容为空、类型/状态非法、标题过长、发布时间无效、公告已发布/已下架/已删除/长度超过业务限制等
+
+## 十二、评论模块（10xxxx）
+
+对应 comments
+
+错误码 | 英文常量 | 英文含义 | 中文含义 | 触发场景
+---|---|---|---|---
+| 110001 | CodeCommentNotFound | 评论不存在或已删除 | 按 id 查询无记录、is_deleted=1、对已删除评论执行操作 |
+| 110002 | CodeCommentContentInvalid | 评论内容非法 | 内容为空、超过长度限制、命中敏感词 |
+| 110003 | CodeCommentNoPermission | 无权操作评论 | 非作者编辑/删除、非管理员审核/隐藏/恢复 |
+| 110004 | CodeCommentOperationFailed | 评论操作失败 | 创建/更新/删除/恢复/批量删除时数据库异常或事务回滚 |
+| 110005 | CodeCommentItemUnavailable | 物品不可评论 | 物品不存在、已关闭、未发布、已删除、被禁用 |
+| 110006 | CodeCommentReplyInvalid | 回复无效 | 父评论不存在/已删除、与物品不匹配、回复自己、层级超限 |
+| 110007 | CodeCommentAuditInvalid | 审核状态异常 | 待审核时编辑/删除、已隐藏查看/互动、已拒绝、重复审核、无权审核 |
+| 110008 | CodeCommentInteractionFailed | 互动失败 | 重复点赞、点赞不存在、点赞自己、重复举报、点赞/取消点赞写入异常 |
+| 110009 | CodeCommentQueryInvalid | 查询参数或查询失败 | 分页/排序/筛选参数非法、列表查询、计数统计数据库异常 |
+| 110010 | CodeCommentLimitExceeded | 评论受限 | 请求过多、重复评论、用户被禁评、无评论权限、每日评论超限 | 
+

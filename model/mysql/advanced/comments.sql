@@ -2,7 +2,8 @@ CREATE TABLE `comments` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT                                        COMMENT '主键ID',
     `item_id`          BIGINT       NOT NULL                                                       COMMENT '物品ID',
     `user_id`          BIGINT       NOT NULL                                                       COMMENT '评论用户ID',
-    `parent_id`        BIGINT       DEFAULT NULL                                                   COMMENT '父评论ID（支持回复评论）',
+    `root_id`          BIGINT       NOT NULL DEFAULT 0                                             COMMENT '根节点ID（仅用于提升查询性能）'
+    `parent_id`        BIGINT       DEFAULT 0                                                      COMMENT '父评论ID（支持回复评论）',
     `content`          TEXT         NOT NULL                                                       COMMENT '评论内容（支持markdown格式）',
     `status`           TINYINT      NOT NULL DEFAULT 1                                             COMMENT '状态: 0待审核 1正常 2已隐藏',
     `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP                             COMMENT '创建时间',
