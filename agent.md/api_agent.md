@@ -316,6 +316,13 @@ Query：
 - 成功：`data` = ItemListResponse（排序 `created_at DESC, id DESC`，仅未删除物品）。
 - 错误：`1`（min_match/status 非法、条件总数不足）、`6`。
 
+#### GET `/item/count`（public）统计正在被寻找的物品数量
+
+- 无参数、无分页。统计语义：`status IN (0,1)`（已发布+已认领，与 `/item/list` 缺省 status 范围一致）**且 `is_deleted=0`**（未删除）的物品总数。
+- 成功：`data` = int64 **裸数字**（如 `{"code":0,"message":"操作成功","data":42}`），格式同 `/notifications/unread-count`。
+- 错误：`6` 数据库错误。
+- 语义对账：返回值应等于 `GET /item/list` 不传 status 时响应的 `total`。
+
 #### GET `/item/:itemID`（public）详情
 
 - 成功：`data` = ItemResponse；**每次调用 view_count +1**（返回值已含本次 +1）。
