@@ -46,6 +46,7 @@ type ExtractItem struct {
 	FeatureTags    []string `json:"feature_tags"`
 	FeatureTagIDs  []int64  `json:"feature_tag_ids,omitempty"`
 	Keywords       []string `json:"keywords"`
+	Contact        *string  `json:"contact"` // 仅当用户明确给出时填写（手机号/微信/邮箱/QQ），否则 null
 	LocationID     *int64   `json:"location_id"`
 	LocationDetail *string  `json:"location_detail"`
 	TimeFrom       *string  `json:"time_from"`
@@ -112,6 +113,8 @@ func ValidateExtract(raw string, tags TagSet, locs LocationSet) (*ExtractResult,
 		it.ColorTag, it.ColorTagID = resolveTag(it.ColorTag, tags.ResolveColor)
 		it.FeatureTags, it.FeatureTagIDs = resolveTags(it.FeatureTags, tags.ResolveFeature)
 		it.Keywords = cleanStrings(it.Keywords, 6, 20)
+		// 联系方式：仅接受用户明确给出的值，超长截断（对齐 items.contact varchar(100)）
+		it.Contact = cleanStrPtr(truncateBytes(ptrString(it.Contact), 100))
 		// 地点：必须命中词表
 		if it.LocationID != nil && !locs.Has(*it.LocationID) {
 			it.LocationID = nil
@@ -156,14 +159,22 @@ func ValidateExtract(raw string, tags TagSet, locs LocationSet) (*ExtractResult,
 		}
 	}
 	r.MissingFields = mf
+	// 已明确给出联系方式时，不再提示缺失
+	if len(items) > 0 && items[0].Contact != nil {
+		dropped := r.MissingFields[:0]
+		for _, f := range r.MissingFields {
+			if f != "contact" {
+				dropped = append(dropped, f)
+			}
+		}
+		r.MissingFields = dropped
+	}
 	r.FollowupQuestion = truncateRunes(cleanStr(r.FollowupQuestion), 100)
 	if len(r.Items) == 0 && IsCreateIntent(r.Intent) {
 		r.MissingFields = append(r.MissingFields, "item")
 	}
 	return &r, nil
 }
-
-// ==================== 内部工具 ====================
 
 // resolveTag 单标签校验：命中词表则同时返回名称与 ID，否则双空
 func resolveTag(name *string, resolve func(string) (int64, bool)) (*string, *int64) {

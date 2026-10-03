@@ -32,6 +32,7 @@ type MergePatch struct {
 	FeatureTagIDs  *[]int64  `json:"feature_tag_ids,omitempty"`
 	LocationID     *int64    `json:"location_id"`
 	LocationDetail *string   `json:"location_detail"`
+	Contact        *string   `json:"contact"` // 仅当用户明确给出联系方式时填写（不编造）
 	TimeFrom       *string   `json:"time_from"`
 	TimeTo         *string   `json:"time_to"`
 }
@@ -90,6 +91,9 @@ func ValidateMerge(raw string, tags TagSet, locs LocationSet) (*MergeResult, err
 	if p.LocationDetail != nil {
 		p.LocationDetail = cleanStrPtr(truncateRunes(cleanStr(*p.LocationDetail), 200))
 	}
+	if p.Contact != nil {
+		p.Contact = cleanStrPtr(truncateBytes(cleanStr(*p.Contact), 100))
+	}
 	if parseRFC3339(p.TimeFrom) == nil {
 		p.TimeFrom = nil
 	}
@@ -99,7 +103,7 @@ func ValidateMerge(raw string, tags TagSet, locs LocationSet) (*MergeResult, err
 	// patch 全空 → 视为无关
 	if p.Title == nil && p.Description == nil && p.ItemTag == nil && p.ColorTag == nil &&
 		p.FeatureTags == nil && p.LocationID == nil && p.LocationDetail == nil &&
-		p.TimeFrom == nil && p.TimeTo == nil {
+		p.Contact == nil && p.TimeFrom == nil && p.TimeTo == nil {
 		r.Decision = DecisionUnrelated
 		r.Patch = nil
 	}

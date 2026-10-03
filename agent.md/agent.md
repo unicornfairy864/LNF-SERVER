@@ -153,7 +153,7 @@ Step4 分支（代码 if/else，读 verdict）
   · strong_match → 展示 top3（API 返回数组 / QQ 模板文案）
   · ambiguous    → 追问（**全局仅 1 轮**，见 §8）
   · no_match     → 提示「暂未找到」+ 引导建帖
-Step5 建帖（需确认，**仅 1 轮**，见 §8）
+Step5 建帖（仅 1 轮：**不含取消/拒绝语义即发布**，见 §8）
 Step6 收尾（会话落状态/关闭）
 ```
 
@@ -196,18 +196,35 @@ Step6 收尾（会话落状态/关闭）
   "ranked": [{"item_id": 91, "score": 0.92, "reasons": ["品类一致", "颜色一致"], "risk": []}],
   "verdict": "strong_match",
   "need_more_info": {"question": "杯子有提手吗？", "purpose": "区分候选"},
-  "summary": "共找到 2 条可能相关的招领信息"
+  "summary": "与描述有相似之处，建议核对图片与地点"
 }
 ```
+- **条数一律由代码渲染**：模型自报数量不可靠，摘要中一旦出现数字/中文数词（含「两」「几」）→ schema 层直接丢弃整条摘要，回复文案由代码写「为你找到 N 条可能相关的帖子」。
 - 阈值（配置）：`strong ≥ 0.80`、`ambiguous 0.50~0.80`、`no_match < 0.50`。
 - 候选由代码注入：`item_id / title / type / status / 地点全链 / lost_found_time / tags / description 摘要`（**不含 contact**）。
 - 输出 `item_id` 必须在候选集内，否则丢弃。
+
+### 4.1.1 抽取 prompt 防幻觉规则（2026-10-03 验收修复）
+
+用户首批 Postman 验收发现两类问题，已在 `prompt_extract.go` 修正：
+
+| 问题 | 现象 | 修复 |
+|---|---|---|
+| 方向判反 | 「我**捡到**一个…」被判为 `create_lost`，标题写成「丢失…」 | 新增方向词表（捡到/拾到/发现→create_found；丢了/丢失/不见了→create_lost），把 create_found 示例调到最前 |
+| 幻觉地点/时间 | 用户未提时间却输出「昨天下午」的区间；未提「尚德园7号」却被选为地点 | ① 示例中的具体值全部改成 null（不再携带可被套用的日期）；② 新增「严禁套用示例中的具体值」硬规则；③ 明确「未提及地点/时间必须输出 null 并放入 missing_fields」 |
+| 询问式误判为发布 | 「有人捡到黑色水杯吗」被判为建帖（应为检索） | 重写意图判定：按「用户是谁 + 在做什么」区分——① 捡到方 → create_found；② 丢失方+陈述/要求登记 → create_lost；③ 丢失方+**询问/检索措辞**（吗/有没有/有谁/请问/帮我找找） → **match**；并新增一条 match 示例 |
 
 ---
 
 ## §5 API 接口契约（定稿）
 
 > 全部 `role=0` 登录用户（JWT）；路由挂 `/api/v1/agent/*`；HTTP 恒 200。
+>
+> **功能覆盖（用户 2026-10-03 确认）**：**`/agent/chat` 覆盖全部功能**（判类 + 匹配 + 建帖草稿 + 确认发布 + 闲聊兜底）；`/agent/match`、`/agent/extract` 仅为**辅助只读接口**（前端“搜索相似帖”与“智能填充表单”）。
+>
+> **建帖固定两步**：① 描述 → 返回 `need_confirm` 草稿；② **必须回传 ① 的 `session_id`**，回复补充信息或「确认」才建帖（取消/拒绝/其他内容均不建帖）。
+>
+> **限流**：每用户 3 次/分钟 + 全系统 30 次/分钟（三个接口共享计数），超出返回 `120004`。
 
 ### 5.1 `POST /agent/chat`（主入口 · 会话式）
 
@@ -263,7 +280,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
  C. [新] 全局前置条件（handler 层；检查顺序=零成本优先）
     1) 媒体清洗：剥离图片/语音/视频/文件等段（图片段含长 URI）与 URL → 得纯文本
     2) 纯文本为空（纯图片/表情/语音）→ 跳过；纯文本长度 > 500 字符 → 跳过
-    3) 仅处理：activated_group 群消息 与 私聊
+    3) **仅处理 activated_group 群消息**（用户 2026-10-03 定稿：**私聊与其它群一律跳过**，不回复、不处理）
  D. [新] 触发判定：**关键词命中（lnf_keywords）且 @ 机器人（at 的 qq == chensong.activated_qq）**
     — 用户定稿「且」；@ 判定只解析 CQ:at/数组 at 段，**不查库**（降低被 @ 带来的 SQL 消耗）
  E. [新] 幂等（message_id SETNX 5min）+ 频率限制（每 QQ lnf_cooldown；每群 lnf_group_rate_per_minute）
@@ -276,6 +293,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 ```
 
 - QQ 侧文案由代码模板渲染事实（物品 id、条数、链接），LLM 只提供理由/追问/摘要（与 API 同源）。
+- **监听范围（定稿）**：**仅 `chensong.activated_group` 一个群**；私聊、其它群的消息一律跳过（连关键词预过滤都不做）。
+- **既有 emoji 谐音翻译链路**：**不动（全生效）** —— 用户 2026-10-03 定稿：agent 链路只监听 activated_group，emoji 链路维持现状（任何群/私聊），两者互不影响。
 - **关键字列表（初稿，Q18 定稿方向「参考原单文件 + 你的补充，不要过多」）**：
   `丢, 丢了, 丢失, 不见了, 捡, 捡到, 拾到, 招领, 失物, 认领`
 - 清洗落点（Q24 定稿：用户指出 filter.go 的清洗可能**过滤掉关键信息**，且图片段含长 URI）：**在 `chensong/internal/utils/filter.go` 内新增函数**
@@ -308,15 +327,20 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 ```
 首轮：抽取 → 生成草稿（draft）
-  → 回复「我帮你初步写好…」+ 缺失项（地址/联系方式等）+ 确认指引     [唯一一次询问]
-用户回复（仅 1 轮，三种走向）：
-  ① 补充信息（如「地址是图书馆三楼」）
-     → LLM 合并成补充 JSON → **直接调用 ItemService.CreateService 建帖**（不再二次询问）
-  ② 确认（「确认创建」/「确认」/「可以」）
-     → 用当前草稿建帖；缺字段按下表填默认值
-  ③ 否定（「先不创建」/「算了」/「取消」）
-     → 终止会话（stage=cancelled），不建帖
+  → 回复：「我帮你初步写好了…」+ 缺失项 + 明确规则「回复补充信息我会合并后发布；回复「确认」也会发布；回复「取消」则放弃；其他内容我不会发布」   [唯一一次询问]
+用户回复（仅 1 轮，四种走向）：
+  ① 含**取消/拒绝语义**（「取消」「算了」「不用了」「别发」…；先走快速词表，再交 LLM 语义判定）
+     → 取消，不建帖（stage=cancelled）
+  ② **补充信息**（LLM 判定 provide_info，如「门牌号是202」）
+     → 合并进草稿后建帖
+  ③ **明确确认**（词表命中，或 LLM 判定 confirm）
+     → 用当前草稿建帖
+  ④ **其他内容**（LLM 判定 unrelated）
+     → **不发布**，结束会话（stage=cancelled，文案告知未发布）
+  · LLM 故障（超时/输出非法）→ **不发布**，保留会话与草稿，用户可重试（返回 120002）
 ```
+
+> **2026-10-03 定稿变更（严格化）**：只有「明确确认」或「提供补充信息」才会建帖；无关内容与 LLM 故障一律不发布。
 
 **缺字段默认值（Q5/Q8/Q17）**：
 
@@ -324,7 +348,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 |---|---|
 | `location_id` | `agent_default_location_id = 140`（DB 中「其他地点」L2, parent_id=1） |
 | `location_detail` | LLM 生成（仅写「地点链表达不了的信息」，如「三楼东侧靠窗」）；无信息则「暂无」 |
-| `contact` | 空（不写；Q6 不自动填联系方式） |
+| `contact` | **仅当用户明确给出联系方式时写入**（开关 `agent_fill_contact`，缺省开启；不编造、不推断）；否则留空 |
 | `lost_found_time` | 用户所述时间的区间起点/中点；完全无时间 → 建帖时间 |
 | `title` | LLM 依据原文生成，≤100 字节 |
 | `description` | LLM 依据原文复述，禁止脑补 |
@@ -342,6 +366,17 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 |---|---|---|---|
 | API | `api` | `user_id` | 同一用户同时**仅 1 个会话**（Q10 按建议：新会话覆盖旧会话）；`session_id` 由服务端生成并返回，前端回传；服务端校验 `session_id` ↔ `user_id` 归属，**防越权** |
 | QQ | `qq` | QQ 号 | 一名 QQ 同时仅 1 个会话；无需 JWT（Q4） |
+
+### 9.1 严格会话规则（用户 2026-10-03 定稿，已实现）
+
+| 请求情况 | 服务端行为 |
+|---|---|
+| **不带 `session_id`** | **直接新建会话并立即覆盖旧会话**（写入 Redis；旧 session_id 立即失效；新 session_id 当场返回） |
+| **带 `session_id` 且匹配** | 续会话（`stage=need_confirm` 时进入唯一一次确认轮） |
+| **带 `session_id` 但不匹配/不存在** | 返回 `120001`，且**不改动已存会话**（不新建、不覆盖） |
+| 会话轮次 ≥3（`agentMaxRounds`） | 续用请求触发重建并覆盖（成本上界，日志留痕） |
+
+> 含义：**多轮必须显式携带服务端上次返回的 `session_id`**；不带即视为“开新会话”，不会误续旧会话。每用户仅 1 个槽位（不支持多标签并行）。
 
 会话 JSON 字段：`session_id / stage / intent / entity / draft / followup_round(0|1) / candidates / created_item_id / created_at / updated_at`。
 
@@ -371,7 +406,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 5. **写操作显式确认**：建帖必须经 §8 确认流程；无自动建帖路径。
 6. **隐私**：匹配候选**注入 LLM 时不带 contact**；对外返回按 `ItemResponse`（Q7 定稿：按 service 的 item 返回值给，含 contact），与既有详情接口口径一致。
 7. **身份**：QQ 侧只能操作 `users.qq` 命中的账号；未绑定 → 拦截 + 提示。
-8. **频率/成本**：API 每用户每分钟 `agent_rate_limit_per_minute=10`；QQ 每 QQ `lnf_cooldown=60s`、每群每分钟 `lnf_group_rate_per_minute=3`；LLM 超时 30s。
+8. **频率/成本**：API **每用户每分钟 3 次**（`agent_rate_limit_per_minute`，缺省 3）+ **全系统每分钟 30 次**（`agent_rate_limit_total_per_minute`，缺省 30），超出返回 `120004`；QQ 每 QQ `lnf_cooldown=60s`、每群每分钟 `lnf_group_rate_per_minute=3`；LLM 超时 30s。限流计数存 Redis（按分钟计数，Redis 异常时放行）。
 9. **幂等**：QQ `message_id` SETNX；API 会话状态机。
 10. **可关断**：`agent_enabled=false` → 两条链路短路为现状行为。
 
@@ -394,12 +429,14 @@ openai:
   agent_strong_threshold: 0.80
   agent_ambiguous_threshold: 0.50
   agent_followup_max_rounds: 1
-  agent_rate_limit_per_minute: 10
+  agent_rate_limit_per_minute: 3                  # 每个用户每分钟调用上限
+  agent_rate_limit_total_per_minute: 30           # 全系统每分钟调用上限（所有用户合计）
   agent_match_min_score: 2
   agent_match_time_before_days: 1
   agent_match_time_window_days: 30
   agent_default_location_id: 140
   agent_public_base_url: "http://111.229.234.32:8080"   # 多模态用：image_url 以 "/" 开头才拼接，否则视为绝对 URL
+  agent_fill_contact: true                                # 是否把「用户明确给出的」联系方式写入 items.contact（缺省 true，可省略）
   agent_reverse_match_enabled: false                      # 批次 4
   agent_reverse_match_days: 30                            # 批次 4
 chensong:
@@ -477,3 +514,12 @@ chensong:
 | 2026-10-03 | **批次 1 完成**：LLM 基建（JSON mode/多模态/超时/重试/错误归一）、schema 校验层、运行时词表缓存、3 个 prompt、`openai`/`chensong` 配置结构；`go build ./...` + `go vet ./agent/... ./config/...` 通过（未经单测/未 swag init） | 待用户写入 config.yaml → 进批次 2 |
 | 2026-10-03 | 追加 §0.1 AI 写权限边界；确定配置由用户手动写入、验证方式为 run dev + Postman | 完成 |
 | 2026-10-03 | **批次 2 完成**：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 DAO + 编排 + 会话/限流 + 12xxxx 错误码 + swag 注释；`go build ./...` + `go vet ./...` 通过；确定 §3.1 的 4 项实现偏差与 CreateItemFn 注入点 | 待用户 Postman 验收 |
+| 2026-10-03 | **需求变更（用户）**：QQ 侧**仅监听 `activated_group`**，私聊与其它群一律跳过（§6-C-3）；现有 emoji 链路不动、全生效 | 已入文档，批次 3 执行 |
+| 2026-10-03 | **批次 2 首批 Postman 验收**：① 抽取方向判反 + 幻觉地点/时间 → 重写抽取 prompt 并加防套用规则（§4.1.1）；② 第二轮未续上会话 → 代码复核 + 补诊断日志；验收第二轮抽取已正确（create_found 等） | 已修复 |
+| 2026-10-03 | **会话策略定稿（用户）**：不带 `session_id` → 直接覆盖旧会话；带错 `session_id` → 报 120001 且不改动已存会话；不支持多会话（§9.1） | 已实现，`go build`+`go vet` 通过 |
+| 2026-10-03 | **确认轮策略定稿（用户·严格化）**：只有明确确认或补充信息才建帖；无关内容与 LLM 故障**一律不发布**；提问文案改为「其他内容我不会发布」（§8） | 已实现 |
+| 2026-10-03 | **限流定稿（用户）**：每用户 3 次/分钟 + 全系统 30 次/分钟（新增 `agent_rate_limit_total_per_minute` 缺省 30；`agent_rate_limit_per_minute` 缺省改为 3）；三接口共享计数 | 已实现 |
+| 2026-10-03 | 确认 **`/agent/chat` 覆盖全部功能**（match/extract 为辅助只读）；**建帖固定两步且第二步必须回传 session_id**（§5） | 已入文档 |
+| 2026-10-03 | **prompt 修复（用户反馈）**：「有人捡到黑色水杯吗」被误判为发布 → 重写意图判定（询问/检索措辞 → match）并新增 match 示例（§4.1.1） | 已实现 |
+| 2026-10-03 | **条数校验修复（用户反馈）**：精排摘要自报「找到1条」但实际 5 条 → 条数改由代码渲染，prompt 禁止写数量，schema 层丢弃含数字/中文数词的摘要（§4.2） | 已实现 |
+| 2026-10-03 | **contact 问题定位与修复**：建帖从未赋值 `req.Contact` + 两个 prompt 禁止联系方式 + 草稿无该字段 → 新增 `contact` 抽取（仅用户明确给出，不编造）、合并 patch 支持 contact、草稿回显、写入 `items.contact`（开关 `openai.agent_fill_contact`，缺省开启）（§8、§12） | 已实现 |

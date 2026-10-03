@@ -17,7 +17,8 @@ type AgentHandlerGroup struct{}
 // @Description  1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；<br />
 // @Description  2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；<br />
 // @Description  3) 闲聊/无关 → chitchat 固定话术。<br />
-// @Description  确认轮：用户回复补充信息（自动合并后直接建帖）、回复「确认」（用草稿建帖，缺地点自动填 agent_default_location_id）、回复「取消」则结束。<br />
+// @Description  确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。<br />
+// @Description  用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。<br />
 // @Description  建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。<br />
 // @Description  action=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。<br />
 // @Description  错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用

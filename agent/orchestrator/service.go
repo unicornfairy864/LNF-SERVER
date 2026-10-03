@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"log"
 	"strings"
 
 	"github.com/unicornfairy864/LNF-SERVER/agent/internal/schema"
@@ -32,6 +33,9 @@ func (s *ServiceGroup) Extract(userID int64, req *model.AgentExtractRequest) (*m
 	if !allowRate(userID, st.RateLimitPerMinute) {
 		return nil, response.CodeAgentRateLimited
 	}
+	if !allowRateTotal(st.RateLimitTotalMin) {
+		return nil, response.CodeAgentRateLimited
+	}
 	text, images, code := prepareInput(req.Text, req.ImageURLs, st)
 	if code != response.CodeSuccess {
 		return nil, code
@@ -59,6 +63,9 @@ func (s *ServiceGroup) Match(userID int64, req *model.AgentMatchRequest) (*model
 		return nil, response.CodeAgentNotAvailable
 	}
 	if !allowRate(userID, st.RateLimitPerMinute) {
+		return nil, response.CodeAgentRateLimited
+	}
+	if !allowRateTotal(st.RateLimitTotalMin) {
 		return nil, response.CodeAgentRateLimited
 	}
 	text, images, code := prepareInput(req.Text, req.ImageURLs, st)
@@ -109,6 +116,9 @@ func (s *ServiceGroup) Chat(userID int64, req *model.AgentChatRequest) (*model.A
 	if !allowRate(userID, st.RateLimitPerMinute) {
 		return nil, response.CodeAgentRateLimited
 	}
+	if !allowRateTotal(st.RateLimitTotalMin) {
+		return nil, response.CodeAgentRateLimited
+	}
 	text, images, code := prepareInput(req.Text, req.ImageURLs, st)
 	if code != response.CodeSuccess {
 		return nil, code
@@ -118,12 +128,25 @@ func (s *ServiceGroup) Chat(userID int64, req *model.AgentChatRequest) (*model.A
 		action = model.AgentActionAuto
 	}
 
+	// 会话加载（严格模式，用户 2026-10-03 定稿）：
+	//   · 不带 session_id → 一律新建会话并立即覆盖旧会话（旧 session_id 失效）
+	//   · 带 session_id 但不匹配/不存在 → 返回 120001，且**不改动已存会话**
 	sess, has := loadSession(userID)
-	if req.SessionID != "" && (!has || sess.SessionID != req.SessionID) {
-		return nil, response.CodeAgentSessionNotFound
-	}
-	if !has || sess.Rounds >= agentMaxRounds {
+	log.Printf("[agent] chat 入口 user_id=%d action=%s req_session=%q has_session=%v stage=%s rounds=%d",
+		userID, action, req.SessionID, has, sessionStage(sess), sessionRounds(sess))
+	if req.SessionID != "" {
+		if !has || sess.SessionID != req.SessionID {
+			log.Printf("[agent] 会话不匹配（不改动已存会话）user_id=%d req_session=%q stored=%q", userID, req.SessionID, sessionIDOf(sess))
+			return nil, response.CodeAgentSessionNotFound
+		}
+		if sess.Rounds >= agentMaxRounds {
+			log.Printf("[agent] 会话轮次用尽，重建 user_id=%d session=%s rounds=%d", userID, sess.SessionID, sess.Rounds)
+			sess = &sessionState{SessionID: newSessionID()}
+			saveSession(userID, sess, st.SessionTTL)
+		}
+	} else {
 		sess = &sessionState{SessionID: newSessionID()}
+		saveSession(userID, sess, st.SessionTTL)
 	}
 
 	// 显式动作优先
@@ -219,8 +242,14 @@ func (s *ServiceGroup) handleNewRequest(userID int64, sess *sessionState, text s
 	return resp, response.CodeSuccess
 }
 
-// handleConfirmRound 处理「唯一一次」确认轮的回复：
-// 快速词表命中 → 直接确认/取消；否则交给 LLM 判定（确认 / 取消 / 补充信息 / 无关）
+// handleConfirmRound 处理确认轮回复（用户 2026-10-03 定稿：**只有明确确认或补充信息才发布**）：
+//  1. 快速词表命中「取消/拒绝」→ 直接取消（不建帖）
+//  2. 命中「确认」→ 用当前草稿发布
+//  3. 其余：交给 LLM 判定语义
+//     · provide_info → 合并补充信息后发布
+//     · confirm      → 发布
+//     · cancel       → 取消
+//     · unrelated（以及 LLM 故障）→ **不发布**（故障时保留会话；无关内容则结束会话）
 func (s *ServiceGroup) handleConfirmRound(userID int64, sess *sessionState, text string, st config.AgentSettings) (*model.AgentChatResponse, response.Code) {
 	if isCancelText(text) {
 		dropSession(userID)
@@ -231,11 +260,11 @@ func (s *ServiceGroup) handleConfirmRound(userID int64, sess *sessionState, text
 	}
 	mr, code := doMerge(sess.Draft, text)
 	if code != response.CodeSuccess {
+		// LLM 不可用：严格模式下不发布，也不结束会话（保留草稿，用户可稍后重试）
+		log.Printf("[agent] 确认轮合并失败，严格模式不发布 user_id=%d", userID)
 		return nil, code
 	}
 	switch mr.Decision {
-	case schema.DecisionConfirm:
-		return s.finishCreate(userID, sess, st)
 	case schema.DecisionCancel:
 		dropSession(userID)
 		return cancelledResponse(sess.SessionID), response.CodeSuccess
@@ -243,24 +272,14 @@ func (s *ServiceGroup) handleConfirmRound(userID int64, sess *sessionState, text
 		applyMergePatch(sess.Draft, mr.Patch)
 		refreshDraftLocationName(sess.Draft)
 		return s.finishCreate(userID, sess, st)
+	case schema.DecisionConfirm:
+		return s.finishCreate(userID, sess, st)
 	default:
-		sess.ConfirmRounds++
-		if sess.ConfirmRounds > agentMaxConfirmRounds {
-			dropSession(userID)
-			resp := cancelledResponse(sess.SessionID)
-			resp.Reply = renderConfirmExpired()
-			return resp, response.CodeSuccess
-		}
-		saveSession(userID, sess, st.SessionTTL)
-		return &model.AgentChatResponse{
-			SessionID: sess.SessionID,
-			Stage:     model.AgentStageNeedConfirm,
-			Reply:     renderNeedConfirmAgain(),
-			Questions: questionList(sess.Draft),
-			Matches:   []model.AgentMatchBrief{},
-			Similar:   []model.AgentMatchBrief{},
-			Draft:     sess.Draft,
-		}, response.CodeSuccess
+		// unrelated：严格模式不发布，结束会话
+		dropSession(userID)
+		resp := cancelledResponse(sess.SessionID)
+		resp.Reply = renderNoExplicitConfirm()
+		return resp, response.CodeSuccess
 	}
 }
 
@@ -334,7 +353,8 @@ var agentConfirmWords = map[string]struct{}{
 
 var agentCancelWords = map[string]struct{}{
 	"取消": {}, "取消吧": {}, "算了": {}, "不用了": {}, "不用": {}, "不要了": {},
-	"不创建": {}, "先不创建": {}, "先不": {}, "不发布": {}, "no": {},
+	"不创建": {}, "先不创建": {}, "先不": {}, "不发布": {}, "不发了": {}, "别发": {},
+	"别发布了": {}, "不登记": {}, "撤回": {}, "放弃": {}, "no": {},
 }
 
 // isConfirmText 是否为纯确认（去掉首尾标点后精确匹配，避免「对，地址是…」被误判为确认）
@@ -394,6 +414,30 @@ func createdResponse(sess *sessionState) *model.AgentChatResponse {
 		resp.CreatedItemID = &id
 	}
 	return resp
+}
+
+// sessionStage 日志辅助：nil 会话安全取阶段
+func sessionStage(s *sessionState) string {
+	if s == nil {
+		return ""
+	}
+	return s.Stage
+}
+
+// sessionRounds 日志辅助
+func sessionRounds(s *sessionState) int {
+	if s == nil {
+		return 0
+	}
+	return s.Rounds
+}
+
+// sessionIDOf 日志辅助
+func sessionIDOf(s *sessionState) string {
+	if s == nil {
+		return ""
+	}
+	return s.SessionID
 }
 
 // refreshDraftLocationName 合并补充信息后刷新地点展示名（patch 只带 id，不带名称）

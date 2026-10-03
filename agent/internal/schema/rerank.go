@@ -117,7 +117,19 @@ func ValidateRerank(raw string, candidateIDs map[int64]bool, strong, ambiguous f
 		}
 	}
 	r.Summary = truncateRunes(cleanStr(r.Summary), 60)
+	// 条数由代码渲染：模型自报的数量不可靠，摘要中一旦出现数字或中文数词就直接丢弃整条摘要
+	if containsCountLike(r.Summary) {
+		r.Summary = ""
+	}
 	return &r, nil
+}
+
+// countLikeChars 数字与中文数词（含「两」「几」）：用于过滤模型自报的条数
+const countLikeChars = "0123456789一二三四五六七八九十两百千万几"
+
+// containsCountLike 判断文本是否包含数量类字符
+func containsCountLike(s string) bool {
+	return strings.ContainsAny(s, countLikeChars)
 }
 
 // deriveVerdict 按阈值从得分推导 verdict

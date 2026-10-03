@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"encoding/json"
+	"log"
 	"strconv"
 	"time"
 
@@ -14,14 +15,11 @@ import (
 const (
 	agentSessionKeyPrefix = "lnf:agent:session:api:"
 	agentRateKeyPrefix    = "lnf:agent:rate:api:"
+	agentRateTotalPrefix  = "lnf:agent:rate:total:"
 )
 
 // agentMaxRounds 单会话最多处理的用户消息数（成本上界，超出自动结束旧会话）
 const agentMaxRounds = 3
-
-// agentMaxConfirmRounds need_confirm 阶段允许的「无效回复」次数
-// 用户定稿：有且仅有一次「补充信息 + 确认」；再收到无关回复即结束会话
-const agentMaxConfirmRounds = 1
 
 // sessionState 会话状态（JSON 存 Redis，TTL 滑动续期）
 type sessionState struct {
@@ -30,7 +28,6 @@ type sessionState struct {
 	Intent        string            `json:"intent"`
 	Draft         *model.AgentDraft `json:"draft,omitempty"`
 	Rounds        int               `json:"rounds"`
-	ConfirmRounds int               `json:"confirm_rounds"`
 	CreatedItemID int64             `json:"created_item_id,omitempty"`
 	UpdatedAt     time.Time         `json:"updated_at"`
 }
@@ -44,6 +41,11 @@ func rateKey(userID int64) string {
 	return agentRateKeyPrefix + strconv.FormatInt(userID, 10) + ":" + strconv.FormatInt(time.Now().Unix()/60, 10)
 }
 
+// rateTotalKey 按「全系统 + 分钟」计数
+func rateTotalKey() string {
+	return agentRateTotalPrefix + strconv.FormatInt(time.Now().Unix()/60, 10)
+}
+
 // newSessionID 会话 ID（对外返回，前端回传；与 user_id 绑定校验，防越权）
 func newSessionID() string {
 	return "as_" + uuid.NewString()
@@ -52,11 +54,16 @@ func newSessionID() string {
 // loadSession 读取会话（Redis 异常时按「无会话」处理，不阻断主流程）
 func loadSession(userID int64) (*sessionState, bool) {
 	raw, err := dao.RedisDao.GetValueString(sessionKey(userID))
-	if err != nil || raw == "" {
+	if err != nil {
+		log.Printf("[agent] 读会话失败 user_id=%d: %v", userID, err)
+		return nil, false
+	}
+	if raw == "" {
 		return nil, false
 	}
 	var st sessionState
 	if err := json.Unmarshal([]byte(raw), &st); err != nil || st.SessionID == "" {
+		log.Printf("[agent] 会话反序列化失败 user_id=%d raw=%.120s err=%v", userID, raw, err)
 		return nil, false
 	}
 	return &st, true
@@ -70,9 +77,12 @@ func saveSession(userID int64, st *sessionState, ttl time.Duration) {
 	st.UpdatedAt = time.Now()
 	b, err := json.Marshal(st)
 	if err != nil {
+		log.Printf("[agent] 会话序列化失败 user_id=%d: %v", userID, err)
 		return
 	}
-	_ = dao.RedisDao.SetKey(sessionKey(userID), string(b), ttl)
+	if err := dao.RedisDao.SetKey(sessionKey(userID), string(b), ttl); err != nil {
+		log.Printf("[agent] 写会话失败 user_id=%d ttl=%s: %v", userID, ttl, err)
+	}
 }
 
 // dropSession 结束会话
@@ -82,10 +92,19 @@ func dropSession(userID int64) {
 
 // allowRate 每用户每分钟限流；Redis 异常时放行（不因缓存故障阻断用户）
 func allowRate(userID int64, limit int) bool {
+	return allowByKey(rateKey(userID), limit)
+}
+
+// allowRateTotal 全系统每分钟限流（所有用户合计）；Redis 异常时放行
+func allowRateTotal(limit int) bool {
+	return allowByKey(rateTotalKey(), limit)
+}
+
+// allowByKey INCR + TTL 计数：计数 <= limit 放行
+func allowByKey(key string, limit int) bool {
 	if limit <= 0 {
 		return true
 	}
-	key := rateKey(userID)
 	n, err := dao.RedisDao.INCR(key)
 	if err != nil {
 		return true

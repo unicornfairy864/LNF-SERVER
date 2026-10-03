@@ -88,6 +88,7 @@ func buildDraft(intent string, it *schema.ExtractItem, ex *schema.ExtractResult,
 		Description:    strings.TrimSpace(it.Description),
 		LocationID:     it.LocationID,
 		LocationDetail: it.LocationDetail,
+		Contact:        it.Contact,
 		MissingFields:  ex.MissingFields,
 		Followup:       ex.FollowupQuestion,
 	}
@@ -466,6 +467,12 @@ func createItemFromDraft(userID int64, d *model.AgentDraft, st config.AgentSetti
 		CreditReward:   0,
 		TagIDs:         d.TagIDs,
 	}
+	// 联系方式：仅写入用户明确给出的值（开关 openai.agent_fill_contact，缺省开启）
+	if st.FillContact && d.Contact != nil {
+		if c := strings.TrimSpace(*d.Contact); c != "" {
+			req.Contact = &c
+		}
+	}
 	if CreateItemFn == nil {
 		log.Printf("[agent] 建帖函数未注入，拒绝创建物品（检查 initialization 的绑定）")
 		return 0, response.CodeServerError
@@ -571,6 +578,13 @@ func applyMergePatch(d *model.AgentDraft, p *schema.MergePatch) {
 	}
 	if p.LocationDetail != nil {
 		d.LocationDetail = p.LocationDetail
+	}
+	if p.Contact != nil {
+		if strings.TrimSpace(*p.Contact) == "" {
+			d.Contact = nil
+		} else {
+			d.Contact = p.Contact
+		}
 	}
 	if p.TimeFrom != nil {
 		d.TimeFrom = *p.TimeFrom

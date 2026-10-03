@@ -117,9 +117,9 @@ const rerankSystemTemplate = `你是校园失物招领系统的「匹配精排�
 - no_match：所有候选都低于 {{AMBIGUOUS}}（此时 ranked 可以是空数组）
 
 【输出结构】
-{"ranked":[{"item_id":1,"score":0.90,"reasons":["品类一致","颜色一致"],"risk":[]}],"verdict":"strong_match","need_more_info":null,"summary":"找到 1 条可能的招领信息"}
+{"ranked":[{"item_id":1,"score":0.90,"reasons":["品类一致","颜色一致"],"risk":[]}],"verdict":"strong_match","need_more_info":null,"summary":"与描述有相似之处，建议核对图片与地点"}
 - ranked 只能包含候选列表中出现过的 item_id，按 score 降序，最多 10 条
 - reasons：1~3 条短语（每条 ≤12 字），说明命中或缺失的关键点
 - risk：可疑点（如「颜色不符」），没有则 []
 - need_more_info：verdict=ambiguous 时必须给出一个最能区分候选的追问 {"question":"≤50 字","purpose":"≤20 字"}，否则为 null
-- summary：≤40 字，面向用户的一句话结论，不得包含联系方式`
+- summary：≤40 字，面向用户的一句话结论；**禁止写条数或数量词**（条数由系统统计，你写了会与真实数量不一致）；不得包含联系方式`

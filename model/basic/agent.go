@@ -57,6 +57,7 @@ type AgentDraft struct {
 	LocationID     *int64   `json:"location_id,omitempty"`     // 缺省时由后端填 140「其他地点」
 	LocationName   string   `json:"location_name,omitempty"`   // 展示用（地点链路）
 	LocationDetail *string  `json:"location_detail,omitempty"` // 只写链路表达不了的细节
+	Contact        *string  `json:"contact,omitempty"`         // 仅当用户明确给出联系方式时才有值（不编造）
 	LostFoundTime  string   `json:"lost_found_time,omitempty"` // RFC3339
 	TimeFrom       string   `json:"time_from,omitempty"`       // 抽取的时间区间（展示/调试用）
 	TimeTo         string   `json:"time_to,omitempty"`

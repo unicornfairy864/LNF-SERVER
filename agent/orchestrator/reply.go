@@ -140,7 +140,7 @@ func renderConfirmAsk(d *model.AgentDraft) string {
 		b.WriteString("。还缺")
 		b.WriteString(strings.Join(labels, "、"))
 	}
-	b.WriteString("。回复补充信息，或回复「确认」直接发布。")
+	b.WriteString("。回复补充信息我会合并后发布；回复「确认」也会发布；回复「取消」则放弃；其他内容我不会发布。")
 	return b.String()
 }
 
@@ -163,12 +163,13 @@ func draftType(d *model.AgentDraft) int8 {
 	return d.Type
 }
 
-// renderMatched 匹配到候选
+// renderMatched 匹配到候选：**条数由代码渲染**（模型自报数量不可靠，已在 schema 层丢弃含数字的摘要）
 func renderMatched(summary string, n int) string {
-	if strings.TrimSpace(summary) != "" {
-		return truncateRunes(strings.TrimSpace(summary), 80)
+	base := fmt.Sprintf("为你找到 %d 条可能相关的帖子，请核对下面的列表。", n)
+	if s := strings.TrimSpace(summary); s != "" {
+		return base + " " + s
 	}
-	return fmt.Sprintf("为你找到 %d 条可能相关的帖子，请核对下面的列表。", n)
+	return base
 }
 
 // renderNoMatch 无匹配
@@ -176,14 +177,9 @@ func renderNoMatch() string {
 	return "暂时没有找到匹配的帖子。你可以把情况说给我，我帮你登记成失物帖，有线索时再来核对。"
 }
 
-// renderNeedConfirmAgain 确认轮收到无关回复时的提示（仅允许一次）
-func renderNeedConfirmAgain() string {
-	return "还没收到你的确认：回复「确认」直接发布，或回复「取消」放弃。"
-}
-
-// renderConfirmExpired 确认轮超限，会话结束
-func renderConfirmExpired() string {
-	return "本次建帖已结束，没有创建任何信息。需要发布时把情况再告诉我一次就好。"
+// renderNoExplicitConfirm 确认轮收到无关内容（严格模式：不发布）
+func renderNoExplicitConfirm() string {
+	return "没有收到明确的补充信息或确认，本次未发布任何信息。需要发布时把情况再告诉我一次即可。"
 }
 
 // renderCancelled 用户放弃
