@@ -30,20 +30,21 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 	return response.CodeSuccess
 }
 
-func (c *CommentServiceGroup) UpdateComment(ucrq *model.UpdateCommentRequest) response.Code {
-	[]is_child := true
-	rq := model.CommentsQuery{
-		UserID: ucrq.ID,
-	}
-	co, err := dao.CommentDao.GetComments(&rq)
-	if err != nil {
-		return response.CodeCommentNotFound
-	}
-	rq = model.CommentsQuery{
-		RootID: &co[0].RootID,
-	}
-	childs, err := dao.CommentDao.GetComments(&rq)
-	func (id int64) isChild bool {
-		if ()
-	}
-}
+// func (c *CommentServiceGroup) UpdateComment(ucrq *model.UpdateCommentRequest) response.Code {
+// 	[]is_child := true
+// 	rq := model.CommentsQuery{
+// 		UserID: ucrq.ID,
+// 	}
+// 	co, err := dao.CommentDao.GetComments(&rq)
+// 	if err != nil {
+// 		return response.CodeCommentNotFound
+// 	}
+// 	rq = model.CommentsQuery{
+// 		RootID: &co[0].RootID,
+// 	}
+// 	childs, err := dao.CommentDao.GetComments(&rq)
+// }
+
+// func (id int64) isChild() bool {
+// 	return false
+// }
