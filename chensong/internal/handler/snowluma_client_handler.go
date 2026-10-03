@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/client"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/model"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/service"
 	"github.com/unicornfairy864/LNF-SERVER/response"
@@ -47,6 +48,14 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 		return
 	}
 	utils.LogJson("ServiceStart")
+	// Ping
+	if req.RawMessage == "🐏" {
+		_, err = client.Client.SendGroupMessage("🐏：咩。", req.GroupID)
+		if err != nil {
+			response.Fail(c)
+			return
+		}
+	}
 	// TranslateEmoji
 	utils.LogJson("TranslateEmojiStart")
 	code = service.TranslateEmoji(req)
@@ -54,6 +63,8 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 		utils.LogJson("SuccessToTranslateEmoji")
 	} else {
 		utils.LogJson(strconv.Itoa(int(code)) + " " + response.Msg[code])
+		response.Fail(c)
+		return
 	}
 	//
 
