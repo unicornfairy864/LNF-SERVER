@@ -12,6 +12,7 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/client"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/model"
 	"github.com/unicornfairy864/LNF-SERVER/chensong/internal/service"
+	csutils "github.com/unicornfairy864/LNF-SERVER/chensong/internal/utils"
 	"github.com/unicornfairy864/LNF-SERVER/response"
 	"github.com/unicornfairy864/LNF-SERVER/utils"
 )
@@ -55,6 +56,18 @@ func (sl *SlHandler) ReceiverHandler(c *gin.Context) {
 			response.Fail(c)
 			return
 		}
+	}
+	// LNF Agent 链路（批次 3）：仅 activated_group + @机器人 + （关键词命中 或 进行中会话）
+	// 命中后本条不再走 emoji 链路；触发判定轻量同步，真正的处理放 goroutine，避免阻塞 webhook
+	if text := csutils.CleanForAgent(req); service.LnfAgent.Trigger(req, text) {
+		if service.LnfAgent.MarkOnce(req.MessageID) {
+			utils.LogJson("AgentTriggered")
+			go service.LnfAgent.Handle(req, text)
+		} else {
+			utils.LogJson("AgentDuplicateSkipped")
+		}
+		response.Success(c)
+		return
 	}
 	// TranslateEmoji
 	utils.LogJson("TranslateEmojiStart")

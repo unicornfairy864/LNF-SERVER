@@ -281,8 +281,9 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
     1) 媒体清洗：剥离图片/语音/视频/文件等段（图片段含长 URI）与 URL → 得纯文本
     2) 纯文本为空（纯图片/表情/语音）→ 跳过；纯文本长度 > 500 字符 → 跳过
     3) **仅处理 activated_group 群消息**（用户 2026-10-03 定稿：**私聊与其它群一律跳过**，不回复、不处理）
- D. [新] 触发判定：**关键词命中（lnf_keywords）且 @ 机器人（at 的 qq == chensong.activated_qq）**
-    — 用户定稿「且」；@ 判定只解析 CQ:at/数组 at 段，**不查库**（降低被 @ 带来的 SQL 消耗）
+ D. [新] 触发判定：**@ 机器人（at.qq == chensong.activated_qq）且（关键词命中 或 该 QQ 有进行中会话）**
+    — 用户定稿「且」；@ 判定只解析 CQ:at/数组 at 段，**不查库**
+    — **会话放行**（实现时补充）：确认轮消息（「确认」「门牌号是202」）通常不含关键词，若该 QQ 在 Redis 存在进行中会话则同样放行（只读一次 Redis，不查库）
  E. [新] 幂等（message_id SETNX 5min）+ 频率限制（每 QQ lnf_cooldown；每群 lnf_group_rate_per_minute）
  F. [新] 身份解析：QQ → users.qq（身份查库尽量靠后，降低无效消耗）；未绑定 → 回复「若使用陈松的 agent 功能需要先在网页版绑定 QQ」并终止
  G. [新] 复用 §4 主链路（Step1 判类 + 抽取 → 召回 → 精排）
@@ -290,6 +291,14 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
  H. [新] 回复：仅发 activated_group，格式 `[CQ:reply,id=..] [CQ:at,qq=<QQ>] <昵称> <文案>`
  I. [新] 建帖：群内**二次确认**（同一条消息内含缺失项 + 确认指引；**仅 1 轮**）
  J. [现状] emoji 谐音翻译：**若本条第 G 步已生成回复则跳过 emoji 链路**，否则维持现状
+ K. [实现] 触发部分同步执行（零成本检查 + 一次性 Redis 好会话查询），LLM/建帖放 goroutine，避免阻塞 SnowLuma webhook
+```
+
+**批次 3 实现落点**：
+- `chensong/internal/utils/filter.go`：新增 `CleanForAgent`（剥离媒体段/CQ 码/URL）、`HasAtBot`（解析两种格式的 at 段）、`ContainsKeyword`；既有 `CleanEvent` 不动
+- `chensong/internal/service/lnf_agent.go`：`Trigger`（仅 activated_group + @机器人 + 关键词/会话）、`MarkOnce`（message_id 幂等 5min）、`Handle`（每 QQ 冷却 + 每群每分钟条数 → QQ 身份 → `orchestrator.Service.ChatQQ` → 群内回复）、`replyGroup`
+- `chensong/internal/handler/snowluma_client_handler.go`：在 Ping 之后、emoji 之前插入 Agent 分支（命中则不跑 emoji）
+- `agent/orchestrator`：新增 `ChatQQ(qq, userID, req)`（会话域 `lnf:agent:session:qq:<QQ号>`）与 `HasQQSession(qq)`；API 入口行为不变
 ```
 
 - QQ 侧文案由代码模板渲染事实（物品 id、条数、链接），LLM 只提供理由/追问/摘要（与 API 同源）。
@@ -500,6 +509,7 @@ chensong:
 | 2 | `main.go` 遗留 `test()` 调试函数 | ⏸ 用户裁定：不管 |
 | 3 | `chensong/.../snowluma_client_handler.go` 中 `json.Marshal` 的 err 被遮蔽 | ⏸ 用户裁定：不管 |
 | 4 | `agent/internal/model/models.go` 空包 | ✅ 用户已删除该文件；本方案改用 `agent/internal/schema/` |
+| 5 | **`test/` 包编译不过**：`test/admin_stats_dao_test.go`（`package test`）调用了 `dao` 包私有函数 `statsLocationLimitExceeded` → `go vet ./...` 报 undefined；`go build ./...` 不受影响 | ⚠️ **本任务之外，待用户裁定**（未动） |
 
 ---
 
@@ -523,3 +533,4 @@ chensong:
 | 2026-10-03 | **prompt 修复（用户反馈）**：「有人捡到黑色水杯吗」被误判为发布 → 重写意图判定（询问/检索措辞 → match）并新增 match 示例（§4.1.1） | 已实现 |
 | 2026-10-03 | **条数校验修复（用户反馈）**：精排摘要自报「找到1条」但实际 5 条 → 条数改由代码渲染，prompt 禁止写数量，schema 层丢弃含数字/中文数词的摘要（§4.2） | 已实现 |
 | 2026-10-03 | **contact 问题定位与修复**：建帖从未赋值 `req.Contact` + 两个 prompt 禁止联系方式 + 草稿无该字段 → 新增 `contact` 抽取（仅用户明确给出，不编造）、合并 patch 支持 contact、草稿回显、写入 `items.contact`（开关 `openai.agent_fill_contact`，缺省开启）（§8、§12） | 已实现 |
+| 2026-10-03 | **批次 3（QQBOT）代码完成**：`filter.go` 新增 `CleanForAgent`/`HasAtBot`/`ContainsKeyword`；新增 `chensong/internal/service/lnf_agent.go`（Trigger/MarkOnce/Handle/replyGroup）；handler 插入 Agent 分支（emoji 链路不变）；orchestrator 新增 `ChatQQ` + `HasQQSession`（会话域 `qq:<QQ号>`）；触发=@机器人 且（关键词 或 进行中会话）；未绑定 QQ 提示、闲聊静默、每QQ冷却+每群频控、message_id 幂等（§6） | 待用户在真实群验证 |
