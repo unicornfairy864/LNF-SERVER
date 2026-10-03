@@ -91,10 +91,7 @@ agent/                                   # LLM 基建层（扩展）
    └─ runtime/                           # [新] 运行时词表缓存（tags/locations 从 DB 读取，10min TTL）
 
 service/advanced/
-├─ agent_service.go                      # [新] 编排：Step0~Step6 状态机（API/QQ 共用）
-├─ agent_recall_service.go               # [新] 召回（纯 SQL 计分，见 §7）
-├─ agent_session_service.go              # [新] 会话（Redis，见 §9）
-└─ agent_reverse_match_service.go        # [新] 反向匹配（批次 4）
+└─ （本批次未新增：编排层落在 agent/orchestrator/，原因见 §3.1）
 
 model/advanced/agent.go                  # [新] 请求/响应模型（含 swagger 注解所需类型）
 handler/advanced/agent_handler.go        # [新] API handler（swag 注释）
@@ -111,6 +108,32 @@ initialization/router.go                 # [改] 注册 agent 路由
 ```
 
 > 说明：`agent/internal/model/models.go` 已被用户删除，本次不再使用该文件名，schema 放 `agent/internal/schema/`。
+
+### §3.1 实现偏差与环境约定（2026-10-03 编码时确定）
+
+1. **编排层放在 `agent/orchestrator/`**（而非 `service/advanced/`）。原因：`service/basic` 已 import `service/advanced`，且 QQ 侧（`chensong`）处于 `service/basic → chensong` 的下游，编排层必须放在不被 `service/*` 依赖的位置才能同时服务 API 与 QQ。
+2. **API DTO 放在 `model/basic/agent.go`**（而非 `model/advanced/agent.go`）：响应需复用 `ItemResponse`（model/basic），反向依赖会成环。
+3. **建帖通过注入点 `orchestrator.CreateItemFn`** 绑定到 `service.ItemService.CreateService`（在 `initialization.InitRouter` 绑定，见 `initialization/router.go`）。这样 orchestrator 不 import `service`，**批次 3 的 QQ 侧可直接 import `agent/orchestrator`，不会触发循环依赖**。
+4. **召回 SQL 放 `dao/agent_recall_dao.go`**（新文件，未改动 `item_dao.go`，避免影响既有接口）；候选标签一次批量查询（避免 N+1）。
+
+### §3.2 批次 2 实际交付文件
+
+```
+model/basic/agent.go                     [新] API 契约（请求/响应/草稿/匹配项）
+dao/agent_recall_dao.go                  [新] 召回 Raw SQL（标签/地点计分 + ngram 全文）+ 标签批量查询
+agent/orchestrator/session.go            [新] Redis 会话 + 每用户分钟级限流
+agent/orchestrator/pipeline.go           [新] 抽取 → 草稿 → 召回 → 精排 → 建帖 → 合并
+agent/orchestrator/service.go            [新] Chat / Match / Extract / CloseSession + 确认轮
+agent/orchestrator/reply.go              [新] 文案模板（事实由代码渲染）
+handler/advanced/agent_handler.go        [新] 4 个 handler（含 swag 注释）
+router/advanced/agent_router.go          [新] /api/v1/agent/*（JWT 鉴权）
+response/response_code.go                [改] 新增 12xxxx 段（7 个码）+ Msg
+handler/enter.go / router/enter.go       [改] 单例注册
+initialization/router.go                 [改] 路由注册 + CreateItemFn 绑定
+agent/internal/vocab/vocab.go            [改] 地点树助手（全链、忽略楼号）+ 标签反查
+```
+
+> 行尾约定：`response_code.go` 因 gofmt 归一为 LF（仓库本身 LF/CRLF 混用）；其余 CRLF 文件保持 CRLF 不变。
 
 ---
 
@@ -413,7 +436,7 @@ chensong:
 |---|---|---|
 | 0 | 设计定稿（本文件） | ✅ 用户已逐项答复；余 3 微确认（§15） |
 | 1 | LLM 基建（JSON mode/多模态/超时/重试/错误归一）+ 运行时词表 + prompt + schema + 配置段 | ✅ 代码完成（`go build`+`go vet` 通过）；**验证改为用户 run dev + Postman**（login → POST `/agent/extract`，随批次 2 一并验收）；不新增 dev CLI |
-| 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | 用户 `go build` + Swagger 点测 |
+| 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | ✅ 代码完成（`go build` + `go vet` 通过）；**待用户 run dev + Postman 验收**；Swagger 需用户执行 `swag init` |
 | 3 | QQBOT：前置拦截 + 关键词 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | 用户在真实群内测 |
 | 4 | more：反向匹配推送（站内 + QQ @）+ 相似帖子推荐接口 | 用户验证通知与推荐 |
 | 5 | 文档同步：`api_guide.md`、`api_agent.md`；回写本文件实施状态 | 用户执行 `swag init` |
@@ -452,4 +475,5 @@ chensong:
 | 2026-10-03 | v2：按 33 项答复定稿（范围/流程/召回规则/建帖确认/配置/会话/通知/批次） | 已完成 |
 | 2026-10-03 | v2.1：确认 3 项微确认（more-6 排后期 / QQ 触发=关键词且@ / 图片拼接规则）+ 清洗函数落在 `filter.go` | 定稿，等待用户指令开工批次 1 |
 | 2026-10-03 | **批次 1 完成**：LLM 基建（JSON mode/多模态/超时/重试/错误归一）、schema 校验层、运行时词表缓存、3 个 prompt、`openai`/`chensong` 配置结构；`go build ./...` + `go vet ./agent/... ./config/...` 通过（未经单测/未 swag init） | 待用户写入 config.yaml → 进批次 2 |
-| 2026-10-03 | 追加 §0.1 AI 写权限边界；确定配置由用户手动写入、验证方式为 run dev + Postman | 执行中 |
+| 2026-10-03 | 追加 §0.1 AI 写权限边界；确定配置由用户手动写入、验证方式为 run dev + Postman | 完成 |
+| 2026-10-03 | **批次 2 完成**：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 DAO + 编排 + 会话/限流 + 12xxxx 错误码 + swag 注释；`go build ./...` + `go vet ./...` 通过；确定 §3.1 的 4 项实现偏差与 CreateItemFn 注入点 | 待用户 Postman 验收 |

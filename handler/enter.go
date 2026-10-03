@@ -16,4 +16,5 @@ var (
 	NotificationHandler advanced.NotificationHandlerGroup
 	ShopHandler         advanced.ShopHandlerGroup
 	AdminStatsHandler   advanced.AdminStatsHandlerGroup
+	AgentHandler        advanced.AgentHandlerGroup
 )

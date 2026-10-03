@@ -17,6 +17,180 @@ definitions:
     - operator_id
     - type
     type: object
+  model.AgentChatRequest:
+    properties:
+      action:
+        description: auto | confirm | cancel
+        type: string
+      image_urls:
+        description: 可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url
+        items:
+          type: string
+        type: array
+      session_id:
+        description: 空 = 新会话；否则续会话
+        type: string
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  model.AgentChatResponse:
+    properties:
+      created_item_id:
+        type: integer
+      draft:
+        $ref: '#/definitions/model.AgentDraft'
+      intent:
+        type: string
+      matches:
+        items:
+          $ref: '#/definitions/model.AgentMatchBrief'
+        type: array
+      questions:
+        items:
+          type: string
+        type: array
+      reply:
+        type: string
+      session_id:
+        type: string
+      similar:
+        items:
+          $ref: '#/definitions/model.AgentMatchBrief'
+        type: array
+      stage:
+        type: string
+    type: object
+  model.AgentDraft:
+    properties:
+      description:
+        description: ≤200 字
+        type: string
+      followup_question:
+        type: string
+      location_detail:
+        description: 只写链路表达不了的细节
+        type: string
+      location_id:
+        description: 缺省时由后端填 140「其他地点」
+        type: integer
+      location_name:
+        description: 展示用（地点链路）
+        type: string
+      lost_found_time:
+        description: RFC3339
+        type: string
+      missing_fields:
+        description: location/location_detail/time/contact/color/features/item
+        items:
+          type: string
+        type: array
+      tag_ids:
+        description: 可直接提交给 /item/create
+        items:
+          type: integer
+        type: array
+      tag_names:
+        description: 展示用
+        items:
+          type: string
+        type: array
+      time_from:
+        description: 抽取的时间区间（展示/调试用）
+        type: string
+      time_to:
+        type: string
+      title:
+        description: ≤100 字节
+        type: string
+      type:
+        description: 0 失物 / 1 招领
+        type: integer
+    type: object
+  model.AgentExtractRequest:
+    properties:
+      image_urls:
+        items:
+          type: string
+        type: array
+      text:
+        type: string
+    required:
+    - text
+    type: object
+  model.AgentExtractResponse:
+    properties:
+      draft:
+        $ref: '#/definitions/model.AgentDraft'
+      intent:
+        type: string
+      is_lnf_context:
+        type: boolean
+      missing_fields:
+        items:
+          type: string
+        type: array
+      questions:
+        items:
+          type: string
+        type: array
+    type: object
+  model.AgentMatchBrief:
+    properties:
+      item:
+        $ref: '#/definitions/model.ItemResponse'
+      item_id:
+        type: integer
+      reasons:
+        items:
+          type: string
+        type: array
+      risk:
+        items:
+          type: string
+        type: array
+      score:
+        type: number
+    type: object
+  model.AgentMatchRequest:
+    properties:
+      image_urls:
+        items:
+          type: string
+        type: array
+      text:
+        type: string
+      top_n:
+        description: 返回条数，默认 3，最大 10
+        type: integer
+    required:
+    - text
+    type: object
+  model.AgentMatchResponse:
+    properties:
+      entities:
+        $ref: '#/definitions/model.AgentDraft'
+      intent:
+        type: string
+      matches:
+        items:
+          $ref: '#/definitions/model.AgentMatchBrief'
+        type: array
+      similar:
+        items:
+          $ref: '#/definitions/model.AgentMatchBrief'
+        type: array
+      summary:
+        type: string
+      verdict:
+        type: string
+    type: object
+  model.AgentSessionCloseRequest:
+    properties:
+      session_id:
+        type: string
+    type: object
   model.AnnouncementListResponse:
     properties:
       announcements:
@@ -251,6 +425,20 @@ definitions:
       total:
         type: integer
     type: object
+  model.HeatmapResponse:
+    properties:
+      end_date:
+        type: string
+      matrix:
+        items:
+          items:
+            format: int64
+            type: integer
+          type: array
+        type: array
+      start_date:
+        type: string
+    type: object
   model.ItemImage:
     properties:
       created_at:
@@ -352,6 +540,28 @@ definitions:
         type: integer
       updated_at:
         type: string
+    type: object
+  model.LocationStat:
+    properties:
+      count:
+        type: integer
+      location_id:
+        type: integer
+      name:
+        type: string
+      percent:
+        type: number
+    type: object
+  model.LocationsResponse:
+    properties:
+      locations:
+        items:
+          $ref: '#/definitions/model.LocationStat'
+        type: array
+      total:
+        type: integer
+      unknown:
+        $ref: '#/definitions/model.LocationStat'
     type: object
   model.LoginRequest:
     properties:
@@ -489,6 +699,21 @@ definitions:
       total:
         type: integer
     type: object
+  model.OverviewResponse:
+    properties:
+      pending:
+        $ref: '#/definitions/model.StatsMetric'
+      pending_over_24h:
+        type: integer
+      period:
+        $ref: '#/definitions/model.StatsPeriod'
+      published:
+        $ref: '#/definitions/model.StatsMetric'
+      return_rate:
+        $ref: '#/definitions/model.StatsRateMetric'
+      returned:
+        $ref: '#/definitions/model.StatsMetric'
+    type: object
   model.QQBindRequest:
     properties:
       code:
@@ -531,6 +756,149 @@ definitions:
     required:
     - images
     type: object
+  model.StatsDistributionResponse:
+    properties:
+      buckets:
+        items:
+          $ref: '#/definitions/model.StatsDistributionRow'
+        type: array
+      dimension:
+        type: string
+      end_date:
+        type: string
+      start_date:
+        type: string
+      total:
+        type: integer
+    type: object
+  model.StatsDistributionRow:
+    properties:
+      bucket_id:
+        type: integer
+      bucket_name:
+        type: string
+      percent:
+        type: number
+      published:
+        type: integer
+      return_rate:
+        type: number
+      returned:
+        type: integer
+    type: object
+  model.StatsDurationResponse:
+    properties:
+      approximate:
+        type: boolean
+      end_date:
+        type: string
+      group_by:
+        type: string
+      groups:
+        items:
+          $ref: '#/definitions/model.StatsDurationRow'
+        type: array
+      overall:
+        $ref: '#/definitions/model.StatsDurationRow'
+      start_date:
+        type: string
+    type: object
+  model.StatsDurationRow:
+    properties:
+      average_seconds:
+        type: number
+      count:
+        type: integer
+      group_id:
+        type: integer
+      median_seconds:
+        type: number
+    type: object
+  model.StatsFunnelResponse:
+    properties:
+      adjacent_ratios:
+        items:
+          type: number
+        type: array
+      end_date:
+        type: string
+      stages:
+        items:
+          $ref: '#/definitions/model.StatsFunnelRow'
+        type: array
+      start_date:
+        type: string
+    type: object
+  model.StatsFunnelRow:
+    properties:
+      stage:
+        type: string
+      users:
+        type: integer
+    type: object
+  model.StatsItemRow:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      location_id:
+        type: integer
+      location_name:
+        type: string
+      stagnant_days:
+        type: integer
+      status:
+        type: integer
+      title:
+        type: string
+      type:
+        type: integer
+      view_count:
+        type: integer
+    type: object
+  model.StatsItemsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/model.StatsItemRow'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  model.StatsMetric:
+    properties:
+      change_percent:
+        type: number
+      comparable:
+        type: boolean
+      previous:
+        type: integer
+      value:
+        type: integer
+    type: object
+  model.StatsPeriod:
+    properties:
+      end_date:
+        type: string
+      start_date:
+        type: string
+    type: object
+  model.StatsRateMetric:
+    properties:
+      change_percent:
+        type: number
+      comparable:
+        type: boolean
+      previous:
+        type: number
+      value:
+        type: number
+    type: object
   model.Tag:
     properties:
       color:
@@ -544,6 +912,26 @@ definitions:
       sort_order:
         type: integer
       updated_at:
+        type: string
+    type: object
+  model.TrendPoint:
+    properties:
+      date:
+        type: string
+      published:
+        type: integer
+      returned:
+        type: integer
+    type: object
+  model.TrendResponse:
+    properties:
+      end_date:
+        type: string
+      points:
+        items:
+          $ref: '#/definitions/model.TrendPoint'
+        type: array
+      start_date:
         type: string
     type: object
   model.UpdateGoodRequest:
@@ -753,12 +1141,36 @@ definitions:
     - 90001
     - 90002
     - 90003
+    - 120001
+    - 120002
+    - 120003
+    - 120004
+    - 120005
+    - 120006
+    - 120007
     - 100001
+    - 110001
+    - 110002
+    - 110003
+    - 110004
+    - 110005
+    - 110006
+    - 110007
+    - 110008
+    - 110009
+    - 110010
     - -1
     - -2
     - -3
     type: integer
     x-enum-comments:
+      CodeAgentInputInvalid: 输入内容不合法（空/超长/格式错误）
+      CodeAgentLLMFailed: 智能服务暂时不可用（LLM 调用失败/超时/输出非法）
+      CodeAgentNoResult: 未匹配到相关帖子
+      CodeAgentNotAvailable: Agent 功能未开启
+      CodeAgentRateLimited: 操作过于频繁，请稍后再试
+      CodeAgentSessionNotFound: 会话不存在或已过期
+      CodeAgentStageConflict: 当前会话状态不允许该操作
       CodeAnnouncementInvalid: 公告参数或状态错误
       CodeAnnouncementNoPermission: 无权操作该公告
       CodeAnnouncementNotFound: 公告不存在
@@ -771,6 +1183,16 @@ definitions:
       CodeClaimNotFound: 认领记录不存在
       CodeClaimQQRequired: 认领前请先绑定QQ
       CodeClaimSelfItem: 不能认领自己发布的物品
+      CodeCommentAuditInvalid: 审核状态异常
+      CodeCommentContentInvalid: 评论内容非法
+      CodeCommentInteractionFailed: 互动失败
+      CodeCommentItemUnavailable: 物品不可评论
+      CodeCommentLimitExceeded: 评论受限
+      CodeCommentNoPermission: 无权操作评论
+      CodeCommentNotFound: 评论不存在或已删除
+      CodeCommentOperationFailed: 评论操作失败
+      CodeCommentQueryInvalid: 查询参数或查询失败
+      CodeCommentReplyInvalid: 回复无效
       CodeCreditAlreadyRewarded: 积分已发放
       CodeCreditAmountInvalid: 积分数量非法
       CodeCreditInsufficient: 积分余额不足
@@ -931,7 +1353,24 @@ definitions:
     - 公告不存在
     - 无权操作该公告
     - 公告参数或状态错误
+    - 会话不存在或已过期
+    - 智能服务暂时不可用（LLM 调用失败/超时/输出非法）
+    - 输入内容不合法（空/超长/格式错误）
+    - 操作过于频繁，请稍后再试
+    - 当前会话状态不允许该操作
+    - Agent 功能未开启
+    - 未匹配到相关帖子
     - Agent寄了
+    - 评论不存在或已删除
+    - 评论内容非法
+    - 无权操作评论
+    - 评论操作失败
+    - 物品不可评论
+    - 回复无效
+    - 审核状态异常
+    - 互动失败
+    - 查询参数或查询失败
+    - 评论受限
     - ""
     - ""
     - ""
@@ -1021,7 +1460,24 @@ definitions:
     - CodeAnnouncementNotFound
     - CodeAnnouncementNoPermission
     - CodeAnnouncementInvalid
+    - CodeAgentSessionNotFound
+    - CodeAgentLLMFailed
+    - CodeAgentInputInvalid
+    - CodeAgentRateLimited
+    - CodeAgentStageConflict
+    - CodeAgentNotAvailable
+    - CodeAgentNoResult
     - CodeOpenAIError
+    - CodeCommentNotFound
+    - CodeCommentContentInvalid
+    - CodeCommentNoPermission
+    - CodeCommentOperationFailed
+    - CodeCommentItemUnavailable
+    - CodeCommentReplyInvalid
+    - CodeCommentAuditInvalid
+    - CodeCommentInteractionFailed
+    - CodeCommentQueryInvalid
+    - CodeCommentLimitExceeded
     - CodeTest
     - CodeNoNeed
     - CodeNotMessage
@@ -1058,40 +1514,6 @@ paths:
       summary: 系统管理员改变用户积分
       tags:
       - user
-  /api/v1/admin/announcement:
-    get:
-      consumes:
-      - application/json
-      description: 管理员视角：含已发布与已下架（status=0 历史废弃行不可见），按 id 倒序；status 可选筛选 1已发布/2已下架；page/page_size
-        行为同公开列表
-      parameters:
-      - description: 页码，默认1
-        in: query
-        name: page
-        type: integer
-      - description: 每页数量，默认10，最大100
-        in: query
-        name: page_size
-        type: integer
-      - description: '状态筛选: 1已发布 2已下架，默认全部'
-        in: query
-        name: status
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.CommonResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/model.AnnouncementListResponse'
-              type: object
-      summary: 管理端分页获取公告列表
-      tags:
-      - announcement
   /api/v1/admin/announcement/{id}:
     delete:
       consumes:
@@ -1231,6 +1653,497 @@ paths:
       summary: 发送通知（管理侧）
       tags:
       - Notification
+  /api/v1/admin/stats/distribution:
+    get:
+      description: role>=1；默认30天、最大366天；tag可重复计数，percent分母为发布总数。最多1000标签桶，untagged单列；参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: type|tag
+        in: query
+        name: dimension
+        required: true
+        type: string
+      - description: 开始日期YYYY-MM-DD
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期，与start_date同传
+        in: query
+        name: end_date
+        type: string
+      - description: 默认30，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      - description: csv；最多10000行，超时30秒，成功为CSV流
+        in: query
+        name: export
+        type: string
+      produces:
+      - application/json
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StatsDistributionResponse'
+              type: object
+      summary: 管理员维度统计
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/funnel:
+    get:
+      description: role>=1；各层非嵌套，相邻比率可超过100%，分母0返回0。认领撤回历史无法恢复；归还按updated_at近似。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开始日期YYYY-MM-DD
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期，与start_date同传
+        in: query
+        name: end_date
+        type: string
+      - description: 默认30，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StatsFunnelResponse'
+              type: object
+      summary: 管理员参与漏斗近似统计
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/items/high-view:
+    get:
+      description: role>=1；未删除且status=0，达到浏览与滞留阈值。排序view_count DESC,created_at ASC,id
+        ASC。仅返回批准摘要字段。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 滞留天数，默认7，1-3650
+        in: query
+        name: days
+        type: integer
+      - description: 浏览下限，默认50，1-2147483647
+        in: query
+        name: min_views
+        type: integer
+      - description: 页码，默认1，1-10000
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10，1-100
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StatsItemsResponse'
+              type: object
+      summary: 管理员高浏览低认领清单
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/items/stagnant:
+    get:
+      description: role>=1；status=0且未删除，created_at<=当前时刻减days天；created_at ASC,id ASC。仅返回物品摘要，无联系方式。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 滞留天数，默认7，1-3650
+        in: query
+        name: days
+        type: integer
+      - description: 页码，默认1，1-10000
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10，1-100
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StatsItemsResponse'
+              type: object
+      summary: 管理员滞留待处理清单
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/locations:
+    get:
+      description: role>=1；按直接 location_id 聚合，NULL 单列 unknown，不向父节点归并。percent 分母为期内全部未删除发布量。排序
+        count DESC、location_id ASC。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开始日期 YYYY-MM-DD，须与 end_date 同传
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 YYYY-MM-DD，包含当天，不晚于今天
+        in: query
+        name: end_date
+        type: string
+      - description: 最近自然日数，默认30，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      - description: 地点桶数量，默认4，0-100；0最多返回1000个地点桶，超限code=1；unknown 单独返回
+        in: query
+        name: limit
+        type: integer
+      - description: csv；最多10000数据行，30秒超时；保留limit参数，失败HTTP200 JSON，流中失败终止
+        in: query
+        name: export
+        type: string
+      produces:
+      - application/json
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.LocationsResponse'
+              type: object
+      summary: 管理员地点统计
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/overview:
+    get:
+      description: role>=1；按 created_at 选取队列并判断当前状态。默认当月至今天，对比上个完整月；显式范围对比紧邻等长周期。日期与
+        days 互斥，最大366天。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开始日期 YYYY-MM-DD，须与 end_date 同传
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 YYYY-MM-DD，包含当天，不晚于今天
+        in: query
+        name: end_date
+        type: string
+      - description: 最近自然日数，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      - description: csv；最多10000数据行，30秒超时；成功text/csv含BOM，失败HTTP200 JSON，流中失败终止
+        in: query
+        name: export
+        type: string
+      produces:
+      - application/json
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.OverviewResponse'
+              type: object
+      summary: 管理员统计概览
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/return-duration:
+    get:
+      description: role>=1；成功归还快照按updated_at纳入范围，时长updated_at-created_at，排除负时长。updated_at可被其他更新污染，结果为近似值。MySQL8窗口函数计算精确样本中位数；空样本各指标为0。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开始日期YYYY-MM-DD，与end_date同传
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期，包含当天，不晚于今天
+        in: query
+        name: end_date
+        type: string
+      - description: 最近自然日数，默认30，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      - description: 分组none|location|type，默认none
+        in: query
+        name: group_by
+        type: string
+      - description: csv；最多10000数据行（含overall），30秒超时；失败HTTP200 JSON，流中失败终止
+        in: query
+        name: export
+        type: string
+      produces:
+      - application/json
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StatsDurationResponse'
+              type: object
+      summary: 管理员近似归还时长
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/time-heatmap:
+    get:
+      description: role>=1；仅统计未删除物品，按created_at归属。matrix行是周一至周日，列是0-23点，空桶补零。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开始日期YYYY-MM-DD，与end_date同传
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期，包含当天，不晚于今天
+        in: query
+        name: end_date
+        type: string
+      - description: 最近自然日数，默认30，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      - description: csv；168数据行，30秒超时；失败HTTP200 JSON，流中失败终止
+        in: query
+        name: export
+        type: string
+      produces:
+      - application/json
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.HeatmapResponse'
+              type: object
+      summary: 管理员发布时段热力图
+      tags:
+      - admin-stats
+  /api/v1/admin/stats/trend:
+    get:
+      description: role>=1；published 与 returned 均归入物品创建日，returned 取当前成功归还快照；东八区自然日补零。默认30天，最大366天。参数错误code=1，数据库错误code=6。
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 开始日期 YYYY-MM-DD，须与 end_date 同传
+        in: query
+        name: start_date
+        type: string
+      - description: 结束日期 YYYY-MM-DD，包含当天，不晚于今天
+        in: query
+        name: end_date
+        type: string
+      - description: 最近自然日数，默认30，1-366，与日期对互斥
+        in: query
+        name: days
+        type: integer
+      - description: csv；最多10000数据行，30秒超时；成功text/csv含BOM，失败HTTP200 JSON，流中失败终止
+        in: query
+        name: export
+        type: string
+      produces:
+      - application/json
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.TrendResponse'
+              type: object
+      summary: 管理员发布队列趋势
+      tags:
+      - admin-stats
+  /api/v1/agent/chat:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。<br />
+        首轮：自动判类 + 抽取，分为三种走向：<br />
+        1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；<br />
+        2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；<br />
+        3) 闲聊/无关 → chitchat 固定话术。<br />
+        确认轮：用户回复补充信息（自动合并后直接建帖）、回复「确认」（用草稿建帖，缺地点自动填 agent_default_location_id）、回复「取消」则结束。<br />
+        建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。<br />
+        action=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。<br />
+        错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用
+      parameters:
+      - description: 会话请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AgentChatRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.AgentChatResponse'
+              type: object
+      summary: Agent 会话主入口（匹配 / 建帖草稿 / 确认发布）
+      tags:
+      - agent
+  /api/v1/agent/extract:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        只做「语境判定 + 意图识别 + 信息抽取」，不检索、不建帖。<br />
+        draft.tag_ids / location_id / lost_found_time 可直接提交给 POST /item/create；<br />
+        不在词表内的标签与地点会被丢弃（置空），模型编造的字段一律不采信。
+      parameters:
+      - description: 抽取请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AgentExtractRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.AgentExtractResponse'
+              type: object
+      summary: Agent 信息抽取（只读，智能填充表单）
+      tags:
+      - agent
+  /api/v1/agent/match:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条。<br />
+        返回 entities 为抽取到的结构（前端可用于回显），matches[].item 为完整 ItemResponse（与详情接口口径一致）。<br />
+        verdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组）。
+      parameters:
+      - description: 匹配请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AgentMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.AgentMatchResponse'
+              type: object
+      summary: Agent 匹配帖子（只读，无会话）
+      tags:
+      - agent
+  /api/v1/agent/session/close:
+    post:
+      consumes:
+      - application/json
+      description: 清理当前用户的会话（幂等）；会话不存在时同样返回成功
+      parameters:
+      - description: 关闭会话请求体（可省略）
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/model.AgentSessionCloseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 关闭 Agent 会话
+      tags:
+      - agent
   /api/v1/announcement:
     get:
       consumes:
@@ -1317,7 +2230,8 @@ paths:
   /api/v1/item/{itemID}/claim:
     post:
       description: 仅 status=0（已发布）物品可认领；不能认领自己发布的物品；<br />server.claim_qq_required
-        开启时，未绑定QQ的用户返回 30006；<br />已被他人认领返回 30001，已关闭返回 30005，物品不存在返回 20001
+        开启时，未绑定QQ的用户返回 30006；<br />已被他人认领返回 20003，已关闭返回 20002，不能认领自己的物品返回 30004，账号不存在或被禁用返回
+        10006，物品不存在返回 20001
       parameters:
       - description: 物品ID
         in: path
@@ -1337,7 +2251,7 @@ paths:
   /api/v1/item/{itemID}/claim/cancel:
     post:
       description: 仅物品处于 status=1（已认领）且未关闭时可撤回；<br />认领者和发帖者双方均可撤回，撤回后物品恢复为 status=0
-        可再次被认领；<br />已关闭返回 30005，无认领返回 30002，无权撤回返回 30003
+        可再次被认领；<br />已关闭返回 20002，无认领返回 30002，无权撤回返回 30003，物品不存在返回 20001
       parameters:
       - description: 物品ID
         in: path
@@ -1357,7 +2271,7 @@ paths:
   /api/v1/item/{itemID}/close:
     post:
       description: 仅发布者本人可操作；status=0（已发布）或 status=1（已认领）均可关闭；<br />关闭后 status=2 不可再认领/撤回，不发积分（若需确认他人认领并发分请用
-        confirm 接口）
+        confirm 接口）；<br />物品不存在返回 20001，已关闭返回 20002，非本人返回 20005
       parameters:
       - description: 物品ID
         in: path
@@ -1377,8 +2291,8 @@ paths:
   /api/v1/item/{itemID}/confirm:
     post:
       description: 仅发布者本人可操作，且物品需处于 status=1（已认领）；<br />确认后物品关闭（status=2），并按 server.claim_credit
-        给拾到者加积分：<br />拾物帖(type=1)给发帖者，失物帖(type=0)给认领者；<br />无认领可确认返回 30002，已关闭返回 30005，非本人返回
-        20005
+        给拾到者加积分：<br />拾物帖(type=1)给发帖者，失物帖(type=0)给认领者；<br />无认领可确认返回 30002，已关闭返回 20002，非本人返回
+        20005，物品不存在返回 20001
       parameters:
       - description: 物品ID
         in: path
@@ -1451,6 +2365,25 @@ paths:
       summary: 公开查询物品地点链
       tags:
       - location
+  /api/v1/item/count:
+    get:
+      description: 统计 status=0（已发布）或 status=1（已认领）且未删除（is_deleted=0）的物品总数，即"正在被寻找的物品数量"
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+      summary: 统计正在被寻找的物品数量
+      tags:
+      - item
   /api/v1/item/create:
     post:
       consumes:
@@ -1794,7 +2727,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页
+      description: |-
+        获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页
+        分页可能出现重复返回问题，出现问题优先注意这里，解决方法参照公告模块
       parameters:
       - description: 每页数量
         in: query

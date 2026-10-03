@@ -133,6 +133,17 @@ const (
 	CodeAnnouncementInvalid      Code = 90003 // 公告参数或状态错误
 )
 
+// ==================== Agent 对话助手 12xxxx ====================
+const (
+	CodeAgentSessionNotFound Code = 120001 // 会话不存在或已过期
+	CodeAgentLLMFailed       Code = 120002 // 智能服务暂时不可用（LLM 调用失败/超时/输出非法）
+	CodeAgentInputInvalid    Code = 120003 // 输入内容不合法（空/超长/格式错误）
+	CodeAgentRateLimited     Code = 120004 // 操作过于频繁，请稍后再试
+	CodeAgentStageConflict   Code = 120005 // 当前会话状态不允许该操作
+	CodeAgentNotAvailable    Code = 120006 // Agent 功能未开启
+	CodeAgentNoResult        Code = 120007 // 未匹配到相关帖子
+)
+
 // ==================== 机器人 10xxxx ====================
 const (
 	CodeOpenAIError Code = 100001 // Agent寄了
@@ -281,6 +292,15 @@ var Msg = map[Code]string{
 	CodeCommentLimitExceeded:     "评论受限",
 
 	// Agent
+	// Agent（对话助手）
+	CodeAgentSessionNotFound: "会话不存在或已过期",
+	CodeAgentLLMFailed:       "智能服务暂时不可用，请稍后再试",
+	CodeAgentInputInvalid:    "输入内容不合法",
+	CodeAgentRateLimited:     "操作过于频繁，请稍后再试",
+	CodeAgentStageConflict:   "当前会话状态不允许该操作",
+	CodeAgentNotAvailable:    "Agent 功能未开启",
+	CodeAgentNoResult:        "未匹配到相关帖子",
+
 	CodeOpenAIError: "Agent寄了",
 	CodeNoNeed:      "NoNeed",
 	CodeNotMessage:  "不是message类型",

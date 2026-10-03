@@ -16,4 +16,5 @@ var (
 	NotificationRouter advanced.NotificationRouter
 	AdminStatsRouter   advanced.AdminStatsRouter
 	ShopRouter         advanced.ShopRouter
+	AgentRouter        advanced.AgentRouter
 )

@@ -4,9 +4,11 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/unicornfairy864/LNF-SERVER/agent/orchestrator"
 	"github.com/unicornfairy864/LNF-SERVER/chensong"
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	"github.com/unicornfairy864/LNF-SERVER/router"
+	"github.com/unicornfairy864/LNF-SERVER/service"
 	"github.com/unicornfairy864/LNF-SERVER/service/storage"
 )
 
@@ -26,6 +28,10 @@ func InitRouter() (r *gin.Engine) {
 		router.NotificationRouter.CreateRouter(api)
 		router.AdminStatsRouter.CreateRouter(api)
 		router.ShopRouter.CreateRouter(api)
+		router.AgentRouter.CreateRouter(api)
+
+		// Agent 编排层依赖注入：建帖复用 ItemService.CreateService（避免 orchestrator 直接 import service 造成循环依赖）
+		orchestrator.CreateItemFn = service.ItemService.CreateService
 		// ChenSong
 		chensongGroup := api.Group("chensong")
 		chensongGroup.Use(chensong.SlMiddleware.ReceiveMiddleWare()).POST("/receive", chensong.SlHandler.ReceiverHandler)

@@ -15,4 +15,5 @@ var (
 	NotificationDao NotificationGroup
 	CommentDao      CommentGroup
 	AdminStatsDao   AdminStatsGroup
+	AgentRecallDao  AgentRecallGroup
 )
