@@ -77,7 +77,7 @@ func (s *NotificationServiceGroup) batchCreate(userIDs []int64, req *model.Notif
 		list = append(list, model.ToNotification(req, adminID, uid))
 	}
 	if err := dao.NotificationDao.BatchCreate(list); err != nil {
-		log.Printf("[notification] batchCreate 写入失败 admin_id=%d type=%d 目标数=%d: %v", adminID, req.Type, len(userIDs), err)
+		log.Printf("[notification] batchCreate 写入失败 admin_id=%d type=%d 目标数=%d: %v", adminID, *req.Type, len(userIDs), err)
 		return
 	}
 	for _, uid := range userIDs {

@@ -38,7 +38,7 @@ type NotificationListRequest struct {
 type NotificationSendRequest struct {
 	UserIDs   []int64 `json:"user_ids"    binding:"required_without=SendToAll"` // 目标用户ID列表
 	SendToAll bool    `json:"send_to_all"`                                      // 是否发给全体用户
-	Type      int8    `json:"type"        binding:"required"`                   // 通知类型
+	Type      *int8   `json:"type"        binding:"required"`                   // 通知类型；0（系统通知）是合法值，指针 required：缺字段→1，0 正常读入
 	Title     string  `json:"title"       binding:"required,max=100"`           // 通知标题
 	Content   string  `json:"content"     binding:"required"`                   // 通知内容
 	RelatedID *int64  `json:"related_id"`                                       // 关联ID，可选
@@ -70,7 +70,7 @@ func ToNotification(r *NotificationSendRequest, adminID, userID int64) *Notifica
 	return &Notification{
 		AdminID:   adminID,
 		UserID:    userID,
-		Type:      r.Type,
+		Type:      *r.Type, // binding required 保证非 nil（0 是合法值）
 		Title:     r.Title,
 		Content:   r.Content,
 		RelatedID: r.RelatedID,

@@ -28,7 +28,7 @@ func GetQQBindQQKey(jti string) string {
 }
 
 func GetJwtVersionKey(user int64) string {
-	return "jwt：user:" + strconv.FormatInt(user, 10) + ":version"
+	return "jwt:user:" + strconv.FormatInt(user, 10) + ":version"
 }
 
 func GetJwtBlacklistKey(jti string) string {

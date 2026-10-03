@@ -262,7 +262,7 @@ func (userService *UserServiceGroup) ChangeUserStatusRequest(req *model.ChangeUs
 	if !(*req.Status == 0 || *req.Status == 1) {
 		return response.CodeFormInvalid
 	}
-	if *req.Status == 1 {
+	if *req.Status == 0 {
 		_, err := dao.RedisDao.INCR(dao.GetJwtVersionKey(req.ID))
 		if err != nil {
 			return response.CodeDatabaseError

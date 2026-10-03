@@ -42,7 +42,7 @@ func (uploadHandler *UploadHandlerGroup) UploadImageHandler(c *gin.Context) {
 			response.FailWithCode(c, response.CodeUploadFileTooLarge)
 			return
 		}
-		response.FailWithCode(c, response.CodeParamError)
+		response.FailWithData(c, response.CodeParamError, err.Error())
 		return
 	}
 

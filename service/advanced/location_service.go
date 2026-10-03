@@ -88,6 +88,20 @@ func (locationService *LocationServiceGroup) UpdateService(req *model.UpdateLoca
 		}
 		updates["name"] = name
 	}
+	// 同父级重名校验（2026-10-01 补齐）：改名或移动父级时，目标父级下已存在同名地点（除自身）则拒绝
+	if req.Name != nil || (req.ParentID != nil && *req.ParentID != location.ParentID) {
+		effName := location.Name
+		if req.Name != nil {
+			effName = strings.TrimSpace(*req.Name)
+		}
+		effParentID := location.ParentID
+		if req.ParentID != nil && *req.ParentID != location.ParentID {
+			effParentID = *req.ParentID
+		}
+		if exists := dao.LocationDao.GetLocationByParentAndName(effParentID, effName); exists.ID != 0 && exists.ID != req.ID {
+			return response.CodeLocationDuplicate
+		}
+	}
 	if req.Address != nil {
 		updates["address"] = *req.Address
 	}
