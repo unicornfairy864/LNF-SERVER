@@ -51,6 +51,22 @@ func (itemHandler *ItemHandlerGroup) ListItemHandler(c *gin.Context) {
 	response.SuccessWithData(c, res)
 }
 
+// CountSearchingItemHandler 统计正在被寻找的物品数量
+// @Summary      统计正在被寻找的物品数量
+// @Description  统计 status=0（已发布）或 status=1（已认领）且未删除（is_deleted=0）的物品总数，即"正在被寻找的物品数量"
+// @Tags         item
+// @Produce      json
+// @Success      200  {object}  response.CommonResponse{data=int64}
+// @Router       /api/v1/item/count [get]
+func (itemHandler *ItemHandlerGroup) CountSearchingItemHandler(c *gin.Context) {
+	count, code := service.ItemService.CountSearchingService()
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.SuccessWithData(c, count)
+}
+
 // SearchItemHandler 多条件最小匹配检索物品
 // @Summary      多条件最小匹配检索物品（tag+location 计分）
 // @Description  match_count = |物品标签 ∩ tag_ids| + (物品地点 ∈ location_ids 中 level=3 的 ? 1 : 0)，返回 match_count >= min_match 的物品；<br />location_ids 中非 level3 的 ID 自动忽略且不计入条件总数，tag_ids 去重后不存在的同理；<br />min_match 必传且 ≥1，且 ≤ 条件总数（相等 = 全部条件必须满足）；两组均为空报参数错误；<br />status 必传可多选（仅 0已发布/1已认领，传 2 报参数错误）；type 可选；<br />排序 created_at DESC，仅返回 is_deleted=0 的物品

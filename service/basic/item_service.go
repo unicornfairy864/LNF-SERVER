@@ -49,6 +49,15 @@ const (
 // listDefaultStatuses 列表接口未显式指定 status 时的默认状态范围：已发布(0) + 已认领(1)
 var listDefaultStatuses = []int8{itemStatusPublished, itemStatusClaimed}
 
+// CountSearchingService 统计正在被寻找的物品数量（已发布0 + 已认领1 的未删除物品）
+func (itemService *ItemServiceGroup) CountSearchingService() (int64, response.Code) {
+	count, err := dao.ItemDao.CountSearchingItems(listDefaultStatuses)
+	if err != nil {
+		return 0, response.CodeDatabaseError
+	}
+	return count, response.CodeSuccess
+}
+
 // notificationService 通知服务实例（service/basic 包内共享：item 认领关闭/确认 + user QQ 绑定）；
 // 直接依赖 service/advanced 而非 service 包单例，避免 basic ↔ service 循环引用
 var notificationService = &advanced.NotificationServiceGroup{}

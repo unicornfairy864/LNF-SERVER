@@ -184,6 +184,15 @@ func (itemGroup *ItemGroup) IncrViewCount(id int64) error {
 		UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
 }
 
+// CountSearchingItems 统计正在被寻找的物品数（status IN statuses 且未删除）
+func (itemGroup *ItemGroup) CountSearchingItems(statuses []int8) (int64, error) {
+	var count int64
+	err := global.LNF_DB.Model(&model.Item{}).
+		Where("status IN ? AND is_deleted = 0", statuses).
+		Count(&count).Error
+	return count, err
+}
+
 // CountItemsByLocationID 统计引用某地点的未删除物品数
 func (itemGroup *ItemGroup) CountItemsByLocationID(locationID int64) (count int64) {
 	global.LNF_DB.Model(&model.Item{}).
