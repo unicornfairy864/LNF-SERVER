@@ -49,61 +49,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/announcement": {
-            "get": {
-                "description": "管理员视角：含已发布与已下架（status=0 历史废弃行不可见），按 id 倒序；status 可选筛选 1已发布/2已下架；page/page_size 行为同公开列表",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "announcement"
-                ],
-                "summary": "管理端分页获取公告列表",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "页码，默认1",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "每页数量，默认10，最大100",
-                        "name": "page_size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "状态筛选: 1已发布 2已下架，默认全部",
-                        "name": "status",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.CommonResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.AnnouncementListResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/announcement/create": {
             "post": {
                 "description": "系统管理员创建公告，创建即发布：status=1、published_at=当前时间、admin_id 取自 JWT（不信任请求体）；标题空白或超100字节、内容空白、type 不在 0-3、is_top 不在 0/1 返回 90003；缺字段/JSON 类型错返回 1；成功 data 为 {}",
@@ -312,6 +257,604 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/stats/distribution": {
+            "get": {
+                "description": "role\u003e=1；默认30天、最大366天；tag可重复计数，percent分母为发布总数。最多1000标签桶，untagged单列；参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json",
+                    "text/csv"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员维度统计",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "type|tag",
+                        "name": "dimension",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期YYYY-MM-DD",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期，与start_date同传",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "默认30，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "csv；最多10000行，超时30秒，成功为CSV流",
+                        "name": "export",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.StatsDistributionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/funnel": {
+            "get": {
+                "description": "role\u003e=1；各层非嵌套，相邻比率可超过100%，分母0返回0。认领撤回历史无法恢复；归还按updated_at近似。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员参与漏斗近似统计",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期YYYY-MM-DD",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期，与start_date同传",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "默认30，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.StatsFunnelResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/items/high-view": {
+            "get": {
+                "description": "role\u003e=1；未删除且status=0，达到浏览与滞留阈值。排序view_count DESC,created_at ASC,id ASC。仅返回批准摘要字段。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员高浏览低认领清单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "滞留天数，默认7，1-3650",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "浏览下限，默认50，1-2147483647",
+                        "name": "min_views",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1，1-10000",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，1-100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.StatsItemsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/items/stagnant": {
+            "get": {
+                "description": "role\u003e=1；status=0且未删除，created_at\u003c=当前时刻减days天；created_at ASC,id ASC。仅返回物品摘要，无联系方式。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员滞留待处理清单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "滞留天数，默认7，1-3650",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1，1-10000",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，1-100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.StatsItemsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/locations": {
+            "get": {
+                "description": "role\u003e=1；按直接 location_id 聚合，NULL 单列 unknown，不向父节点归并。percent 分母为期内全部未删除发布量。排序 count DESC、location_id ASC。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json",
+                    "text/csv"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员地点统计",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期 YYYY-MM-DD，须与 end_date 同传",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期 YYYY-MM-DD，包含当天，不晚于今天",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最近自然日数，默认30，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "地点桶数量，默认4，0-100；0最多返回1000个地点桶，超限code=1；unknown 单独返回",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "csv；最多10000数据行，30秒超时；保留limit参数，失败HTTP200 JSON，流中失败终止",
+                        "name": "export",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.LocationsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/overview": {
+            "get": {
+                "description": "role\u003e=1；按 created_at 选取队列并判断当前状态。默认当月至今天，对比上个完整月；显式范围对比紧邻等长周期。日期与 days 互斥，最大366天。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json",
+                    "text/csv"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员统计概览",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期 YYYY-MM-DD，须与 end_date 同传",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期 YYYY-MM-DD，包含当天，不晚于今天",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最近自然日数，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "csv；最多10000数据行，30秒超时；成功text/csv含BOM，失败HTTP200 JSON，流中失败终止",
+                        "name": "export",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.OverviewResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/return-duration": {
+            "get": {
+                "description": "role\u003e=1；成功归还快照按updated_at纳入范围，时长updated_at-created_at，排除负时长。updated_at可被其他更新污染，结果为近似值。MySQL8窗口函数计算精确样本中位数；空样本各指标为0。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json",
+                    "text/csv"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员近似归还时长",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期YYYY-MM-DD，与end_date同传",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期，包含当天，不晚于今天",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最近自然日数，默认30，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "分组none|location|type，默认none",
+                        "name": "group_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "csv；最多10000数据行（含overall），30秒超时；失败HTTP200 JSON，流中失败终止",
+                        "name": "export",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.StatsDurationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/time-heatmap": {
+            "get": {
+                "description": "role\u003e=1；仅统计未删除物品，按created_at归属。matrix行是周一至周日，列是0-23点，空桶补零。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json",
+                    "text/csv"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员发布时段热力图",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期YYYY-MM-DD，与end_date同传",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期，包含当天，不晚于今天",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最近自然日数，默认30，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "csv；168数据行，30秒超时；失败HTTP200 JSON，流中失败终止",
+                        "name": "export",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.HeatmapResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/stats/trend": {
+            "get": {
+                "description": "role\u003e=1；published 与 returned 均归入物品创建日，returned 取当前成功归还快照；东八区自然日补零。默认30天，最大366天。参数错误code=1，数据库错误code=6。",
+                "produces": [
+                    "application/json",
+                    "text/csv"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员发布队列趋势",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "开始日期 YYYY-MM-DD，须与 end_date 同传",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束日期 YYYY-MM-DD，包含当天，不晚于今天",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "最近自然日数，默认30，1-366，与日期对互斥",
+                        "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "csv；最多10000数据行，30秒超时；成功text/csv含BOM，失败HTTP200 JSON，流中失败终止",
+                        "name": "export",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.TrendResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/announcement": {
             "get": {
                 "description": "仅返回已发布（status=1）且未删除的公告，按 id 倒序（新→旧）；page 缺省为 1，page_size 缺省为 10、上限 100，越界报参数错误 1；data = {total, page, page_size, announcements}",
@@ -396,6 +939,39 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/model.AnnouncementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/count": {
+            "get": {
+                "description": "统计 status=0（已发布）或 status=1（已认领）且未删除（is_deleted=0）的物品总数，即\"正在被寻找的物品数量\"",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "统计正在被寻找的物品数量",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
                                         }
                                     }
                                 }
@@ -1136,7 +1712,7 @@ const docTemplate = `{
         },
         "/api/v1/notifications": {
             "get": {
-                "description": "获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页",
+                "description": "获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页\n分页可能出现重复返回问题，出现问题优先注意这里，解决方法参照公告模块",
                 "consumes": [
                     "application/json"
                 ],
@@ -2536,6 +3112,27 @@ const docTemplate = `{
                 }
             }
         },
+        "model.HeatmapResponse": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "matrix": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
         "model.ItemImage": {
             "type": "object",
             "properties": {
@@ -2688,6 +3285,40 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "model.LocationStat": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "percent": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.LocationsResponse": {
+            "type": "object",
+            "properties": {
+                "locations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.LocationStat"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "$ref": "#/definitions/model.LocationStat"
                 }
             }
         },
@@ -2888,6 +3519,29 @@ const docTemplate = `{
                 }
             }
         },
+        "model.OverviewResponse": {
+            "type": "object",
+            "properties": {
+                "pending": {
+                    "$ref": "#/definitions/model.StatsMetric"
+                },
+                "pending_over_24h": {
+                    "type": "integer"
+                },
+                "period": {
+                    "$ref": "#/definitions/model.StatsPeriod"
+                },
+                "published": {
+                    "$ref": "#/definitions/model.StatsMetric"
+                },
+                "return_rate": {
+                    "$ref": "#/definitions/model.StatsRateMetric"
+                },
+                "returned": {
+                    "$ref": "#/definitions/model.StatsMetric"
+                }
+            }
+        },
         "model.QQBindRequest": {
             "type": "object",
             "required": [
@@ -2952,6 +3606,226 @@ const docTemplate = `{
                 }
             }
         },
+        "model.StatsDistributionResponse": {
+            "type": "object",
+            "properties": {
+                "buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StatsDistributionRow"
+                    }
+                },
+                "dimension": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatsDistributionRow": {
+            "type": "object",
+            "properties": {
+                "bucket_id": {
+                    "type": "integer"
+                },
+                "bucket_name": {
+                    "type": "string"
+                },
+                "percent": {
+                    "type": "number"
+                },
+                "published": {
+                    "type": "integer"
+                },
+                "return_rate": {
+                    "type": "number"
+                },
+                "returned": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatsDurationResponse": {
+            "type": "object",
+            "properties": {
+                "approximate": {
+                    "type": "boolean"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "group_by": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StatsDurationRow"
+                    }
+                },
+                "overall": {
+                    "$ref": "#/definitions/model.StatsDurationRow"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StatsDurationRow": {
+            "type": "object",
+            "properties": {
+                "average_seconds": {
+                    "type": "number"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "type": "integer"
+                },
+                "median_seconds": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.StatsFunnelResponse": {
+            "type": "object",
+            "properties": {
+                "adjacent_ratios": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "stages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StatsFunnelRow"
+                    }
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StatsFunnelRow": {
+            "type": "object",
+            "properties": {
+                "stage": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatsItemRow": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "location_id": {
+                    "type": "integer"
+                },
+                "location_name": {
+                    "type": "string"
+                },
+                "stagnant_days": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "integer"
+                },
+                "view_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatsItemsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StatsItemRow"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatsMetric": {
+            "type": "object",
+            "properties": {
+                "change_percent": {
+                    "type": "number"
+                },
+                "comparable": {
+                    "type": "boolean"
+                },
+                "previous": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatsPeriod": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StatsRateMetric": {
+            "type": "object",
+            "properties": {
+                "change_percent": {
+                    "type": "number"
+                },
+                "comparable": {
+                    "type": "boolean"
+                },
+                "previous": {
+                    "type": "number"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
         "model.Tag": {
             "type": "object",
             "properties": {
@@ -2971,6 +3845,37 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TrendPoint": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "published": {
+                    "type": "integer"
+                },
+                "returned": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.TrendResponse": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.TrendPoint"
+                    }
+                },
+                "start_date": {
                     "type": "string"
                 }
             }
@@ -3246,6 +4151,16 @@ const docTemplate = `{
                 90002,
                 90003,
                 100001,
+                110001,
+                110002,
+                110003,
+                110004,
+                110005,
+                110006,
+                110007,
+                110008,
+                110009,
+                110010,
                 -1,
                 -2,
                 -3
@@ -3263,6 +4178,16 @@ const docTemplate = `{
                 "CodeClaimNotFound": "认领记录不存在",
                 "CodeClaimQQRequired": "认领前请先绑定QQ",
                 "CodeClaimSelfItem": "不能认领自己发布的物品",
+                "CodeCommentAuditInvalid": "审核状态异常",
+                "CodeCommentContentInvalid": "评论内容非法",
+                "CodeCommentInteractionFailed": "互动失败",
+                "CodeCommentItemUnavailable": "物品不可评论",
+                "CodeCommentLimitExceeded": "评论受限",
+                "CodeCommentNoPermission": "无权操作评论",
+                "CodeCommentNotFound": "评论不存在或已删除",
+                "CodeCommentOperationFailed": "评论操作失败",
+                "CodeCommentQueryInvalid": "查询参数或查询失败",
+                "CodeCommentReplyInvalid": "回复无效",
                 "CodeCreditAlreadyRewarded": "积分已发放",
                 "CodeCreditAmountInvalid": "积分数量非法",
                 "CodeCreditInsufficient": "积分余额不足",
@@ -3425,6 +4350,16 @@ const docTemplate = `{
                 "无权操作该公告",
                 "公告参数或状态错误",
                 "Agent寄了",
+                "评论不存在或已删除",
+                "评论内容非法",
+                "无权操作评论",
+                "评论操作失败",
+                "物品不可评论",
+                "回复无效",
+                "审核状态异常",
+                "互动失败",
+                "查询参数或查询失败",
+                "评论受限",
                 "",
                 "",
                 ""
@@ -3516,6 +4451,16 @@ const docTemplate = `{
                 "CodeAnnouncementNoPermission",
                 "CodeAnnouncementInvalid",
                 "CodeOpenAIError",
+                "CodeCommentNotFound",
+                "CodeCommentContentInvalid",
+                "CodeCommentNoPermission",
+                "CodeCommentOperationFailed",
+                "CodeCommentItemUnavailable",
+                "CodeCommentReplyInvalid",
+                "CodeCommentAuditInvalid",
+                "CodeCommentInteractionFailed",
+                "CodeCommentQueryInvalid",
+                "CodeCommentLimitExceeded",
                 "CodeTest",
                 "CodeNoNeed",
                 "CodeNotMessage"

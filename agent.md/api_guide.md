@@ -3,6 +3,7 @@
 > 读者：前端测试人员。
 > 配套文档：`api_agent.md`（给前端 AI 的精确对接文档，含字段表与调用示例）；`common_response_code.md`（完整错误码表）。
 > 范围：user、item（含 tag / location / image upload）、notification（站内通知）、shop（积分商城）、announcement（公告）模块。
+> 本次新增：`admin-stats` 管理员数据分析模块（role≥1，9 个只读 GET），见第十二节；同步日期 2026-10-03。
 
 ---
 
@@ -423,6 +424,155 @@ Query 参数（均可选）：
 10. 数值筛选 query 参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` = 查历史废弃行，清理后为空）；不筛请直接省略参数。发通知 `type=0`（系统通知）是合法值，缺字段才报 `1`；注意 update 请求体的 `status=0` 另当别论（`90003`）。
 
 ---
+
+## 十二、管理员数据分析模块（admin-stats，role≥1）
+
+管理端数据看板共 **9 个只读 GET** 接口，全部挂在 `/api/v1/admin/stats/*`。**role=1（服务管理员）与 role=2（系统管理员）都可访问**；role=0 或未登录返回 `code=2`。除 CSV 导出成功响应外，均为统一 JSON 信封（HTTP 200，成功 `code=0`）。
+
+### 通用参数与口径（先读）
+
+| 参数 | 说明 |
+|---|---|
+| `start_date` / `end_date` | `YYYY-MM-DD`，含首尾自然日；必须**成对**出现；`end_date` 不能是未来日期（今天合法） |
+| `days` | 1-366，含今天的最近 N 个自然日；**与日期对互斥**（缺省时各接口有默认值） |
+
+- 时间一律按**东八区**自然日计算；`start_date/end_date` 与 `trend.date` 都是 `YYYY-MM-DD`（不是 RFC3339）。
+- 参数问题（日期非法、start>end、只传单边日期、日期与 days 同传、跨度>366 天、枚举值非法）→ `code=1`；数据库异常 → `6`；未登录/权限不足 → `2`。
+- 百分比保留 2 位小数；分母为 0 返回 `0`。环比上期为 0 且本期 >0 时 `change_percent` 为 `null` 且 `comparable=false`。
+- 状态口径：`0` 已发布（pending）/ `1` 已认领（claimed，要求 `claim_user_id` 非空）/ `2` 已关闭。"成功归还" = `status=2` 且 `claim_user_id`、`claim_time` 均非空；`status=2` 但无认领人 = 发帖者自行关闭（未归还）。
+- ⚠️ `claim_time` 是**认领时间**，不是归还完成时间；归还时长用 `updated_at - created_at` 近似。撤回认领会清空认领字段，所以历史认领无法还原。
+
+### 接口清单
+
+| 接口 | Query 参数 | 说明 |
+|---|---|---|
+| `GET /admin/stats/overview` | 日期对 或 `days` | 概览：缺省当前自然月（本月 1 日~今天），对比上一个完整自然月；显式范围时对比紧邻等长周期 |
+| `GET /admin/stats/trend` | 同上（默认 `days=30`） | 按日趋势，连续补零、日期升序，长度 = 区间天数 |
+| `GET /admin/stats/locations` | 同上 + `limit`（默认 4，0-100） | 按物品**直接地点**聚合，NULL 单列 `unknown`，不向父地点归并 |
+| `GET /admin/stats/time-heatmap` | 同上（默认 `days=30`） | 发布时段热力图：7 行（周一~周日）× 24 列（0-23 点），空桶为 0 |
+| `GET /admin/stats/items/stagnant` | `days`（**滞留天数**，默认 7，1-3650）、`page`（默认 1）、`page_size`（默认 10，1-100） | 滞留待处理清单：`status=0` 且创建已超 `days` 天；按创建时间升序 |
+| `GET /admin/stats/items/high-view` | 同上 + `min_views`（默认 50，1-2147483647） | 高浏览低认领：`status=0` 且 `view_count>=min_views`；按浏览降序 |
+| `GET /admin/stats/return-duration` | 同上（默认 `days=30`）+ `group_by`（`none`\|`location`\|`type`，默认 `none`） | 近似归还时长（平均/中位数，单位秒） |
+| `GET /admin/stats/distribution` | 同上（默认 `days=30`）+ `dimension`（**必填** `type`\|`tag`） | 按类型或标签的发布/归还分布 |
+| `GET /admin/stats/funnel` | 同上（默认 `days=30`） | 注册/发布/认领/归还四层活跃人数与相邻比率（非嵌套漏斗） |
+
+> 注意：`items/*` 两个清单接口的 `days` 含义是"滞留天数阈值"，**不接受** `start_date/end_date`；只返回物品摘要（`id/title/type/status/location_id/location_name/view_count/created_at/stagnant_days`），**不含联系方式与描述**。
+
+### 各接口响应要点与示例
+
+**overview**（发布/归还/待处理的环比 + 归还率 + 超 24h 未处理数）
+
+```json
+{
+  "period": {"start_date": "2026-10-01", "end_date": "2026-10-03"},
+  "published": {"value": 10, "previous": 8, "change_percent": 25.00, "comparable": true},
+  "returned": {"value": 4, "previous": 2, "change_percent": 100.00, "comparable": true},
+  "pending": {"value": 5, "previous": 4, "change_percent": 25.00, "comparable": true},
+  "return_rate": {"value": 40.00, "previous": 25.00, "change_percent": 60.00, "comparable": true},
+  "pending_over_24h": 2
+}
+```
+
+- 发布队列按 `created_at` 归入区间，状态取**当前快照**；`pending_over_24h` = 队列内 `status=0` 且创建时间早于当前时刻 24 小时。
+- 归还率 = `returned / (returned + pending + claimed + closed_without_return)`。
+
+**trend**
+
+```json
+{"start_date": "2026-09-04", "end_date": "2026-10-03",
+ "points": [{"date": "2026-09-04", "published": 3, "returned": 1}]}
+```
+
+- `points` 覆盖区间每一天（无数据补 0），日期升序；`published` 与 `returned` 都按物品**创建日**归属。
+
+**locations**
+
+```json
+{"total": 10,
+ "locations": [{"location_id": 3, "name": "教学楼A", "count": 4, "percent": 40.00}],
+ "unknown": {"name": "unknown", "count": 1, "percent": 10.00}}
+```
+
+- `percent` 分母 = 区间内全部未删除发布量（`total`）；`limit>0` 只返回前 `limit` 个地点，`unknown` 永远单列且不占名额；`limit=0` 返回全部地点桶，但已知地点桶超过 1000 个 → `1`。
+- 排序 `count` 降序、`location_id` 升序；`unknown` 无 `location_id` 键。
+
+**time-heatmap**
+
+```json
+{"start_date": "2026-09-04", "end_date": "2026-10-03",
+ "matrix": [[/* 7 行 × 24 列整数 */]]}
+```
+
+- `matrix[7][24]` 整数矩阵，行 0=周一…行 6=周日，列=小时；按 `created_at` 东八区归属，空桶为 0。
+
+**items/stagnant 与 items/high-view**
+
+```json
+{"total": 5, "page": 1, "page_size": 10,
+ "items": [{"id": 10, "title": "丢失黑色钱包", "type": 0, "status": 0,
+            "location_id": 3, "location_name": "教学楼A", "view_count": 3,
+            "created_at": "2026-09-25T18:00:00+08:00", "stagnant_days": 8}]}
+```
+
+- `stagnant_days` 为整数天数；`location_id` 可为 `null`（这时 `location_name` 为空串）。
+
+**return-duration**
+
+```json
+{"start_date": "2026-09-04", "end_date": "2026-10-03", "group_by": "none", "approximate": true,
+ "overall": {"group_id": null, "count": 7, "average_seconds": 3600, "median_seconds": 1800},
+ "groups": [{"group_id": 3, "count": 2, "average_seconds": 1200, "median_seconds": 1000}]}
+```
+
+- 样本 = `status=2` 且认领字段非空、`updated_at` 落在区间且 `updated_at >= created_at`（排除负时长）；时长 = `updated_at-created_at` 秒。
+- `approximate` 恒为 `true`（`updated_at` 可能被其他更新污染）；`group_by=none` 时只看 `overall`，`groups` 为 `[]`；空样本各项为 0。
+
+**distribution**
+
+```json
+{"start_date": "2026-09-04", "end_date": "2026-10-03", "dimension": "tag", "total": 3,
+ "buckets": [{"bucket_id": 1, "bucket_name": "证件", "published": 2, "returned": 1, "return_rate": 50.00, "percent": 66.67}]}
+```
+
+- `dimension=type`：`bucket_id` 0/1，名称 `lost`/`found`，每个物品只进一个桶。
+- `dimension=tag`：一个物品可进多个桶，`published` 之和可大于 `total`；未打标签单列 `bucket_id=null`、名称 `untagged`；已删除的标签关联仍保留桶（名称为空串）。
+- 已知标签桶超过 1000 个 → `1`；排序 `published` 降序、`bucket_id` 升序。
+
+**funnel**
+
+```json
+{"start_date": "2026-09-04", "end_date": "2026-10-03",
+ "stages": [{"stage": "registered", "users": 12}, {"stage": "published", "users": 8},
+            {"stage": "claimed", "users": 4}, {"stage": "returned", "users": 2}],
+ "adjacent_ratios": [66.67, 50.00, 50.00]}
+```
+
+- `stages` 固定顺序 `registered/published/claimed/returned`；各层口径互相独立（注册按 `users.created_at`、发布按 `items.created_at`、认领按 `claim_time`、归还按 `updated_at`），**不是嵌套队列，人数不保证递减**。
+- `adjacent_ratios` 长度 3：`published/registered`、`claimed/published`、`returned/claimed`，百分比可超过 100，分母为 0 返回 0。
+
+### CSV 导出（`export=csv`）
+
+支持导出的 6 个报表：`overview`、`trend`、`locations`、`distribution`、`return-duration`、`time-heatmap`。
+
+- 请求方式：在对应接口上加 `export=csv`，其余参数不变（`locations` 仍支持 `limit`）。`export` 只接受空值（走 JSON）或 `csv`，传其他值 → `1`。
+- **成功响应不是 JSON**：HTTP 200，`Content-Type: text/csv; charset=utf-8`，含 UTF-8 BOM，`Content-Disposition` 带中文文件名 `管理员统计-{report}-{start_date}-{end_date}.csv`（另有 ASCII 回退名 `stats.csv`）。测试时用浏览器/Postman 保存文件后用 Excel 打开，中文不应乱码。
+- 限制：最多 10000 数据行（`return-duration` 含 `overall` 行，每组一行），整体 30 秒超时，每 200 行 flush；超行数 → `1`。
+- 失败行为：**开始写流之前**失败仍是 HTTP 200 JSON（参数/超限 `1`、超时 `5`、数据库 `6`）；**已开始写流之后**失败会直接中断，文件不完整且流尾没有 JSON，前端按下载失败处理。
+- `funnel`、`items/stagnant`、`items/high-view` **不支持导出**：传 `export=csv` 会被静默忽略并返回正常 JSON 成功响应。
+
+### 注意事项与建议测试点
+
+1. 权限：用 role=1、role=2 各测一遍应可用；role=0 或无 token → `2`。本模块没有 role=2 专属接口。
+2. 日期边界：只传 `start_date` → `1`；日期与 `days` 同传 → `1`；`end_date` 传明天 → `1`；跨度 367 天 → `1`；`days=0` 或 `days=367` → `1`；`days=366` 正常。
+3. `overview` 缺省应返回本月 1 日~今天，并对比上一个完整月；`change_percent` 为 2 位小数。
+4. 上期为 0 且本期 >0 时，对应 `change_percent` 应为 `null` 且 `comparable=false`；上期与本期都为 0 时为 `0`。
+5. `trend` 无数据的日期应出现且计数为 0；日期连续不跳日。
+6. `locations`：构造一条无地点的物品，应出现在 `unknown` 且不计入 `locations`；对比 `limit=0` 与 `limit=3` 的返回条数；`percent` 之和（不含 unknown）不应超过 100。
+7. `distribution`：`dimension` 缺失或传其他值 → `1`；tag 模式下一个物品挂两个标签时 `published` 之和应大于 `total`，且存在 `untagged` 桶。
+8. `return-duration`：`group_by` 传非法值 → `1`；无样本时 `count/average_seconds/median_seconds` 均为 0；响应 `approximate=true`。
+9. `funnel`：`adjacent_ratios` 应有 3 个元素且允许 >100；各层人数不要求递减。
+10. CSV：目标报表加 `export=csv` 应下载到以 BOM 开头、中文文件名正确的文件；参数非法时仍是 JSON（`1`）；`export=json` 等其他值 → `1`；`funnel` 传 `export=csv` 仍是 JSON 成功响应。
+11. 24 小时自动关闭任务会改变 `status`，统计结果随时间变化，前端不要长期缓存看板数据。
 
 ## 附：错误码速查（本次对接范围）
 
