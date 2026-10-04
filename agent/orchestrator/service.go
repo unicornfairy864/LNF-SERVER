@@ -107,20 +107,28 @@ func (s *ServiceGroup) Match(userID int64, req *model.AgentMatchRequest) (*model
 	return resp, response.CodeSuccess
 }
 
+// 意图常量透出（供 QQ 侧判断是否回执）：confirm_round 表示“确认轮”消息（一定是真实业务，必回执）
+const (
+	IntentChitchat     = schema.IntentChitchat
+	IntentOther        = schema.IntentOther
+	IntentConfirmRound = "confirm_round"
+)
+
 // Chat API 会话主入口（会话域=user_id，含 API 限流）：匹配 / 建帖草稿 / 唯一一次确认轮 / 建帖
 func (s *ServiceGroup) Chat(userID int64, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
-	return s.chat(newAPIScope(userID), userID, req, true, "", false)
+	return s.chat(newAPIScope(userID), userID, req, true, "", false, nil)
 }
 
 // ChatQQ QQ 会话主入口（会话域=QQ 号；QQ 侧自带每 QQ 冷却与每群频控，此处不重复限流）
 // fallbackContact：联系方式兜底（QQ 侧传发送者 QQ；对话中明确给出联系方式时会覆盖它）
 // reuseSession：QQ 消息不带 session_id，会话键即 QQ 号 → **续用已有会话**（否则补充信息会被当成新对话）
-func (s *ServiceGroup) ChatQQ(qq string, userID int64, fallbackContact string, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
-	return s.chat(newQQScope(qq), userID, req, false, fallbackContact, true)
+// onIntent：判类完成后的回调（可能被调用一次；confirm_round 表示确认轮）——QQ 侧用它决定何时发“我正在思考”回执
+func (s *ServiceGroup) ChatQQ(qq string, userID int64, fallbackContact string, req *model.AgentChatRequest, onIntent func(intent string)) (*model.AgentChatResponse, response.Code) {
+	return s.chat(newQQScope(qq), userID, req, false, fallbackContact, true, onIntent)
 }
 
-// chat 共用实现（API 与 QQBOT 完全同链路，仅会话域/限流策略/联系方式兜底不同）
-func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatRequest, withRateLimit bool, fallbackContact string, reuseSession bool) (*model.AgentChatResponse, response.Code) {
+// chat 共用实现（API 与 QQBOT 完全同链路，仅会话域/限流策略/联系方式兜底/回调不同）
+func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatRequest, withRateLimit bool, fallbackContact string, reuseSession bool, onIntent func(intent string)) (*model.AgentChatResponse, response.Code) {
 	st := settings()
 	if !st.Enabled {
 		return nil, response.CodeAgentNotAvailable
@@ -189,9 +197,9 @@ func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatR
 
 	sess.Rounds++
 	if sess.Stage == model.AgentStageNeedConfirm && sess.Draft != nil {
-		return s.handleConfirmRound(sc, userID, sess, text, st, fallbackContact)
+		return s.handleConfirmRound(sc, userID, sess, text, st, fallbackContact, onIntent)
 	}
-	return s.handleNewRequest(sc, userID, sess, text, images, st)
+	return s.handleNewRequest(sc, userID, sess, text, images, st, onIntent)
 }
 
 // CloseSession 关闭会话（幂等；仅 API 域）
@@ -203,12 +211,16 @@ func (s *ServiceGroup) CloseSession(userID int64, req *model.AgentSessionCloseRe
 // ==================== 内部流程 ====================
 
 // handleNewRequest 处理一轮新请求（判类 + 抽取 → 分支）
-func (s *ServiceGroup) handleNewRequest(sc sessionScope, userID int64, sess *sessionState, text string, images []string, st config.AgentSettings) (*model.AgentChatResponse, response.Code) {
+func (s *ServiceGroup) handleNewRequest(sc sessionScope, userID int64, sess *sessionState, text string, images []string, st config.AgentSettings, onIntent func(intent string)) (*model.AgentChatResponse, response.Code) {
 	out, code := doExtract(text, images)
 	if code != response.CodeSuccess {
 		return nil, code
 	}
 	sess.Intent = out.res.Intent
+	// 判类完成回调（QQ 侧据此决定是否发“我正在思考”回执：闲聊/无关不回执）
+	if onIntent != nil {
+		onIntent(out.res.Intent)
+	}
 	resp := &model.AgentChatResponse{
 		SessionID: sess.SessionID,
 		Intent:    out.res.Intent,
@@ -246,6 +258,10 @@ func (s *ServiceGroup) handleNewRequest(sc sessionScope, userID int64, sess *ses
 			resp.Similar = mo.Similar
 			resp.Reply = renderMatched(mo.Summary, len(mo.Matches))
 			resp.Questions = questionList(nil)
+			// 站内通知：仅 QQ 侧写（用户不在网页端，站内留痕便于回看；API 侧与会话响应重复）
+			if sc.kind == "qq" {
+				notifyItemMatched(userID, mo.Matches)
+			}
 		} else {
 			sess.Stage = model.AgentStageNoMatch
 			resp.Stage = model.AgentStageNoMatch
@@ -272,7 +288,11 @@ func (s *ServiceGroup) handleNewRequest(sc sessionScope, userID int64, sess *ses
 //     · confirm      → 发布
 //     · cancel       → 取消
 //     · unrelated（以及 LLM 故障）→ **不发布**（故障时保留会话；无关内容则结束会话）
-func (s *ServiceGroup) handleConfirmRound(sc sessionScope, userID int64, sess *sessionState, text string, st config.AgentSettings, fallbackContact string) (*model.AgentChatResponse, response.Code) {
+func (s *ServiceGroup) handleConfirmRound(sc sessionScope, userID int64, sess *sessionState, text string, st config.AgentSettings, fallbackContact string, onIntent func(intent string)) (*model.AgentChatResponse, response.Code) {
+	// 确认轮一定是真实业务（用户正在补充/确认），直接回执
+	if onIntent != nil {
+		onIntent(IntentConfirmRound)
+	}
 	if isCancelText(text) {
 		dropSession(sc)
 		return cancelledResponse(sess.SessionID), response.CodeSuccess
@@ -330,6 +350,8 @@ func (s *ServiceGroup) finishCreate(sc sessionScope, userID int64, sess *session
 		id := itemID
 		resp.CreatedItemID = &id
 	}
+	// 站内通知：建帖成功（「通知站内全部」，QQ 与 API 均写）
+	notifyItemCreated(userID, draft, itemID)
 	return resp, response.CodeSuccess
 }
 

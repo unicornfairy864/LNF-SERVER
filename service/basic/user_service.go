@@ -21,6 +21,7 @@ import (
 type UserServiceGroup struct{}
 
 // 通知类型（见 notifications.sql type 注释）：0 系统通知
+// （3 认领结果 / 5 积分变动 见 item_service.go 的常量块，同包共享）
 const notificationTypeSystem int8 = 0
 
 func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*model.User, response.Code) {
@@ -247,13 +248,36 @@ func (userService *UserServiceGroup) QQBind(id int64, jti, reqQQ, reqCode string
 	return response.CodeSuccess
 }
 
+// roleLabel 角色中文名（与前端约定一致：0 普通用户 / 1 服务管理员 / 2 系统管理员）
+func roleLabel(role int8) string {
+	switch role {
+	case 0:
+		return "普通用户"
+	case 1:
+		return "服务管理员"
+	case 2:
+		return "系统管理员"
+	default:
+		return "未知角色"
+	}
+}
+
 func (userService *UserServiceGroup) ChangeUserRoleService(req *model.ChangeUserRoleRequest) response.Code {
 	if !(*req.Role == 0 || *req.Role == 1 || *req.Role == 2) {
 		return response.CodeFormInvalid
 	}
+	// 变更前角色（用于通知文案；用户不存在时交由 DAO 处理，与既有一致）
+	before := dao.UserDao.GetUserByID(req.ID)
 	err := dao.UserDao.UpdateUserByVK(req.ID, map[string]interface{}{"role": req.Role})
 	if err != nil {
 		return response.CodeDatabaseError
+	}
+	// 角色变更通知（type=0 系统通知，系统触发 adminID=0，无关联实体；失败仅记日志）
+	if before.ID != 0 && before.Role != *req.Role {
+		if nerr := notificationService.Create(0, req.ID, notificationTypeSystem, "账号角色已变更",
+			fmt.Sprintf("你的账号角色已由「%s」变更为「%s」。", roleLabel(before.Role), roleLabel(*req.Role)), nil); nerr != nil {
+			log.Printf("[user] 角色变更通知发送失败 user_id=%d: %v", req.ID, nerr)
+		}
 	}
 	return response.CodeSuccess
 }
@@ -299,5 +323,48 @@ func (userService *UserServiceGroup) ChangeUserCreditRequest(req *model.AddUserC
 		}
 		return response.CodeDatabaseError
 	}
+	// 积分变动通知（type=5 积分变动，系统触发 adminID=0，无关联实体）：覆盖管理员手动加/扣分（此前无通知）
+	if credit != 0 {
+		if user := dao.UserDao.GetUserByID(req.ID); user.ID != 0 {
+			if nerr := notificationService.Create(0, req.ID, notificationTypeCreditChange, "积分变动",
+				fmt.Sprintf("你的积分%s %d 分（%s），当前余额 %d 分。", creditDeltaWord(credit), absInt64(credit), creditLogLabel(logType), user.Credit), nil); nerr != nil {
+				log.Printf("[user] 积分变动通知发送失败 user_id=%d: %v", req.ID, nerr)
+			}
+		}
+	}
 	return response.CodeSuccess
+}
+
+// creditDeltaWord 积分变动方向描述
+func creditDeltaWord(delta int64) string {
+	if delta < 0 {
+		return "减少"
+	}
+	return "增加"
+}
+
+// absInt64 绝对值
+func absInt64(v int64) int64 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+// creditLogLabel 积分流水类型中文名（与 model/mysql/credit_logs.sql 的 type 注释一致）
+func creditLogLabel(logType int64) string {
+	switch logType {
+	case 0:
+		return "拾金不昧奖励"
+	case 1:
+		return "认领成功奖励"
+	case 2:
+		return "违规扣分"
+	case 3:
+		return "系统调整"
+	case 4:
+		return "积分兑换"
+	default:
+		return "系统调整"
+	}
 }

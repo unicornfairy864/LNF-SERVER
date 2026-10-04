@@ -37,6 +37,7 @@ const (
 	lnfUnboundQQReply = "若使用陈松的 agent 功能，需要先在网页版绑定 QQ 后再使用～"
 	lnfErrReply       = "智能服务开小差了，稍后再试～"
 	lnfThinkingReply  = "我正在思考"
+	lnfRateLimitReply = "你发送得太频繁了，稍等一会儿再叫我～"
 )
 
 // Trigger 触发判定（同步轻量，不查库）：仅 activated_group + @机器人 + 文本非空且不超 500 字
@@ -75,19 +76,20 @@ func (s *LnfAgentService) Handle(req model.GroupMessageEvent, text string) {
 	lnf := cfg.LnfValues()
 	qq := strconv.FormatInt(req.UserID, 10)
 
-	// 每 QQ 冷却：**仅拦“开新会话”的消息**；已有进行中会话（确认轮/补充信息）不冷却，
-	// 否则两步建帖会被自己的冷却挡死（用户 2026-10-04 反馈）
-	if !orchestrator.HasQQSession(qq) {
-		if !allowInWindow("lnf:agent:rate:qq:"+qq, 1, lnf.Cooldown) {
-			log.Printf("[chensong] agent 触发被冷却拦截（新会话） qq=%s", qq)
-			return
-		}
-	}
-	// 每群每分钟条数
+	// 每群每分钟条数（群级限流：静默丢弃，避免提醒本身再刷屏）
 	groupKey := "lnf:agent:rate:group:" + strconv.FormatInt(req.GroupID, 10) + ":" + strconv.FormatInt(time.Now().Unix()/60, 10)
 	if !allowInWindow(groupKey, lnf.GroupRatePerMinute, time.Minute) {
 		log.Printf("[chensong] agent 触发被群频控拦截 group=%d", req.GroupID)
 		return
+	}
+	// 每 QQ 冷却：**仅拦“开新会话”的消息**；已有进行中会话（确认轮/补充信息）不冷却
+	if !orchestrator.HasQQSession(qq) {
+		if !allowInWindow("lnf:agent:rate:qq:"+qq, 1, lnf.Cooldown) {
+			log.Printf("[chensong] agent 触发被冷却拦截（新会话） qq=%s", qq)
+			// 达上限：一句话提醒（用户 2026-10-04 定稿）
+			s.replyGroup(req, senderDisplayName(req), lnfRateLimitReply)
+			return
+		}
 	}
 
 	// 身份解析：QQ → users.qq（未绑定/被禁用 → 提示并终止）
@@ -102,11 +104,16 @@ func (s *LnfAgentService) Handle(req model.GroupMessageEvent, text string) {
 		nickname = senderDisplayName(req)
 	}
 
-	// 触发即回执：LLM 处理需数秒，先告诉用户“收到了”
-	s.replyGroup(req, nickname, lnfThinkingReply)
+	// 回执时机：**判类之后、其余链路之前**；闲聊/无关不回执（用户 2026-10-04 定稿）
+	onIntent := func(intent string) {
+		if intent == orchestrator.IntentChitchat || intent == orchestrator.IntentOther {
+			return
+		}
+		s.replyGroup(req, nickname, lnfThinkingReply)
+	}
 
 	// 复用编排层（会话域=QQ 号，续用已有会话；联系方式兜底=发送者 QQ，用户明确给出时会覆盖）
-	resp, code := orchestrator.Service.ChatQQ(qq, user.ID, qq, &modelbasic.AgentChatRequest{Text: text})
+	resp, code := orchestrator.Service.ChatQQ(qq, user.ID, qq, &modelbasic.AgentChatRequest{Text: text}, onIntent)
 	if code != response.CodeSuccess {
 		if code == response.CodeAgentNotAvailable || code == response.CodeAgentRateLimited {
 			return

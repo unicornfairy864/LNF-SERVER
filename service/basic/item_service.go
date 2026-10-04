@@ -3,6 +3,7 @@ package basic
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,8 +43,9 @@ const (
 	// 积分流水类型（见 credit_logs.sql type 注释）：1 认领成功奖励
 	creditLogTypeClaimReward int64 = 1
 
-	// 通知类型（见 notifications.sql type 注释）：3 认领结果
-	notificationTypeClaimResult int8 = 3
+	// 通知类型（见 notifications.sql type 注释）：3 认领结果、5 积分变动
+	notificationTypeClaimResult  int8 = 3
+	notificationTypeCreditChange int8 = 5
 )
 
 // listDefaultStatuses 列表接口未显式指定 status 时的默认状态范围：已发布(0) + 已认领(1)
@@ -457,6 +459,131 @@ func notifySelfCloseToClaimer(claimUserID int64, item *model.Item) {
 	}
 }
 
+// notifyClaimApplied 有人认领物品时通知发帖人（type=3 认领结果，系统触发 adminID=0，relatedID=物品ID；
+// 发送失败仅记日志，不影响认领主流程）
+func notifyClaimApplied(posterID int64, item *model.Item) {
+	if posterID == 0 {
+		return
+	}
+	relatedID := item.ID
+	content := fmt.Sprintf("你发布的物品「%s」已被其他同学认领，请尽快核实；确认找回请在“我的发布”中确认，若信息不符可撤回该认领。", item.Title)
+	if err := notificationService.Create(0, posterID, notificationTypeClaimResult, "有人认领了你的物品", content, &relatedID); err != nil {
+		log.Printf("[item] 认领申请通知发送失败 item_id=%d poster_id=%d: %v", item.ID, posterID, err)
+	}
+}
+
+// notifyClaimWithdrawn 撤回认领后通知另一方（type=3 认领结果，系统触发 adminID=0，relatedID=物品ID）。
+// actorID 为撤回者：认领者撤回 → 通知发帖人；发帖者撤回 → 通知认领者；发送失败仅记日志
+func notifyClaimWithdrawn(item *model.Item, actorID int64, claimUserID int64) {
+	receiverID := item.UserID
+	receiverIsPoster := true
+	if actorID != claimUserID {
+		// 撤回者是发帖者 → 通知认领者
+		receiverID, receiverIsPoster = claimUserID, false
+	}
+	if receiverID == 0 || receiverID == actorID {
+		return
+	}
+	role := "你认领的物品"
+	if receiverIsPoster {
+		role = "你发布的物品"
+	}
+	relatedID := item.ID
+	content := fmt.Sprintf("%s「%s」的认领已被撤回，物品恢复为“已发布”状态，可再次被认领。", role, item.Title)
+	if err := notificationService.Create(0, receiverID, notificationTypeClaimResult, "认领已撤回", content, &relatedID); err != nil {
+		log.Printf("[item] 认领撤回通知发送失败 item_id=%d receiver_id=%d: %v", item.ID, receiverID, err)
+	}
+}
+
+// claimRemindMarkTTL 超时提醒去重 key 存活时间（每个物品只提醒一次）
+const claimRemindMarkTTL = 24 * time.Hour
+
+// notifyCreditReward 认领奖励积分变动通知（type=5 积分变动，系统触发 adminID=0，relatedID=物品ID）。
+// 与 type=3 的认领结果通知并存：前者叙述事件，本条记录积分变动（与商城兑换的双通知风格一致）；
+// 发送失败仅记日志，不影响关闭/发分主流程
+func notifyCreditReward(beneficiaryID int64, credit int64, item *model.Item, auto bool) {
+	if beneficiaryID == 0 || credit == 0 {
+		return
+	}
+	reason := "认领成功奖励"
+	if auto {
+		reason = "认领超时自动关闭奖励"
+	}
+	balance := dao.UserDao.GetUserByID(beneficiaryID).Credit
+	relatedID := item.ID
+	content := fmt.Sprintf("你的积分增加 %d 分（%s），当前余额 %d 分。", credit, reason, balance)
+	if err := notificationService.Create(0, beneficiaryID, notificationTypeCreditChange, "积分变动", content, &relatedID); err != nil {
+		log.Printf("[item] 积分变动通知发送失败 item_id=%d user_id=%d: %v", item.ID, beneficiaryID, err)
+	}
+}
+
+// notifyClaimTimeoutReminder 认领即将超时提醒发帖人（type=3 认领结果，系统触发 adminID=0）
+func notifyClaimTimeoutReminder(item *model.Item, remindBefore time.Duration) {
+	if item.UserID == 0 {
+		return
+	}
+	relatedID := item.ID
+	content := fmt.Sprintf("你发布的物品「%s」已被认领；若 %s 内未处理，系统将按“确认由他人找回”自动关闭并发分，请尽快在“我的发布”中确认或撤回认领。",
+		item.Title, humanDuration(remindBefore))
+	if err := notificationService.Create(0, item.UserID, notificationTypeClaimResult, "认领即将超时", content, &relatedID); err != nil {
+		log.Printf("[item] 认领超时提醒发送失败 item_id=%d poster_id=%d: %v", item.ID, item.UserID, err)
+	}
+}
+
+// humanDuration 时长中文描述（仅用于通知文案）
+func humanDuration(d time.Duration) string {
+	switch {
+	case d >= 24*time.Hour && d%(24*time.Hour) == 0:
+		return fmt.Sprintf("%d 天", int(d/(24*time.Hour)))
+	case d >= time.Hour && d%time.Hour == 0:
+		return fmt.Sprintf("%d 小时", int(d/time.Hour))
+	case d >= time.Minute && d%time.Minute == 0:
+		return fmt.Sprintf("%d 分钟", int(d/time.Minute))
+	default:
+		return d.String()
+	}
+}
+
+// claimRemindMarkOnce 同一物品只提醒一次（Redis INCR 原子；Redis 异常时放行，宁可重复提醒也不漏）
+func claimRemindMarkOnce(itemID int64) bool {
+	key := "lnf:notify:claim-remind:" + strconv.FormatInt(itemID, 10)
+	n, err := dao.RedisDao.INCR(key)
+	if err != nil {
+		return true
+	}
+	if n == 1 {
+		_ = dao.RedisDao.SetKey(key, n, claimRemindMarkTTL)
+	}
+	return n == 1
+}
+
+// RemindExpiringClaimsService 认领即将超时时提醒发帖人（在自动关闭前 remindBefore 窗口内，每物品仅一次）
+// 由 initialization.StartClaimAutoCloseScheduler 定时调用（先提醒、后关闭）
+func (itemService *ItemServiceGroup) RemindExpiringClaimsService() {
+	duration := global.LNF_CONFIG.Server.ClaimAutoClose
+	remindBefore := global.LNF_CONFIG.Server.ClaimRemindBeforeValue()
+	if duration <= 0 || remindBefore <= 0 || remindBefore >= duration {
+		return
+	}
+	now := time.Now()
+	from := now.Add(-duration)   // 已到期时刻（不含）
+	to := from.Add(remindBefore) // 提醒窗口上界（含）
+	items, err := dao.ItemDao.ListClaimsApproachingDeadline(from, to, itemAutoCloseBatchSize)
+	if err != nil {
+		return
+	}
+	for i := range items {
+		item := &items[i]
+		if item.ClaimUserID == nil || *item.ClaimUserID == item.UserID {
+			continue
+		}
+		if !claimRemindMarkOnce(item.ID) {
+			continue
+		}
+		notifyClaimTimeoutReminder(item, remindBefore)
+	}
+}
+
 // ClaimService 认领物品（登录用户；是否要求绑定QQ由 server.claim_qq_required 控制）
 func (itemService *ItemServiceGroup) ClaimService(userID int64, itemID int64) response.Code {
 	item := dao.ItemDao.GetItemByID(itemID)
@@ -491,6 +618,8 @@ func (itemService *ItemServiceGroup) ClaimService(userID int64, itemID int64) re
 		}
 		return response.CodeItemAlreadyClaimed
 	}
+	// 通知发帖人：有人认领了其发布的物品
+	notifyClaimApplied(item.UserID, &item)
 	return response.CodeSuccess
 }
 
@@ -520,6 +649,8 @@ func (itemService *ItemServiceGroup) WithdrawClaimService(userID int64, itemID i
 		}
 		return response.CodeClaimNotFound
 	}
+	// 通知另一方（认领者撤回→发帖人；发帖者撤回→认领者）
+	notifyClaimWithdrawn(&item, userID, *item.ClaimUserID)
 	return response.CodeSuccess
 }
 
@@ -558,6 +689,8 @@ func (itemService *ItemServiceGroup) ConfirmClaimService(userID int64, itemID in
 	// 失物帖(type=0)认领者为积分受益人，文案带积分发放说明
 	notifyClaimClosed(*item.ClaimUserID, &item, global.LNF_CONFIG.Server.ClaimCredit,
 		beneficiary == *item.ClaimUserID, false)
+	// 积分变动通知（type=5）：与认领结果通知并存
+	notifyCreditReward(beneficiary, global.LNF_CONFIG.Server.ClaimCredit, &item, false)
 	return response.CodeSuccess
 }
 
@@ -618,5 +751,7 @@ func (itemService *ItemServiceGroup) AutoCloseExpiredClaimsService() {
 			notifyClaimClosed(*item.ClaimUserID, item, global.LNF_CONFIG.Server.ClaimCredit,
 				beneficiary == *item.ClaimUserID, true)
 		}
+		// 积分变动通知（type=5）
+		notifyCreditReward(beneficiary, global.LNF_CONFIG.Server.ClaimCredit, item, true)
 	}
 }

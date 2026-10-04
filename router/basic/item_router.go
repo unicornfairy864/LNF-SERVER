@@ -17,6 +17,7 @@ func (i *ItemRouter) CreateRouter(api *gin.RouterGroup) {
 		public.GET("/count", handler.ItemHandler.CountSearchingItemHandler)
 		public.GET("/search", handler.ItemHandler.SearchItemHandler)
 		public.GET("/:itemID", handler.ItemHandler.GetItemHandler)
+		public.GET("/:itemID/similar", handler.ItemHandler.SimilarItemHandler)
 	}
 	// Private
 	private := userGroup.Group("/item")
