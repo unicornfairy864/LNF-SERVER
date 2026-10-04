@@ -48,7 +48,7 @@
 | items 索引 | **`FULLTEXT (title,description) WITH PARSER ngram`**（中文召回可用）+ `idx_items_home(is_deleted,type,status,lost_found_time)` |
 | tags | 66 条固定词表（含颜色 12、特征 4）；粒度粗（只有「水杯」无「保温杯」） |
 | locations | 139 条 4 层树：L1 学校 → L2 校区(3) → L3 建筑(84) → L4 宿舍楼号(51)；检索计分只认 L3；**DB 另有 id=140「其他地点」(level=2, parent_id=1)，SQL 文件未收录** |
-| notification | `type=1 物品匹配` 已定义、全项目未使用 → 反向匹配可直接用；`NotificationService.Create(adminID,userID,type,title,content,relatedID)` |
+| notification | `type=1 物品匹配` 已定义、全项目未使用（原计划用于反向匹配推送，**该功能已于 2026-10-04 取消**，目前无使用方）；`NotificationService.Create(adminID,userID,type,title,content,relatedID)` |
 | 图片 | 本地 `/uploads`，公网 `http://111.229.234.32:8080` |
 | QQ | `chensong` 包；入口 `POST /api/v1/chensong/receive`（HMAC-SHA1）；现有唯一业务=emoji 谐音翻译；client 具备 SendGroupMessage/SendPrivateMessage/GetGroupMemberList |
 | QQ 身份 | `users.qq`（唯一）→ `dao.UserDao.GetUserByQQ` |
@@ -67,7 +67,7 @@
 
 | 编号 | 功能 | 状态 |
 |---|---|---|
-| 1 | **反向匹配推送**：新帖（含 agent 建帖与普通建帖）→ 匹配近 N 天同类未解决帖 → **站内通知（全量）** + **QQ 关键信息发 activated_group 并 @ 用户 QQ**；两渠道**同批一起做** | ✅ 批次 4 |
+| 1 | ~~**反向匹配推送**：新帖（含 agent 建帖与普通建帖）→ 匹配近 N 天同类未解决帖 → 站内通知（全量）+ QQ 关键信息发 activated_group 并 @ 用户 QQ~~ | ❌ **已取消**（用户 2026-10-04 定稿：删除该功能；相关配置 `agent_reverse_match_*` 已从代码与配置文件移除） |
 | 2 | **详情页相似帖子推荐** `GET /item/{id}/similar`（纯 SQL 计分，0 LLM 成本） | ✅ 批次 4 |
 | 3 | 多模态（图片） | ✅ 并入 API 主链路（批次 2） |
 | 4 | 防重复发布检测 | ⏸ 未选（二期） |
@@ -224,7 +224,7 @@ Step6 收尾（会话落状态/关闭）
 >
 > **建帖固定两步**：① 描述 → 返回 `need_confirm` 草稿；② **必须回传 ① 的 `session_id`**，回复补充信息或「确认」才建帖（取消/拒绝/其他内容均不建帖）。
 >
-> **限流**：每用户 3 次/分钟 + 全系统 30 次/分钟（三个接口共享计数），超出返回 `120004`。
+> **限流**：每用户 10 次/分钟 + 全系统 30 次/分钟（三个接口共享计数），超出返回 `120004`。
 
 ### 5.1 `POST /agent/chat`（主入口 · 会话式）
 
@@ -284,7 +284,9 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
  D. [新] 触发判定：**@ 机器人（at.qq == chensong.activated_qq）**
     — 2026-10-04 定稿：**已删除关键词过滤**。原因：补充信息/确认类消息（「确认」「昨天下午，在尚11二楼，联系我就用我的qq」）往往不含关键词，会被误拦
     — 成本改由 E 步「每 QQ 冷却 + 每群每分钟条数」兜住；闲聊/无关由 LLM 判类后**静默**（不回复）
- E. [新] 幂等（message_id SETNX 5min）+ 频率限制（每 QQ lnf_cooldown；每群 lnf_group_rate_per_minute）
+ E. [新] 幂等（message_id SETNX 5min）+ 频率限制（两层）：
+    · **每 QQ 冷却 lnf_cooldown**：**仅拦「开新会话」的消息**（2026-10-04 修正：确认轮/补充信息不冷却，否则两步建帖会被自己的冷却挡死）
+    · **每群每分钟 lnf_group_rate_per_minute 条（缺省 10）**：所有 agent 回复都计入（含确认轮）；超出则静默丢弃（仅记日志）
  F. [新] 身份解析：QQ → users.qq（身份查库尽量靠后，降低无效消耗）；未绑定 → 回复「若使用陈松的 agent 功能需要先在网页版绑定 QQ」并终止
  G. [新] 复用 §4 主链路（Step1 判类 + 抽取 → 召回 → 精排）
     · chitchat/other → 静默（不回复，避免打搅群）
@@ -401,7 +403,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 - **站内通知：全量**（所有 agent 相关事件都写站内通知，便于前端统一展示）。
 - **QQ：仅关键信息**发到 `activated_group`，格式 `[CQ:at,qq=<user.qq>] <文案>`（Q20：只回复 activated_group + @ 用户 QQ + 昵称）。
-- **反向匹配推送（more-1）**：站内通知（`type=1 物品匹配`）+ QQ 群 @ 提醒，**同批实现**。
+- ~~**反向匹配推送（more-1）**：站内通知（`type=1 物品匹配`）+ QQ 群 @ 提醒，同批实现~~ → ❌ **已取消（2026-10-04，用户定稿）**。因此 **Agent 目前没有任何主动推送**；上面的“站内全量 + QQ 关键信息 @”仅作为**后续功能**的设计约束保留。
 - 复用 `service/advanced` 的 `notificationService.Create(...)`；QQ 发送复用 `chensong.Client.SendGroupMessage`，失败只记日志不影响主流程。
 
 ---
@@ -415,7 +417,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 5. **写操作显式确认**：建帖必须经 §8 确认流程；无自动建帖路径。
 6. **隐私**：匹配候选**注入 LLM 时不带 contact**；对外返回按 `ItemResponse`（Q7 定稿：按 service 的 item 返回值给，含 contact），与既有详情接口口径一致。
 7. **身份**：QQ 侧只能操作 `users.qq` 命中的账号；未绑定 → 拦截 + 提示。
-8. **频率/成本**：API **每用户每分钟 3 次**（`agent_rate_limit_per_minute`，缺省 3）+ **全系统每分钟 30 次**（`agent_rate_limit_total_per_minute`，缺省 30），超出返回 `120004`；QQ 每 QQ `lnf_cooldown=60s`、每群每分钟 `lnf_group_rate_per_minute=3`；LLM 超时 30s。限流计数存 Redis（按分钟计数，Redis 异常时放行）。
+8. **频率/成本**：API **每用户每分钟 10 次**（`agent_rate_limit_per_minute`，缺省 10）+ **全系统每分钟 30 次**（`agent_rate_limit_total_per_minute`，缺省 30），超出返回 `120004`；QQ 每 QQ `lnf_cooldown=60s`（仅拦开新会话的消息）、每群每分钟 `lnf_group_rate_per_minute=10`；LLM 超时 30s。限流计数存 Redis（按分钟计数，Redis 异常时放行）。
 9. **幂等**：QQ `message_id` SETNX；API 会话状态机。
 10. **可关断**：`agent_enabled=false` → 两条链路短路为现状行为。
 
@@ -438,7 +440,7 @@ openai:
   agent_strong_threshold: 0.80
   agent_ambiguous_threshold: 0.50
   agent_followup_max_rounds: 1
-  agent_rate_limit_per_minute: 3                  # 每个用户每分钟调用上限
+  agent_rate_limit_per_minute: 10                 # 每个用户每分钟调用上限（用户定稿：保持 10）
   agent_rate_limit_total_per_minute: 30           # 全系统每分钟调用上限（所有用户合计）
   agent_match_min_score: 2
   agent_match_time_before_days: 1
@@ -446,12 +448,10 @@ openai:
   agent_default_location_id: 140
   agent_public_base_url: "http://111.229.234.32:8080"   # 多模态用：image_url 以 "/" 开头才拼接，否则视为绝对 URL
   agent_fill_contact: true                                # 是否把「用户明确给出的」联系方式写入 items.contact（缺省 true，可省略）
-  agent_reverse_match_enabled: false                      # 批次 4
-  agent_reverse_match_days: 30                            # 批次 4
 chensong:
   ...
   lnf_cooldown: 60s
-  lnf_group_rate_per_minute: 3
+  lnf_group_rate_per_minute: 10
 ```
 同步修改：`config.yaml`、`config.yaml.example`、`config/openai_config.go`、`config/chensong.go`。
 
@@ -483,9 +483,9 @@ chensong:
 | 1 | LLM 基建（JSON mode/多模态/超时/重试/错误归一）+ 运行时词表 + prompt + schema + 配置段 | ✅ 代码完成（`go build`+`go vet` 通过）；**验证改为用户 run dev + Postman**（login → POST `/agent/extract`，随批次 2 一并验收）；不新增 dev CLI |
 | 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | ✅ 代码完成（`go build` + `go vet` 通过）；**待用户 run dev + Postman 验收**；Swagger 需用户执行 `swag init` |
 | 3 | QQBOT：前置拦截 + @机器人触发 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | ✅ 代码完成（build/vet 通过）；**待用户在真实群验证** |
-| 4 | more：反向匹配推送（站内 + QQ @）+ 相似帖子推荐接口 | 用户验证通知与推荐 |
-| 5 | 文档同步：`api_guide.md`、`api_agent.md`；回写本文件实施状态 | 用户执行 `swag init` |
-| 6（后期） | 管理员自然语言问答（NL→统计接口参数，`role≥1`，只读） | 用户后续指令 |
+| 4 | more：相似帖子推荐接口（`GET /item/{id}/similar`，纯 SQL 无 LLM）——原「反向匹配推送（通知）」已取消 | 待开发（等用户指令） |
+| 5 | 文档同步：`api_guide.md` + `api_agent.md`（不含 common_response_code.md / README） | 待开发 |
+| 6（后期） | 管理员自然语言问答（NL→统计，`role≥1`，只读） | 待用户指令 |
 
 ---
 
@@ -494,7 +494,7 @@ chensong:
 | # | 项 | 用户答复 | 落点 |
 |---|---|---|---|
 | 1 | more 第 6 项（管理员自然语言问答） | ✅ 方案可行、**排到后期** | §2.1 编号 6、§14 批次 6 |
-| 2 | QQ 触发条件 | **关键词命中 且 @ 机器人**（`@` 只解析 CQ 段不查库；身份查库放链路最后，降低 SQL 消耗） | §6-C/D/F |
+| 2 | QQ 触发条件 | ~~关键词命中 且 @ 机器人~~ → **已被 2026-10-04 定稿取代：取消关键词过滤，仅需 @ 机器人**（§6-D） | §6-C/D/F |
 | 3 | `agent_public_base_url` | 按建议 `http://111.229.234.32:8080`；**拼接前检测 `image_url` 是否以 `/` 开头** | §5.1、§12 |
 | 4 | 消息清洗位置（追加意见） | 在 **`chensong/internal/utils/filter.go`** 内新增「图片清洗」等函数（图片段含长 URI） | §3、§6-J |
 
@@ -535,3 +535,7 @@ chensong:
 | 2026-10-03 | **批次 3（QQBOT）代码完成**：`filter.go` 新增 `CleanForAgent`/`HasAtBot`/`ContainsKeyword`；新增 `chensong/internal/service/lnf_agent.go`（Trigger/MarkOnce/Handle/replyGroup）；handler 插入 Agent 分支（emoji 链路不变）；orchestrator 新增 `ChatQQ` + `HasQQSession`（会话域 `qq:<QQ号>`）；触发=@机器人 且（关键词 或 进行中会话）；未绑定 QQ 提示、闲聊静默、每QQ冷却+每群频控、message_id 幂等（§6） | 待用户在真实群验证 |
 | 2026-10-04 | **触发方式定稿（用户）**：**删除关键词过滤**（补充信息/确认类消息会被误拦）→ 触发=仅 activated_group + @机器人 + 文本非空且 ≤500 字；`lnf_keywords` 配置项与链路引用已移除 | 已实现 |
 | 2026-10-04 | **QQ 联系方式定稿（用户）**：建帖时自动用发送者 QQ 号兜底写入 `contact`；对话中明确给出联系方式则覆盖（新增 `ChatQQ(..., fallbackContact, ...)`）（§6、§8） | 已实现 |
+| 2026-10-04 | **冷却修正（用户反馈）**：同一 QQ 60s 冷却会把第二步「确认/补充信息」挡死 → 冷却改为**仅拦开新会话的消息**（`HasQQSession` 放行进行中会话）；进行中会话仅受群级频控约束（§6-E） | 已实现 |
+| 2026-10-04 | **群频控缺省调整为 10 条/分钟（用户定稿）**：`config/chensong.go` 缺省与 `config.yaml` / `config.yaml.example` 同步为 10；废弃的 `lnf_keywords` 行在配置文件中改为注释 | 已实现 |
+| 2026-10-04 | **API 限流定稿（用户）**：每用户**保持 10 次/分钟**（`agent_rate_limit_per_minute: 10`）；代码缺省同步由 3 改回 10；全系统 30 次/分钟保持（走缺省，未写入 config.yaml）（§5、§11-8、§12） | 已实现 |
+| 2026-10-04 | **删除「反向匹配推送」功能（用户）**：代码移除 `agent_reverse_match_*` 配置与相关默认值；`config.yaml` / `config.yaml.example` 同步删除对应 2 行；文档 §1、§2.1、§10、§12、§14 同步（批次 4 仅保留「相似帖子推荐」接口）；Agent 目前**无任何主动推送** | 已同步 |

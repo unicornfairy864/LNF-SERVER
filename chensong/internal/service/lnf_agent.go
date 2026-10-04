@@ -74,10 +74,13 @@ func (s *LnfAgentService) Handle(req model.GroupMessageEvent, text string) {
 	lnf := cfg.LnfValues()
 	qq := strconv.FormatInt(req.UserID, 10)
 
-	// 每 QQ 冷却（窗口内 1 次）
-	if !allowInWindow("lnf:agent:rate:qq:"+qq, 1, lnf.Cooldown) {
-		log.Printf("[chensong] agent 触发被冷却拦截 qq=%s", qq)
-		return
+	// 每 QQ 冷却：**仅拦“开新会话”的消息**；已有进行中会话（确认轮/补充信息）不冷却，
+	// 否则两步建帖会被自己的冷却挡死（用户 2026-10-04 反馈）
+	if !orchestrator.HasQQSession(qq) {
+		if !allowInWindow("lnf:agent:rate:qq:"+qq, 1, lnf.Cooldown) {
+			log.Printf("[chensong] agent 触发被冷却拦截（新会话） qq=%s", qq)
+			return
+		}
 	}
 	// 每群每分钟条数
 	groupKey := "lnf:agent:rate:group:" + strconv.FormatInt(req.GroupID, 10) + ":" + strconv.FormatInt(time.Now().Unix()/60, 10)

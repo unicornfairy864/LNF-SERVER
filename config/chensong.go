@@ -20,7 +20,7 @@ type ChenSongConfig struct {
 // LNF Agent（QQ 侧）缺省值
 const (
 	LnfDefaultCooldown           = 60 * time.Second
-	LnfDefaultGroupRatePerMinute = 3
+	LnfDefaultGroupRatePerMinute = 10
 )
 
 // LnfSettings QQ 侧归一化配置

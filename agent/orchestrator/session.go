@@ -107,6 +107,16 @@ func dropSession(sc sessionScope) {
 	_ = dao.RedisDao.DelKey(sessionKey(sc))
 }
 
+// HasQQSession QQ 域是否存在进行中的会话
+// 用途：QQ 侧限流判断——第二步「确认/补充信息」应放行，不能被“新会话冷却”挡死
+func HasQQSession(qq string) bool {
+	if qq == "" {
+		return false
+	}
+	_, ok := loadSession(newQQScope(qq))
+	return ok
+}
+
 // allowRate 每用户每分钟限流；Redis 异常时放行（不因缓存故障阻断用户）
 func allowRate(userID int64, limit int) bool {
 	return allowByKey(rateKey(userID), limit)
