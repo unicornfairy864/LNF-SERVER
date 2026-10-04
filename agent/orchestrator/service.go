@@ -109,16 +109,17 @@ func (s *ServiceGroup) Match(userID int64, req *model.AgentMatchRequest) (*model
 
 // Chat API 会话主入口（会话域=user_id，含 API 限流）：匹配 / 建帖草稿 / 唯一一次确认轮 / 建帖
 func (s *ServiceGroup) Chat(userID int64, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
-	return s.chat(newAPIScope(userID), userID, req, true)
+	return s.chat(newAPIScope(userID), userID, req, true, "")
 }
 
 // ChatQQ QQ 会话主入口（会话域=QQ 号；QQ 侧自带每 QQ 冷却与每群频控，此处不重复限流）
-func (s *ServiceGroup) ChatQQ(qq string, userID int64, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
-	return s.chat(newQQScope(qq), userID, req, false)
+// fallbackContact：联系方式兜底（QQ 侧传发送者 QQ；对话中明确给出联系方式时会覆盖它）
+func (s *ServiceGroup) ChatQQ(qq string, userID int64, fallbackContact string, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
+	return s.chat(newQQScope(qq), userID, req, false, fallbackContact)
 }
 
-// chat 共用实现（API 与 QQBOT 完全同链路，仅会话域与限流策略不同）
-func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatRequest, withRateLimit bool) (*model.AgentChatResponse, response.Code) {
+// chat 共用实现（API 与 QQBOT 完全同链路，仅会话域/限流策略/联系方式兜底不同）
+func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatRequest, withRateLimit bool, fallbackContact string) (*model.AgentChatResponse, response.Code) {
 	st := settings()
 	if !st.Enabled {
 		return nil, response.CodeAgentNotAvailable
@@ -174,12 +175,12 @@ func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatR
 		if sess.Stage != model.AgentStageNeedConfirm || sess.Draft == nil {
 			return nil, response.CodeAgentStageConflict
 		}
-		return s.finishCreate(sc, userID, sess, st)
+		return s.finishCreate(sc, userID, sess, st, fallbackContact)
 	}
 
 	sess.Rounds++
 	if sess.Stage == model.AgentStageNeedConfirm && sess.Draft != nil {
-		return s.handleConfirmRound(sc, userID, sess, text, st)
+		return s.handleConfirmRound(sc, userID, sess, text, st, fallbackContact)
 	}
 	return s.handleNewRequest(sc, userID, sess, text, images, st)
 }
@@ -262,13 +263,13 @@ func (s *ServiceGroup) handleNewRequest(sc sessionScope, userID int64, sess *ses
 //     · confirm      → 发布
 //     · cancel       → 取消
 //     · unrelated（以及 LLM 故障）→ **不发布**（故障时保留会话；无关内容则结束会话）
-func (s *ServiceGroup) handleConfirmRound(sc sessionScope, userID int64, sess *sessionState, text string, st config.AgentSettings) (*model.AgentChatResponse, response.Code) {
+func (s *ServiceGroup) handleConfirmRound(sc sessionScope, userID int64, sess *sessionState, text string, st config.AgentSettings, fallbackContact string) (*model.AgentChatResponse, response.Code) {
 	if isCancelText(text) {
 		dropSession(sc)
 		return cancelledResponse(sess.SessionID), response.CodeSuccess
 	}
 	if isConfirmText(text) {
-		return s.finishCreate(sc, userID, sess, st)
+		return s.finishCreate(sc, userID, sess, st, fallbackContact)
 	}
 	mr, code := doMerge(sess.Draft, text)
 	if code != response.CodeSuccess {
@@ -283,9 +284,9 @@ func (s *ServiceGroup) handleConfirmRound(sc sessionScope, userID int64, sess *s
 	case schema.DecisionProvideInfo:
 		applyMergePatch(sess.Draft, mr.Patch)
 		refreshDraftLocationName(sess.Draft)
-		return s.finishCreate(sc, userID, sess, st)
+		return s.finishCreate(sc, userID, sess, st, fallbackContact)
 	case schema.DecisionConfirm:
-		return s.finishCreate(sc, userID, sess, st)
+		return s.finishCreate(sc, userID, sess, st, fallbackContact)
 	default:
 		// unrelated：严格模式不发布，结束会话
 		dropSession(sc)
@@ -296,9 +297,9 @@ func (s *ServiceGroup) handleConfirmRound(sc sessionScope, userID int64, sess *s
 }
 
 // finishCreate 建帖（复用 ItemService.CreateService 的全部校验）
-func (s *ServiceGroup) finishCreate(sc sessionScope, userID int64, sess *sessionState, st config.AgentSettings) (*model.AgentChatResponse, response.Code) {
+func (s *ServiceGroup) finishCreate(sc sessionScope, userID int64, sess *sessionState, st config.AgentSettings, fallbackContact string) (*model.AgentChatResponse, response.Code) {
 	draft := sess.Draft
-	itemID, code := createItemFromDraft(userID, draft, st)
+	itemID, code := createItemFromDraft(userID, draft, st, fallbackContact)
 	if code != response.CodeSuccess {
 		// 创建失败：保留会话与草稿，用户可补充后重试
 		saveSession(sc, sess, st.SessionTTL)

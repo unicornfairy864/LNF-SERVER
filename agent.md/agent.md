@@ -102,7 +102,7 @@ response/response_code.go                # [改] 新增 12xxxx agent 段
 chensong/internal/
 ├─ service/lnf_agent.go                  # [新] QQ 侧：复用 service/advanced 的编排
 ├─ utils/filter.go                       # [改] 新增「媒体（图片/语音等，含长 URI）清洗」与「@机器人检测」；**既有 CleanEvent 不动**
-├─ handler/snowluma_client_handler.go     # [改] 挂载 QQ 侧链路：媒体清洗 → 长度拦截 → 关键词+@ 判定 → 复用主链路（保留落日志与 emoji 链路）
+├─ handler/snowluma_client_handler.go     # [改] 挂载 QQ 侧链路：媒体清洗 → 长度拦截 → @机器人判定 → 复用主链路（保留落日志与 emoji 链路）
 └─ model/models.go                       # [改] 按需补充字段
 initialization/router.go                 # [改] 注册 agent 路由
 ```
@@ -281,9 +281,9 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
     1) 媒体清洗：剥离图片/语音/视频/文件等段（图片段含长 URI）与 URL → 得纯文本
     2) 纯文本为空（纯图片/表情/语音）→ 跳过；纯文本长度 > 500 字符 → 跳过
     3) **仅处理 activated_group 群消息**（用户 2026-10-03 定稿：**私聊与其它群一律跳过**，不回复、不处理）
- D. [新] 触发判定：**@ 机器人（at.qq == chensong.activated_qq）且（关键词命中 或 该 QQ 有进行中会话）**
-    — 用户定稿「且」；@ 判定只解析 CQ:at/数组 at 段，**不查库**
-    — **会话放行**（实现时补充）：确认轮消息（「确认」「门牌号是202」）通常不含关键词，若该 QQ 在 Redis 存在进行中会话则同样放行（只读一次 Redis，不查库）
+ D. [新] 触发判定：**@ 机器人（at.qq == chensong.activated_qq）**
+    — 2026-10-04 定稿：**已删除关键词过滤**。原因：补充信息/确认类消息（「确认」「昨天下午，在尚11二楼，联系我就用我的qq」）往往不含关键词，会被误拦
+    — 成本改由 E 步「每 QQ 冷却 + 每群每分钟条数」兜住；闲聊/无关由 LLM 判类后**静默**（不回复）
  E. [新] 幂等（message_id SETNX 5min）+ 频率限制（每 QQ lnf_cooldown；每群 lnf_group_rate_per_minute）
  F. [新] 身份解析：QQ → users.qq（身份查库尽量靠后，降低无效消耗）；未绑定 → 回复「若使用陈松的 agent 功能需要先在网页版绑定 QQ」并终止
  G. [新] 复用 §4 主链路（Step1 判类 + 抽取 → 召回 → 精排）
@@ -295,8 +295,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 ```
 
 **批次 3 实现落点**：
-- `chensong/internal/utils/filter.go`：新增 `CleanForAgent`（剥离媒体段/CQ 码/URL）、`HasAtBot`（解析两种格式的 at 段）、`ContainsKeyword`；既有 `CleanEvent` 不动
-- `chensong/internal/service/lnf_agent.go`：`Trigger`（仅 activated_group + @机器人 + 关键词/会话）、`MarkOnce`（message_id 幂等 5min）、`Handle`（每 QQ 冷却 + 每群每分钟条数 → QQ 身份 → `orchestrator.Service.ChatQQ` → 群内回复）、`replyGroup`
+- `chensong/internal/utils/filter.go`：新增 `CleanForAgent`（剥离媒体段/CQ 码/URL）、`HasAtBot`（解析两种格式的 at 段）、`ContainsKeyword`（2026-10-04 起已废弃，仅保留备用）；既有 `CleanEvent` 不动
+- `chensong/internal/service/lnf_agent.go`：`Trigger`（仅 activated_group + @机器人 + 文本非空且≤500字）、`MarkOnce`（message_id 幂等 5min）、`Handle`（每 QQ 冷却 + 每群每分钟条数 → QQ 身份 → `orchestrator.Service.ChatQQ`（含 QQ 号作 contact 兜底） → 群内回复）、`replyGroup`
 - `chensong/internal/handler/snowluma_client_handler.go`：在 Ping 之后、emoji 之前插入 Agent 分支（命中则不跑 emoji）
 - `agent/orchestrator`：新增 `ChatQQ(qq, userID, req)`（会话域 `lnf:agent:session:qq:<QQ号>`）与 `HasQQSession(qq)`；API 入口行为不变
 ```
@@ -304,8 +304,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 - QQ 侧文案由代码模板渲染事实（物品 id、条数、链接），LLM 只提供理由/追问/摘要（与 API 同源）。
 - **监听范围（定稿）**：**仅 `chensong.activated_group` 一个群**；私聊、其它群的消息一律跳过（连关键词预过滤都不做）。
 - **既有 emoji 谐音翻译链路**：**不动（全生效）** —— 用户 2026-10-03 定稿：agent 链路只监听 activated_group，emoji 链路维持现状（任何群/私聊），两者互不影响。
-- **关键字列表（初稿，Q18 定稿方向「参考原单文件 + 你的补充，不要过多」）**：
-  `丢, 丢了, 丢失, 不见了, 捡, 捡到, 拾到, 招领, 失物, 认领`
+- ~~关键字列表（Q18）~~ **已废弃（2026-10-04）**：触发不再依赖关键词，`lnf_keywords` 配置项与 `utils.ContainsKeyword` 已从链路中移除（函数保留备用）
+- **联系方式（QQ 侧，2026-10-04 定稿）**：建帖时若无显式联系方式，**自动用发送者 QQ 号兜底写入 `contact`**；若用户在对话中明确给出联系方式（含确认轮补充），**以其为准覆盖**（见 §8）
 - 清洗落点（Q24 定稿：用户指出 filter.go 的清洗可能**过滤掉关键信息**，且图片段含长 URI）：**在 `chensong/internal/utils/filter.go` 内新增函数**
   · `CleanForAgent(e)`：剥离图片/语音/视频/文件/表情等媒体段与 URL（含长 URI），返回纯文本（保留原文文字与标点）
   · `HasAtBot(e, botQQ)`：解析 `[CQ:at,qq=]` 与数组 at 段，判断是否 @ 了机器人
@@ -357,7 +357,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 |---|---|
 | `location_id` | `agent_default_location_id = 140`（DB 中「其他地点」L2, parent_id=1） |
 | `location_detail` | LLM 生成（仅写「地点链表达不了的信息」，如「三楼东侧靠窗」）；无信息则「暂无」 |
-| `contact` | **仅当用户明确给出联系方式时写入**（开关 `agent_fill_contact`，缺省开启；不编造、不推断）；否则留空 |
+| `contact` | 优先用户在对话中明确给出的联系方式；否则 **QQ 侧自动用发送者 QQ 号兜底**，API 侧留空（开关 `agent_fill_contact`，缺省开启；不编造、不推断） |
 | `lost_found_time` | 用户所述时间的区间起点/中点；完全无时间 → 建帖时间 |
 | `title` | LLM 依据原文生成，≤100 字节 |
 | `description` | LLM 依据原文复述，禁止脑补 |
@@ -450,7 +450,6 @@ openai:
   agent_reverse_match_days: 30                            # 批次 4
 chensong:
   ...
-  lnf_keywords: "丢,丢了,丢失,不见了,捡,捡到,拾到,招领,失物,认领"
   lnf_cooldown: 60s
   lnf_group_rate_per_minute: 3
 ```
@@ -483,7 +482,7 @@ chensong:
 | 0 | 设计定稿（本文件） | ✅ 用户已逐项答复；余 3 微确认（§15） |
 | 1 | LLM 基建（JSON mode/多模态/超时/重试/错误归一）+ 运行时词表 + prompt + schema + 配置段 | ✅ 代码完成（`go build`+`go vet` 通过）；**验证改为用户 run dev + Postman**（login → POST `/agent/extract`，随批次 2 一并验收）；不新增 dev CLI |
 | 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | ✅ 代码完成（`go build` + `go vet` 通过）；**待用户 run dev + Postman 验收**；Swagger 需用户执行 `swag init` |
-| 3 | QQBOT：前置拦截 + 关键词 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | 用户在真实群内测 |
+| 3 | QQBOT：前置拦截 + @机器人触发 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | ✅ 代码完成（build/vet 通过）；**待用户在真实群验证** |
 | 4 | more：反向匹配推送（站内 + QQ @）+ 相似帖子推荐接口 | 用户验证通知与推荐 |
 | 5 | 文档同步：`api_guide.md`、`api_agent.md`；回写本文件实施状态 | 用户执行 `swag init` |
 | 6（后期） | 管理员自然语言问答（NL→统计接口参数，`role≥1`，只读） | 用户后续指令 |
@@ -534,3 +533,5 @@ chensong:
 | 2026-10-03 | **条数校验修复（用户反馈）**：精排摘要自报「找到1条」但实际 5 条 → 条数改由代码渲染，prompt 禁止写数量，schema 层丢弃含数字/中文数词的摘要（§4.2） | 已实现 |
 | 2026-10-03 | **contact 问题定位与修复**：建帖从未赋值 `req.Contact` + 两个 prompt 禁止联系方式 + 草稿无该字段 → 新增 `contact` 抽取（仅用户明确给出，不编造）、合并 patch 支持 contact、草稿回显、写入 `items.contact`（开关 `openai.agent_fill_contact`，缺省开启）（§8、§12） | 已实现 |
 | 2026-10-03 | **批次 3（QQBOT）代码完成**：`filter.go` 新增 `CleanForAgent`/`HasAtBot`/`ContainsKeyword`；新增 `chensong/internal/service/lnf_agent.go`（Trigger/MarkOnce/Handle/replyGroup）；handler 插入 Agent 分支（emoji 链路不变）；orchestrator 新增 `ChatQQ` + `HasQQSession`（会话域 `qq:<QQ号>`）；触发=@机器人 且（关键词 或 进行中会话）；未绑定 QQ 提示、闲聊静默、每QQ冷却+每群频控、message_id 幂等（§6） | 待用户在真实群验证 |
+| 2026-10-04 | **触发方式定稿（用户）**：**删除关键词过滤**（补充信息/确认类消息会被误拦）→ 触发=仅 activated_group + @机器人 + 文本非空且 ≤500 字；`lnf_keywords` 配置项与链路引用已移除 | 已实现 |
+| 2026-10-04 | **QQ 联系方式定稿（用户）**：建帖时自动用发送者 QQ 号兜底写入 `contact`；对话中明确给出联系方式则覆盖（新增 `ChatQQ(..., fallbackContact, ...)`）（§6、§8） | 已实现 |

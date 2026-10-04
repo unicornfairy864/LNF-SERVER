@@ -21,7 +21,7 @@ import (
 // 规则（agent.md/agent.md §6）：
 //
 //	· 仅监听 chensong.activated_group（私聊与其它群一律跳过，连预过滤都不做）
-//	· 触发条件：关键词命中 **且** @ 机器人（@ 判定只解析消息段，不查库）
+//	· 触发条件：**@ 机器人**（2026-10-04 定稿：取消关键词过滤，补充信息/确认类消息不再被误拦）
 //	· 媒体（图片/语音/视频/文件，含长 URI）一律忽略；纯文本 >500 字直接跳过
 //	· 每 QQ 冷却 lnf_cooldown + 每群每分钟 lnf_group_rate_per_minute 条
 //	· 未绑定 QQ → 提示先在网页版绑定；闲聊/无关 → 静默
@@ -38,7 +38,9 @@ const (
 	lnfErrReply       = "智能服务开小差了，稍后再试～"
 )
 
-// Trigger 零成本触发判定（同步执行，不查库）：仅 activated_group + @机器人 + 关键词命中 + 长度限制
+// Trigger 触发判定（同步轻量，不查库）：仅 activated_group + @机器人 + 文本非空且不超 500 字
+// 2026-10-04 定稿：**取消关键词过滤**（补充信息、确认类消息往往不含关键词，会被误拦）；
+// 成本由「每 QQ 冷却 + 每群每分钟条数」兜住，闲聊由 LLM 判类后静默。
 func (s *LnfAgentService) Trigger(req model.GroupMessageEvent, text string) bool {
 	cfg := global.LNF_CONFIG.ChenSong
 	if req.GroupID != cfg.ActivatedGroup {
@@ -50,14 +52,7 @@ func (s *LnfAgentService) Trigger(req model.GroupMessageEvent, text string) bool
 	if len([]rune(text)) > lnfMaxTextRunes {
 		return false // 超长请求直接拦截
 	}
-	if !utils.HasAtBot(req, cfg.ActivatedQQ) {
-		return false
-	}
-	if utils.ContainsKeyword(text, cfg.LnfValues().Keywords) {
-		return true
-	}
-	// 关键词未命中：若该 QQ 存在进行中的会话（即“确认轮”消息，如「确认」「门牌号是202」），同样放行
-	return orchestrator.HasQQSession(strconv.FormatInt(req.UserID, 10))
+	return utils.HasAtBot(req, cfg.ActivatedQQ)
 }
 
 // MarkOnce 幂等：同一条 message_id 只处理一次（INCR 原子；Redis 异常时放行，避免丢消息）
@@ -98,8 +93,8 @@ func (s *LnfAgentService) Handle(req model.GroupMessageEvent, text string) {
 		return
 	}
 
-	// 复用编排层（会话域=QQ 号，严格会话：不带 session_id 即开新会话；QQ 侧回复“确认”走确认轮）
-	resp, code := orchestrator.Service.ChatQQ(qq, user.ID, &modelbasic.AgentChatRequest{Text: text})
+	// 复用编排层（会话域=QQ 号；联系方式兜底=发送者 QQ，用户明确给出时会覆盖）
+	resp, code := orchestrator.Service.ChatQQ(qq, user.ID, qq, &modelbasic.AgentChatRequest{Text: text})
 	if code != response.CodeSuccess {
 		if code == response.CodeAgentNotAvailable || code == response.CodeAgentRateLimited {
 			return
