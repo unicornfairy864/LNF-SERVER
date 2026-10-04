@@ -291,6 +291,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
  G. [新] 复用 §4 主链路（Step1 判类 + 抽取 → 召回 → 精排）
     · chitchat/other → 静默（不回复，避免打搅群）
  H. [新] 回复：仅发 activated_group，格式 `[CQ:reply,id=..] [CQ:at,qq=<QQ>] <昵称> <文案>`
+    — 昵称取 **`users.nickname`（站点昵称）**，空时兜底群名片/群昵称（2026-10-04 定稿）
+    — **触发即先回执「我正在思考」**，再异步跑链路（LLM 需数秒，避免用户以为没反应）
  I. [新] 建帖：群内**二次确认**（同一条消息内含缺失项 + 确认指引；**仅 1 轮**）
  J. [现状] emoji 谐音翻译：**若本条第 G 步已生成回复则跳过 emoji 链路**，否则维持现状
  K. [实现] 触发部分同步执行（零成本检查 + 一次性 Redis 好会话查询），LLM/建帖放 goroutine，避免阻塞 SnowLuma webhook
@@ -388,6 +390,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 | 会话轮次 ≥3（`agentMaxRounds`） | 续用请求触发重建并覆盖（成本上界，日志留痕） |
 
 > 含义：**多轮必须显式携带服务端上次返回的 `session_id`**；不带即视为“开新会话”，不会误续旧会话。每用户仅 1 个槽位（不支持多标签并行）。
+>
+> **QQ 侧例外（2026-10-04 定稿）**：QQ 消息**不带** `session_id`，会话键就是 QQ 号 → **续用已有会话**（否则用户的补充信息会被当成新对话）；仅在轮次 ≥3 时重建。API 侧继续保持上面的严格规则。
 
 会话 JSON 字段：`session_id / stage / intent / entity / draft / followup_round(0|1) / candidates / created_item_id / created_at / updated_at`。
 
@@ -539,3 +543,4 @@ chensong:
 | 2026-10-04 | **群频控缺省调整为 10 条/分钟（用户定稿）**：`config/chensong.go` 缺省与 `config.yaml` / `config.yaml.example` 同步为 10；废弃的 `lnf_keywords` 行在配置文件中改为注释 | 已实现 |
 | 2026-10-04 | **API 限流定稿（用户）**：每用户**保持 10 次/分钟**（`agent_rate_limit_per_minute: 10`）；代码缺省同步由 3 改回 10；全系统 30 次/分钟保持（走缺省，未写入 config.yaml）（§5、§11-8、§12） | 已实现 |
 | 2026-10-04 | **删除「反向匹配推送」功能（用户）**：代码移除 `agent_reverse_match_*` 配置与相关默认值；`config.yaml` / `config.yaml.example` 同步删除对应 2 行；文档 §1、§2.1、§10、§12、§14 同步（批次 4 仅保留「相似帖子推荐」接口）；Agent 目前**无任何主动推送** | 已同步 |
+| 2026-10-04 | **QQ 侧体验修复（用户反馈）**：① 触发即回执「我正在思考」；② 昵称改用 `users.nickname`（兜底群名片/群昵称）；③ **QQ 会话改为续用**（`reuseSession`）——修复“补充信息接不上/被当成新对话”的根因（严格会话规则对 QQ 不适用，§9.1 已注明例外） | 已实现 |

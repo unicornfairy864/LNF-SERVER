@@ -36,6 +36,7 @@ const (
 	lnfMsgIdemTTL     = 5 * time.Minute
 	lnfUnboundQQReply = "若使用陈松的 agent 功能，需要先在网页版绑定 QQ 后再使用～"
 	lnfErrReply       = "智能服务开小差了，稍后再试～"
+	lnfThinkingReply  = "我正在思考"
 )
 
 // Trigger 触发判定（同步轻量，不查库）：仅 activated_group + @机器人 + 文本非空且不超 500 字
@@ -92,38 +93,53 @@ func (s *LnfAgentService) Handle(req model.GroupMessageEvent, text string) {
 	// 身份解析：QQ → users.qq（未绑定/被禁用 → 提示并终止）
 	user := dao.UserDao.GetUserByQQ(qq)
 	if user.ID == 0 || user.Status == 0 {
-		s.replyGroup(req, lnfUnboundQQReply)
+		s.replyGroup(req, senderDisplayName(req), lnfUnboundQQReply)
 		return
 	}
+	// 昵称用 users.nickname（站点昵称，用户 2026-10-04 定稿），兜底用群名片/群昵称
+	nickname := strings.TrimSpace(user.Nickname)
+	if nickname == "" {
+		nickname = senderDisplayName(req)
+	}
 
-	// 复用编排层（会话域=QQ 号；联系方式兜底=发送者 QQ，用户明确给出时会覆盖）
+	// 触发即回执：LLM 处理需数秒，先告诉用户“收到了”
+	s.replyGroup(req, nickname, lnfThinkingReply)
+
+	// 复用编排层（会话域=QQ 号，续用已有会话；联系方式兜底=发送者 QQ，用户明确给出时会覆盖）
 	resp, code := orchestrator.Service.ChatQQ(qq, user.ID, qq, &modelbasic.AgentChatRequest{Text: text})
 	if code != response.CodeSuccess {
 		if code == response.CodeAgentNotAvailable || code == response.CodeAgentRateLimited {
 			return
 		}
 		log.Printf("[chensong] agent 处理失败 qq=%s code=%d", qq, code)
-		s.replyGroup(req, lnfErrReply)
+		s.replyGroup(req, nickname, lnfErrReply)
 		return
 	}
 	if resp == nil || resp.Stage == modelbasic.AgentStageChitchat {
-		return // 闲聊/无关：静默，避免打搅群
+		return // 闲聊/无关：静默（仅回执），避免打搅群
 	}
 	reply := strings.TrimSpace(resp.Reply)
 	if reply == "" {
 		return
 	}
-	s.replyGroup(req, reply)
+	s.replyGroup(req, nickname, reply)
 }
 
-// replyGroup 群内回复：引用原消息 + @ 用户 + 昵称（只发 activated_group）
-func (s *LnfAgentService) replyGroup(req model.GroupMessageEvent, text string) {
-	nickname := strings.TrimSpace(req.Sender.Card)
-	if nickname == "" {
-		nickname = strings.TrimSpace(req.Sender.Nickname)
+// senderDisplayName 群名片优先，其次群昵称（仅作 users.nickname 的兜底）
+func senderDisplayName(req model.GroupMessageEvent) string {
+	if card := strings.TrimSpace(req.Sender.Card); card != "" {
+		return card
 	}
-	msg := fmt.Sprintf("[CQ:reply,id=%d] [CQ:at,qq=%d] %s %s", req.MessageID, req.UserID, nickname, text)
-	res, err := client.Client.SendGroupMessage(msg, req.GroupID)
+	return strings.TrimSpace(req.Sender.Nickname)
+}
+
+// replyGroup 群内回复：引用原消息 + @ 用户 + 昵称（昵称取自 users.nickname，只发 activated_group）
+func (s *LnfAgentService) replyGroup(req model.GroupMessageEvent, nickname string, text string) {
+	prefix := fmt.Sprintf("[CQ:reply,id=%d] [CQ:at,qq=%d]", req.MessageID, req.UserID)
+	if n := strings.TrimSpace(nickname); n != "" {
+		prefix += " " + n
+	}
+	res, err := client.Client.SendGroupMessage(prefix+" "+text, req.GroupID)
 	if err != nil || res == nil || res.Status != "ok" {
 		log.Printf("[chensong] agent 回复发送失败 group=%d qq=%d: %v", req.GroupID, req.UserID, err)
 	}

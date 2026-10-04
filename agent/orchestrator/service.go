@@ -109,17 +109,18 @@ func (s *ServiceGroup) Match(userID int64, req *model.AgentMatchRequest) (*model
 
 // Chat API 会话主入口（会话域=user_id，含 API 限流）：匹配 / 建帖草稿 / 唯一一次确认轮 / 建帖
 func (s *ServiceGroup) Chat(userID int64, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
-	return s.chat(newAPIScope(userID), userID, req, true, "")
+	return s.chat(newAPIScope(userID), userID, req, true, "", false)
 }
 
 // ChatQQ QQ 会话主入口（会话域=QQ 号；QQ 侧自带每 QQ 冷却与每群频控，此处不重复限流）
 // fallbackContact：联系方式兜底（QQ 侧传发送者 QQ；对话中明确给出联系方式时会覆盖它）
+// reuseSession：QQ 消息不带 session_id，会话键即 QQ 号 → **续用已有会话**（否则补充信息会被当成新对话）
 func (s *ServiceGroup) ChatQQ(qq string, userID int64, fallbackContact string, req *model.AgentChatRequest) (*model.AgentChatResponse, response.Code) {
-	return s.chat(newQQScope(qq), userID, req, false, fallbackContact)
+	return s.chat(newQQScope(qq), userID, req, false, fallbackContact, true)
 }
 
 // chat 共用实现（API 与 QQBOT 完全同链路，仅会话域/限流策略/联系方式兜底不同）
-func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatRequest, withRateLimit bool, fallbackContact string) (*model.AgentChatResponse, response.Code) {
+func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatRequest, withRateLimit bool, fallbackContact string, reuseSession bool) (*model.AgentChatResponse, response.Code) {
 	st := settings()
 	if !st.Enabled {
 		return nil, response.CodeAgentNotAvailable
@@ -141,13 +142,15 @@ func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatR
 		action = model.AgentActionAuto
 	}
 
-	// 会话加载（严格模式，用户 2026-10-03 定稿）：
-	//   · 不带 session_id → 一律新建会话并立即覆盖旧会话（旧 session_id 失效）
-	//   · 带 session_id 但不匹配/不存在 → 返回 120001，且**不改动已存会话**
+	// 会话加载：
+	//   · 带 session_id（API）：必须匹配，否则 120001 且**不改动已存会话**；轮次用尽时重建
+	//   · QQ 侧（reuseSession=true，消息不带 session_id）：会话键即 QQ 号 → **续用已有会话**，仅在轮次用尽时重建
+	//   · API 不带 session_id（严格模式）：新建并覆盖旧会话（旧 session_id 失效）
 	sess, has := loadSession(sc)
 	log.Printf("[agent] chat 入口 scope=%s user_id=%d action=%s req_session=%q has_session=%v stage=%s rounds=%d",
 		sc.String(), userID, action, req.SessionID, has, sessionStage(sess), sessionRounds(sess))
-	if req.SessionID != "" {
+	switch {
+	case req.SessionID != "":
 		if !has || sess.SessionID != req.SessionID {
 			log.Printf("[agent] 会话不匹配（不改动已存会话）scope=%s req_session=%q stored=%q", sc.String(), req.SessionID, sessionIDOf(sess))
 			return nil, response.CodeAgentSessionNotFound
@@ -157,7 +160,13 @@ func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatR
 			sess = &sessionState{SessionID: newSessionID()}
 			saveSession(sc, sess, st.SessionTTL)
 		}
-	} else {
+	case reuseSession && has:
+		if sess.Rounds >= agentMaxRounds {
+			log.Printf("[agent] QQ 会话轮次用尽，重建 scope=%s session=%s rounds=%d", sc.String(), sess.SessionID, sess.Rounds)
+			sess = &sessionState{SessionID: newSessionID()}
+			saveSession(sc, sess, st.SessionTTL)
+		}
+	default:
 		sess = &sessionState{SessionID: newSessionID()}
 		saveSession(sc, sess, st.SessionTTL)
 	}
