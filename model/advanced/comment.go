@@ -90,9 +90,22 @@ type UpdateCommentRequest struct {
 	Status *int8  `json:"status"` //仅管理员或特定场景使用
 }
 
-type CommentGetlistRequest struct {
-	StartedID int64 `json:"started_id"`
-	Limit     int64 `json:"limit"`
+//获取评论列表的请求体
+type CommentGetlistRequestQuery struct {
+	StartedID int64 `form:"started_id"`
+	Limit     int64 `form:"limit"`
+}
+
+//获取子节点的请求体
+type GetChildrenRequestQuery struct {
+	ID       int64 `json:"id" form:"id" binding:"required"`
+	Depth    int64 `json:"depth" form:"depth"`
+	MaxCount int64 `json:"max_count" form:"max_count"` // 总节点数上限
+}
+
+//上两个方法公用的itemid结构体
+type ItemRequestParam struct {
+	ItemID int64 `param:"item_id"`
 }
 
 //dao获取comments的入参结构体
@@ -102,4 +115,5 @@ type CommentsQuery struct {
 	UserID    *int64
 	StartedID *int64
 	Limit     int64
+	IDs       *[]int64
 }

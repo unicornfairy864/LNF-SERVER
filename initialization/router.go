@@ -29,6 +29,7 @@ func InitRouter() (r *gin.Engine) {
 		router.AdminStatsRouter.CreateRouter(api)
 		router.ShopRouter.CreateRouter(api)
 		router.AgentRouter.CreateRouter(api)
+		router.CommentRouter.CreateRouter(api)
 
 		// Agent 编排层依赖注入：建帖复用 ItemService.CreateService（避免 orchestrator 直接 import service 造成循环依赖）
 		orchestrator.CreateItemFn = service.ItemService.CreateService

@@ -17,4 +17,5 @@ var (
 	AdminStatsRouter   advanced.AdminStatsRouter
 	ShopRouter         advanced.ShopRouter
 	AgentRouter        advanced.AgentRouter
+	CommentRouter      advanced.CommentRouter
 )

@@ -17,25 +17,28 @@ func (c *CommentGroup) UpdateComment(ids []*int64, status int8) error {
 	return err
 }
 
-func (c *CommentGroup) GetComments(gc *model.CommentsQuery) ([]*model.Comment, error) {
+func (c *CommentGroup) GetComments(cq *model.CommentsQuery) ([]*model.Comment, error) {
 	var cos []*model.Comment
 	var limit int
 	db := global.LNF_DB
 
-	if gc.ItemID != nil {
-		db = db.Where("item_id = ?", gc.ItemID)
+	if cq.ItemID != nil {
+		db = db.Where("item_id = ?", cq.ItemID)
 	}
-	if gc.UserID != nil {
-		db = db.Where("user_id = ?", gc.UserID)
+	if cq.UserID != nil {
+		db = db.Where("user_id = ?", cq.UserID)
 	}
-	if gc.RootID != nil {
-		db = db.Where("root_id = ?", gc.RootID)
+	if cq.RootID != nil {
+		db = db.Where("root_id = ?", cq.RootID)
 	}
-	if gc.StartedID != nil && *gc.StartedID > 0 {
-		db = db.Where("id <= ?", gc.StartedID)
+	if cq.StartedID != nil && *cq.StartedID > 0 {
+		db = db.Where("id <= ?", cq.StartedID)
 	}
-	if gc.Limit != 0 {
-		limit = int(gc.Limit)
+	if cq.IDs != nil {
+		db = db.Where("id IN ?", *cq.IDs)
+	}
+	if cq.Limit != 0 {
+		limit = int(cq.Limit)
 	}
 	db = db.Order("id DESC").Limit(limit).Find(&cos)
 

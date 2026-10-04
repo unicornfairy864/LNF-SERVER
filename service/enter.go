@@ -16,4 +16,5 @@ var (
 	AnnouncementService basic.AnnouncementServiceGroup
 	NotificationService advanced.NotificationServiceGroup
 	AdminStatsService   advanced.AdminStatsServiceGroup
+	CommentService      advanced.CommentServiceGroup
 )

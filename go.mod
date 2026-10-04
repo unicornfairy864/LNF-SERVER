@@ -3,8 +3,10 @@ module github.com/unicornfairy864/LNF-SERVER
 go 1.26.4
 
 require (
+	github.com/SkywalkerDarren/goemoji v1.0.5
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-resty/resty/v2 v2.17.2
+	github.com/openai/openai-go/v3 v3.66.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.57.0
@@ -16,7 +18,6 @@ require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/SkywalkerDarren/goemoji v1.0.5 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.4 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
@@ -42,7 +43,6 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/openai/openai-go/v3 v3.66.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.62.0 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
