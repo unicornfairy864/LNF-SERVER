@@ -1720,7 +1720,7 @@
         },
         "/api/v1/item/{item_id}/comments": {
             "get": {
-                "description": "无需登录；按 id 降序返回该物品的评论（含根评论与回复，不做 root 过滤）；\u003cbr /\u003estarted_id 为游标：返回 id \u003c= started_id 的评论，缺省或 \u003c=0 表示不限制；limit 为返回条数上限，缺省 0；\u003cbr /\u003e数据库错误返回 6；成功 data 为 {total, comment_dtos}",
+                "description": "无需登录；仅返回 status=1（正常）的评论（根评论与回复混排），按 id 降序；\u003cbr /\u003e分页为游标式：以 started_id 为起点、按 limit 分批向下读取，直到凑满 limit 条或数据耗尽；total 为本次返回条数（非全量总数）；\u003cbr /\u003e物品不存在或已删除返回 20001，数据库错误返回 6；成功 data 为 {total, comment_dtos}",
                 "consumes": [
                     "application/json"
                 ],
@@ -1741,13 +1741,13 @@
                     },
                     {
                         "type": "integer",
-                        "description": "分页游标：返回 id \u003c= started_id 的评论，缺省或\u003c=0 表示不限",
+                        "description": "分页游标：返回 id \u003c= started_id 的评论；首次建议传大于全部评论 id 的正数，翻页传本批最后一条 id - 1（缺省 0 可能重复首批）",
                         "name": "started_id",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "返回条数上限，缺省0",
+                        "description": "本次返回条数上限，缺省 0（此时至多返回 1 条），请传正整数",
                         "name": "limit",
                         "in": "query"
                     }
@@ -1776,7 +1776,7 @@
         },
         "/api/v1/item/{item_id}/comments/create": {
             "post": {
-                "description": "需登录（JWT）；user_id 以登录态为准（请求体 user_id 会被覆盖）；item_id 以请求体为准，路径参数不参与业务校验；\u003cbr /\u003eparent_id 不传时创建根评论（root_id=0），传入时取父评论的 root_id 写入新评论；\u003cbr /\u003e请求体缺字段或 JSON 类型错误返回 1，父评论不存在或数据库错误返回 6；成功 data 为 {}",
+                "description": "需登录（JWT）；请求体 item_id、user_id、content 均必填（user_id 传非 0 值即可，服务端会用登录态覆盖）；\u003cbr /\u003eitem_id 以请求体为准，路径参数不参与业务校验；parent_id 不传创建根评论，传入必须为已存在评论 id（否则返回 110001），新评论并入父评论所在评论树；\u003cbr /\u003e参数缺失/JSON 类型错误返回 1，数据库错误返回 6；成功 data 为 {}",
                 "consumes": [
                     "application/json"
                 ],
@@ -1824,7 +1824,7 @@
         },
         "/api/v1/item/{item_id}/comments/replies": {
             "get": {
-                "description": "无需登录；以 query id 定位目标评论（限定在路径 item_id 下），返回其所在评论树中不超过 depth 深度、受 max_count 裁剪的节点（含目标评论本身）；\u003cbr /\u003edepth 缺省 0：0 仅目标评论，1 再含一级回复，以此类推；max_count 为返回节点数上限，缺省 0；裁剪深度降到 0 仍超限返回 1；\u003cbr /\u003e数据库错误返回 6；成功 data 为 {total, comment_dtos}",
+                "description": "无需登录；以 query id 定位目标评论（评论不存在返回 110001），返回其回复子树（不含目标评论本身），仅含 status=1（正常）的评论；\u003cbr /\u003edepth 为向下展开层数：缺省 0 不展开（返回空列表），1 返回一级回复，以此类推（不超过子树实际深度）；\u003cbr /\u003emax_count 为返回节点数上限（缺省 0 时按 100 处理），超出时自动收窄 depth，仍无法满足返回 1；数据库错误返回 6；total 为本次返回条数",
                 "consumes": [
                     "application/json"
                 ],
@@ -1838,7 +1838,7 @@
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "物品ID",
+                        "description": "物品ID（路由占位，当前实现不参与校验）",
                         "name": "item_id",
                         "in": "path",
                         "required": true
@@ -1852,13 +1852,13 @@
                     },
                     {
                         "type": "integer",
-                        "description": "展开深度，缺省0（0=仅目标评论本身）",
+                        "description": "向下展开层数，缺省0（0=返回空，1=一级回复）",
                         "name": "depth",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "返回节点数上限，缺省0",
+                        "description": "返回节点数上限，缺省0（按100处理）",
                         "name": "max_count",
                         "in": "query"
                     }
@@ -1887,7 +1887,7 @@
         },
         "/api/v1/item/{item_id}/comments/update": {
             "patch": {
-                "description": "需 serviceAdmin 及以上角色（role\u003e=1）登录；请求体 id、status 均必填（当前未做缺省保护）；\u003cbr /\u003e按 id 定位评论后，对其所在评论树的子树节点批量更新 status；status 取值：0待审核 1正常 2已隐藏；\u003cbr /\u003e评论查询错误返回 110001，数据库错误返回 6；成功 data 为 {}",
+                "description": "需 serviceAdmin 及以上角色（role\u003e=1）登录；请求体 id、status 均必填，缺失或 JSON 类型错误返回 1；\u003cbr /\u003e按 id 定位评论，对该评论及其全部后代（同一评论树内）批量更新 status；status 取值：0待审核 1正常 2已隐藏；\u003cbr /\u003e评论不存在返回 110001，数据库错误返回 6；成功 data 为 {}",
                 "consumes": [
                     "application/json"
                 ],
@@ -3592,7 +3592,8 @@
             "type": "object",
             "required": [
                 "content",
-                "item_id"
+                "item_id",
+                "user_id"
             ],
             "properties": {
                 "content": {
@@ -4580,6 +4581,10 @@
         },
         "model.UpdateCommentRequest": {
             "type": "object",
+            "required": [
+                "id",
+                "status"
+            ],
             "properties": {
                 "id": {
                     "type": "integer"
