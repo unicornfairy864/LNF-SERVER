@@ -48,7 +48,7 @@
 | items 索引 | **`FULLTEXT (title,description) WITH PARSER ngram`**（中文召回可用）+ `idx_items_home(is_deleted,type,status,lost_found_time)` |
 | tags | 66 条固定词表（含颜色 12、特征 4）；粒度粗（只有「水杯」无「保温杯」） |
 | locations | 139 条 4 层树：L1 学校 → L2 校区(3) → L3 建筑(84) → L4 宿舍楼号(51)；检索计分只认 L3；**DB 另有 id=140「其他地点」(level=2, parent_id=1)，SQL 文件未收录** |
-| notification | `type=1 物品匹配` 已定义、全项目未使用 → 反向匹配可直接用；`NotificationService.Create(adminID,userID,type,title,content,relatedID)` |
+| notification | `type=1 物品匹配` 已定义、全项目未使用（原计划用于反向匹配推送，**该功能已于 2026-10-04 取消**，目前无使用方）；`NotificationService.Create(adminID,userID,type,title,content,relatedID)` |
 | 图片 | 本地 `/uploads`，公网 `http://111.229.234.32:8080` |
 | QQ | `chensong` 包；入口 `POST /api/v1/chensong/receive`（HMAC-SHA1）；现有唯一业务=emoji 谐音翻译；client 具备 SendGroupMessage/SendPrivateMessage/GetGroupMemberList |
 | QQ 身份 | `users.qq`（唯一）→ `dao.UserDao.GetUserByQQ` |
@@ -67,8 +67,8 @@
 
 | 编号 | 功能 | 状态 |
 |---|---|---|
-| 1 | **反向匹配推送**：新帖（含 agent 建帖与普通建帖）→ 匹配近 N 天同类未解决帖 → **站内通知（全量）** + **QQ 关键信息发 activated_group 并 @ 用户 QQ**；两渠道**同批一起做** | ✅ 批次 4 |
-| 2 | **详情页相似帖子推荐** `GET /item/{id}/similar`（纯 SQL 计分，0 LLM 成本） | ✅ 批次 4 |
+| 1 | ~~**反向匹配推送**：新帖（含 agent 建帖与普通建帖）→ 匹配近 N 天同类未解决帖 → 站内通知（全量）+ QQ 关键信息发 activated_group 并 @ 用户 QQ~~ | ❌ **已取消**（用户 2026-10-04 定稿：删除该功能；相关配置 `agent_reverse_match_*` 已从代码与配置文件移除） |
+| 2 | **详情页相似帖子推荐** `GET /item/{id}/similar`（纯 SQL 计分，0 LLM 成本） | ✅ **已完成（批次 4，2026-10-04）**：公开接口；同类型优先，不足用相反类型补齐 |
 | 3 | 多模态（图片） | ✅ 并入 API 主链路（批次 2） |
 | 4 | 防重复发布检测 | ⏸ 未选（二期） |
 | 5 | 认领验证题 | ⏸ 未选（二期） |
@@ -102,7 +102,7 @@ response/response_code.go                # [改] 新增 12xxxx agent 段
 chensong/internal/
 ├─ service/lnf_agent.go                  # [新] QQ 侧：复用 service/advanced 的编排
 ├─ utils/filter.go                       # [改] 新增「媒体（图片/语音等，含长 URI）清洗」与「@机器人检测」；**既有 CleanEvent 不动**
-├─ handler/snowluma_client_handler.go     # [改] 挂载 QQ 侧链路：媒体清洗 → 长度拦截 → 关键词+@ 判定 → 复用主链路（保留落日志与 emoji 链路）
+├─ handler/snowluma_client_handler.go     # [改] 挂载 QQ 侧链路：媒体清洗 → 长度拦截 → @机器人判定 → 复用主链路（保留落日志与 emoji 链路）
 └─ model/models.go                       # [改] 按需补充字段
 initialization/router.go                 # [改] 注册 agent 路由
 ```
@@ -224,7 +224,7 @@ Step6 收尾（会话落状态/关闭）
 >
 > **建帖固定两步**：① 描述 → 返回 `need_confirm` 草稿；② **必须回传 ① 的 `session_id`**，回复补充信息或「确认」才建帖（取消/拒绝/其他内容均不建帖）。
 >
-> **限流**：每用户 3 次/分钟 + 全系统 30 次/分钟（三个接口共享计数），超出返回 `120004`。
+> **限流**：每用户 10 次/分钟 + 全系统 30 次/分钟（三个接口共享计数），超出返回 `120004`。
 
 ### 5.1 `POST /agent/chat`（主入口 · 会话式）
 
@@ -281,22 +281,26 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
     1) 媒体清洗：剥离图片/语音/视频/文件等段（图片段含长 URI）与 URL → 得纯文本
     2) 纯文本为空（纯图片/表情/语音）→ 跳过；纯文本长度 > 500 字符 → 跳过
     3) **仅处理 activated_group 群消息**（用户 2026-10-03 定稿：**私聊与其它群一律跳过**，不回复、不处理）
- D. [新] 触发判定：**@ 机器人（at.qq == chensong.activated_qq）且（关键词命中 或 该 QQ 有进行中会话）**
-    — 用户定稿「且」；@ 判定只解析 CQ:at/数组 at 段，**不查库**
-    — **会话放行**（实现时补充）：确认轮消息（「确认」「门牌号是202」）通常不含关键词，若该 QQ 在 Redis 存在进行中会话则同样放行（只读一次 Redis，不查库）
- E. [新] 幂等（message_id SETNX 5min）+ 频率限制（每 QQ lnf_cooldown；每群 lnf_group_rate_per_minute）
+ D. [新] 触发判定：**@ 机器人（at.qq == chensong.activated_qq）**
+    — 2026-10-04 定稿：**已删除关键词过滤**。原因：补充信息/确认类消息（「确认」「昨天下午，在尚11二楼，联系我就用我的qq」）往往不含关键词，会被误拦
+    — 成本改由 E 步「每 QQ 冷却 + 每群每分钟条数」兜住；闲聊/无关由 LLM 判类后**静默**（不回复）
+ E. [新] 幂等（message_id SETNX 5min）+ 频率限制（两层）：
+    · **每 QQ 冷却 lnf_cooldown**：**仅拦「开新会话」的消息**（2026-10-04 修正：确认轮/补充信息不冷却，否则两步建帖会被自己的冷却挡死）；**超出时回一句提醒**「你发送得太频繁了，稍等一会儿再叫我～」
+    · **每群每分钟 lnf_group_rate_per_minute 条（缺省 10）**：所有 agent 回复都计入（含确认轮）；**群级超出静默丢弃**（仅记日志，避免提醒本身再刷屏）
  F. [新] 身份解析：QQ → users.qq（身份查库尽量靠后，降低无效消耗）；未绑定 → 回复「若使用陈松的 agent 功能需要先在网页版绑定 QQ」并终止
  G. [新] 复用 §4 主链路（Step1 判类 + 抽取 → 召回 → 精排）
     · chitchat/other → 静默（不回复，避免打搅群）
  H. [新] 回复：仅发 activated_group，格式 `[CQ:reply,id=..] [CQ:at,qq=<QQ>] <昵称> <文案>`
+    — 昵称取 **`users.nickname`（站点昵称）**，空时兜底群名片/群昵称（2026-10-04 定稿）
+    — **回执时机：判类之后、其余链路之前**（`onIntent` 回调）；**闲聊/无关不回执**；确认轮必回执（2026-10-04 定稿）
  I. [新] 建帖：群内**二次确认**（同一条消息内含缺失项 + 确认指引；**仅 1 轮**）
  J. [现状] emoji 谐音翻译：**若本条第 G 步已生成回复则跳过 emoji 链路**，否则维持现状
  K. [实现] 触发部分同步执行（零成本检查 + 一次性 Redis 好会话查询），LLM/建帖放 goroutine，避免阻塞 SnowLuma webhook
 ```
 
 **批次 3 实现落点**：
-- `chensong/internal/utils/filter.go`：新增 `CleanForAgent`（剥离媒体段/CQ 码/URL）、`HasAtBot`（解析两种格式的 at 段）、`ContainsKeyword`；既有 `CleanEvent` 不动
-- `chensong/internal/service/lnf_agent.go`：`Trigger`（仅 activated_group + @机器人 + 关键词/会话）、`MarkOnce`（message_id 幂等 5min）、`Handle`（每 QQ 冷却 + 每群每分钟条数 → QQ 身份 → `orchestrator.Service.ChatQQ` → 群内回复）、`replyGroup`
+- `chensong/internal/utils/filter.go`：新增 `CleanForAgent`（剥离媒体段/CQ 码/URL）、`HasAtBot`（解析两种格式的 at 段）、`ContainsKeyword`（2026-10-04 起已废弃，仅保留备用）；既有 `CleanEvent` 不动
+- `chensong/internal/service/lnf_agent.go`：`Trigger`（仅 activated_group + @机器人 + 文本非空且≤500字）、`MarkOnce`（message_id 幂等 5min）、`Handle`（每 QQ 冷却 + 每群每分钟条数 → QQ 身份 → `orchestrator.Service.ChatQQ`（含 QQ 号作 contact 兜底） → 群内回复）、`replyGroup`
 - `chensong/internal/handler/snowluma_client_handler.go`：在 Ping 之后、emoji 之前插入 Agent 分支（命中则不跑 emoji）
 - `agent/orchestrator`：新增 `ChatQQ(qq, userID, req)`（会话域 `lnf:agent:session:qq:<QQ号>`）与 `HasQQSession(qq)`；API 入口行为不变
 ```
@@ -304,8 +308,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 - QQ 侧文案由代码模板渲染事实（物品 id、条数、链接），LLM 只提供理由/追问/摘要（与 API 同源）。
 - **监听范围（定稿）**：**仅 `chensong.activated_group` 一个群**；私聊、其它群的消息一律跳过（连关键词预过滤都不做）。
 - **既有 emoji 谐音翻译链路**：**不动（全生效）** —— 用户 2026-10-03 定稿：agent 链路只监听 activated_group，emoji 链路维持现状（任何群/私聊），两者互不影响。
-- **关键字列表（初稿，Q18 定稿方向「参考原单文件 + 你的补充，不要过多」）**：
-  `丢, 丢了, 丢失, 不见了, 捡, 捡到, 拾到, 招领, 失物, 认领`
+- ~~关键字列表（Q18）~~ **已废弃（2026-10-04）**：触发不再依赖关键词，`lnf_keywords` 配置项与 `utils.ContainsKeyword` 已从链路中移除（函数保留备用）
+- **联系方式（QQ 侧，2026-10-04 定稿）**：建帖时若无显式联系方式，**自动用发送者 QQ 号兜底写入 `contact`**；若用户在对话中明确给出联系方式（含确认轮补充），**以其为准覆盖**（见 §8）
 - 清洗落点（Q24 定稿：用户指出 filter.go 的清洗可能**过滤掉关键信息**，且图片段含长 URI）：**在 `chensong/internal/utils/filter.go` 内新增函数**
   · `CleanForAgent(e)`：剥离图片/语音/视频/文件/表情等媒体段与 URL（含长 URI），返回纯文本（保留原文文字与标点）
   · `HasAtBot(e, botQQ)`：解析 `[CQ:at,qq=]` 与数组 at 段，判断是否 @ 了机器人
@@ -357,7 +361,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 |---|---|
 | `location_id` | `agent_default_location_id = 140`（DB 中「其他地点」L2, parent_id=1） |
 | `location_detail` | LLM 生成（仅写「地点链表达不了的信息」，如「三楼东侧靠窗」）；无信息则「暂无」 |
-| `contact` | **仅当用户明确给出联系方式时写入**（开关 `agent_fill_contact`，缺省开启；不编造、不推断）；否则留空 |
+| `contact` | 优先用户在对话中明确给出的联系方式；否则 **QQ 侧自动用发送者 QQ 号兜底**，API 侧留空（开关 `agent_fill_contact`，缺省开启；不编造、不推断） |
 | `lost_found_time` | 用户所述时间的区间起点/中点；完全无时间 → 建帖时间 |
 | `title` | LLM 依据原文生成，≤100 字节 |
 | `description` | LLM 依据原文复述，禁止脑补 |
@@ -386,6 +390,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 | 会话轮次 ≥3（`agentMaxRounds`） | 续用请求触发重建并覆盖（成本上界，日志留痕） |
 
 > 含义：**多轮必须显式携带服务端上次返回的 `session_id`**；不带即视为“开新会话”，不会误续旧会话。每用户仅 1 个槽位（不支持多标签并行）。
+>
+> **QQ 侧例外（2026-10-04 定稿）**：QQ 消息**不带** `session_id`，会话键就是 QQ 号 → **续用已有会话**（否则用户的补充信息会被当成新对话）；仅在轮次 ≥3 时重建。API 侧继续保持上面的严格规则。
 
 会话 JSON 字段：`session_id / stage / intent / entity / draft / followup_round(0|1) / candidates / created_item_id / created_at / updated_at`。
 
@@ -401,7 +407,46 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 - **站内通知：全量**（所有 agent 相关事件都写站内通知，便于前端统一展示）。
 - **QQ：仅关键信息**发到 `activated_group`，格式 `[CQ:at,qq=<user.qq>] <文案>`（Q20：只回复 activated_group + @ 用户 QQ + 昵称）。
-- **反向匹配推送（more-1）**：站内通知（`type=1 物品匹配`）+ QQ 群 @ 提醒，**同批实现**。
+- ~~**反向匹配推送（more-1）**：站内通知（`type=1 物品匹配`）+ QQ 群 @ 提醒，同批实现~~ → ❌ **已取消（2026-10-04，用户定稿）**。因此 **Agent 目前没有任何主动推送**；上面的“站内全量 + QQ 关键信息 @”仅作为**后续功能**的设计约束保留。
+
+### 10.1 站内通知打通（2026-10-04，批次 4）
+
+| 事件 | 渠道 | 类型 | 文案 |
+|---|---|---|---|
+| **agent 建帖成功** | 站内通知（QQ + API 均写） | `type=0 系统通知` | 智能助手已为你发布信息：「你的<失物/招领>信息「X」已发布，可在“我的发布”中查看或修改。」related_id=物品ID |
+| **agent 匹配到候选** | 站内通知（**仅 QQ**） | `type=1 物品匹配`（此前无使用方） | 「共 N 条，最相关的是「X」。」related_id=首条物品ID |
+
+- 实现：`agent/orchestrator/notify.go` 暴露注入点 `NotifyFn`，由 `initialization/router.go` 绑定 `service.NotificationService.Create(0, userID, ntype, title, content, relatedID)`（与 `CreateItemFn` 同理，避开循环依赖）；未注入或写库失败只记日志，不影响主流程
+- **API 侧匹配不写通知**（同一次响应已返回结果，避免重复打扰）；若要改成“全端都写”，改一行判断即可
+- QQ 群内仍以群回复呈现（关键信息 @ 用户 + 昵称），站内通知作为网页端留痕
+
+### 10.2 认领流程与管理员改角色的通知覆盖（2026-10-04 用户指令）
+
+| 环节 | 位置 | 通知现状 |
+|---|---|---|
+| 申请认领（claim） | `ClaimService` | ✅ **本轮新增**：通知发帖人「有人认领了你的物品」（type=3，related_id=物品ID） |
+| 撤回认领（withdraw） | `WithdrawClaimService` | ✅ **本轮新增**：通知另一方（认领者撤回→发帖人；发帖者撤回→认领者）「认领已撤回」 |
+| 确认认领（confirm） | `ConfirmClaimService` | ✅ 既有：通知认领者（失物帖受益人带积分说明） |
+| 发帖者自行关闭（close） | `CloseSelfService` | ✅ 既有：status=1 时通知认领者「认领已结束」 |
+| 超时自动确认 | `AutoCloseExpiredClaimsService` | ✅ 既有：通知发帖人与认领者双方 |
+| **管理员改角色** | `ChangeUserRoleService` | ✅ **本轮新增**：通知被改用户「账号角色已由「X」变更为「Y」」（type=0 系统通知；仅角色真发生变化时发） |
+| **管理员改积分** | `ChangeUserCreditRequest` | ✅ **本轮新增（#6）**：type=5 积分变动（含变动方向/金额/原因/变动后余额；此前无任何通知） |
+| **认领奖励发分** | `ConfirmClaimService` / `AutoCloseExpiredClaimsService` | ✅ **本轮新增（#6）**：额外写一条 type=5 积分变动（与 type=3 认领结果通知并存，与商城“双通知”风格一致） |
+| **认领即将超时** | `RemindExpiringClaimsService` | ✅ **本轮新增（#2）**：自动关闭前 2h 提醒发帖人（type=3，标题「认领即将超时」）；每物品只提醒一次 |
+
+> 全部通知均为**系统触发**（adminID=0），写库失败**仅记日志**，不影响主流程（与既有 `notificationService.Create` 用法一致）。
+
+### 10.3 认领超时提醒（#2）与积分变动统一（#6）
+
+- **认领超时提醒**：新增 `RemindExpiringClaimsService()`，挂入既有 `StartClaimAutoCloseScheduler`（每 5 分钟一次，**先提醒后关闭**）
+  - 提醒窗口：`claim_time ∈ [now - claim_auto_close, now - claim_auto_close + remind_before]`；`remind_before` 取 `server.claim_auto_close_remind_before`（**缺省 2h**，可省略不写），≥`claim_auto_close` 则不提醒
+  - 去重：Redis `lnf:notify:claim-remind:<itemID>`（INCR + TTL 24h，Redis 异常时宁可重发）
+  - 新增 DAO（不侵入既有 `item_dao.go`）：`dao/item_claim_remind.go → ListClaimsApproachingDeadline(from,to,limit)`
+- **积分变动统一（type=5）**：
+  - 管理员手动加/扣分（`ChangeUserCreditRequest`）→ 新增通知（含余额）
+  - 认领奖励（确认认领 / 超时自动关闭）→ 新增通知（含余额），与 type=3 并存
+  - 商城兑换 → **既有已覆盖**（type=5 + type=6），未改动
+- 未做（用户指定）：**评论回复通知**（忽略）；待确认：#4 账号禁用通知、#3 管理员下架帖子、#5 发帖成功通知、#8 公告通知
 - 复用 `service/advanced` 的 `notificationService.Create(...)`；QQ 发送复用 `chensong.Client.SendGroupMessage`，失败只记日志不影响主流程。
 
 ---
@@ -415,7 +460,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 5. **写操作显式确认**：建帖必须经 §8 确认流程；无自动建帖路径。
 6. **隐私**：匹配候选**注入 LLM 时不带 contact**；对外返回按 `ItemResponse`（Q7 定稿：按 service 的 item 返回值给，含 contact），与既有详情接口口径一致。
 7. **身份**：QQ 侧只能操作 `users.qq` 命中的账号；未绑定 → 拦截 + 提示。
-8. **频率/成本**：API **每用户每分钟 3 次**（`agent_rate_limit_per_minute`，缺省 3）+ **全系统每分钟 30 次**（`agent_rate_limit_total_per_minute`，缺省 30），超出返回 `120004`；QQ 每 QQ `lnf_cooldown=60s`、每群每分钟 `lnf_group_rate_per_minute=3`；LLM 超时 30s。限流计数存 Redis（按分钟计数，Redis 异常时放行）。
+8. **频率/成本**：API **每用户每分钟 10 次**（`agent_rate_limit_per_minute`，缺省 10）+ **全系统每分钟 30 次**（`agent_rate_limit_total_per_minute`，缺省 30），超出返回 `120004`；QQ 每 QQ `lnf_cooldown=60s`（仅拦开新会话的消息）、每群每分钟 `lnf_group_rate_per_minute=10`；LLM 超时 30s。限流计数存 Redis（按分钟计数，Redis 异常时放行）。
 9. **幂等**：QQ `message_id` SETNX；API 会话状态机。
 10. **可关断**：`agent_enabled=false` → 两条链路短路为现状行为。
 
@@ -438,7 +483,7 @@ openai:
   agent_strong_threshold: 0.80
   agent_ambiguous_threshold: 0.50
   agent_followup_max_rounds: 1
-  agent_rate_limit_per_minute: 3                  # 每个用户每分钟调用上限
+  agent_rate_limit_per_minute: 10                 # 每个用户每分钟调用上限（用户定稿：保持 10）
   agent_rate_limit_total_per_minute: 30           # 全系统每分钟调用上限（所有用户合计）
   agent_match_min_score: 2
   agent_match_time_before_days: 1
@@ -446,13 +491,10 @@ openai:
   agent_default_location_id: 140
   agent_public_base_url: "http://111.229.234.32:8080"   # 多模态用：image_url 以 "/" 开头才拼接，否则视为绝对 URL
   agent_fill_contact: true                                # 是否把「用户明确给出的」联系方式写入 items.contact（缺省 true，可省略）
-  agent_reverse_match_enabled: false                      # 批次 4
-  agent_reverse_match_days: 30                            # 批次 4
 chensong:
   ...
-  lnf_keywords: "丢,丢了,丢失,不见了,捡,捡到,拾到,招领,失物,认领"
   lnf_cooldown: 60s
-  lnf_group_rate_per_minute: 3
+  lnf_group_rate_per_minute: 10
 ```
 同步修改：`config.yaml`、`config.yaml.example`、`config/openai_config.go`、`config/chensong.go`。
 
@@ -483,10 +525,10 @@ chensong:
 | 0 | 设计定稿（本文件） | ✅ 用户已逐项答复；余 3 微确认（§15） |
 | 1 | LLM 基建（JSON mode/多模态/超时/重试/错误归一）+ 运行时词表 + prompt + schema + 配置段 | ✅ 代码完成（`go build`+`go vet` 通过）；**验证改为用户 run dev + Postman**（login → POST `/agent/extract`，随批次 2 一并验收）；不新增 dev CLI |
 | 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | ✅ 代码完成（`go build` + `go vet` 通过）；**待用户 run dev + Postman 验收**；Swagger 需用户执行 `swag init` |
-| 3 | QQBOT：前置拦截 + 关键词 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | 用户在真实群内测 |
-| 4 | more：反向匹配推送（站内 + QQ @）+ 相似帖子推荐接口 | 用户验证通知与推荐 |
-| 5 | 文档同步：`api_guide.md`、`api_agent.md`；回写本文件实施状态 | 用户执行 `swag init` |
-| 6（后期） | 管理员自然语言问答（NL→统计接口参数，`role≥1`，只读） | 用户后续指令 |
+| 3 | QQBOT：前置拦截 + @机器人触发 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | ✅ 代码完成（build/vet 通过）；**待用户在真实群验证** |
+| 4 | more：相似帖子推荐接口（`GET /item/{id}/similar`，纯 SQL 无 LLM）+ notification 打通（站内通知） | ✅ 代码完成（2026-10-04，build/vet 通过）；待用户验证 |
+| 5 | 文档同步：`api_guide.md` + `api_agent.md`（不含 common_response_code.md / README） | ✅ **已完成（2026-10-04）**：新增 `api_guide.md` 第十三节（771 行）与 `api_agent.md` §7（999 行），**含完整应用场景表（A 一句话发帖 / B 找匹配 / C 相似推荐 / D QQ 机器人）**、数据模型、两步确认状态机、陷阱清单；评论通知按用户要求未做 |
+| 6（后期） | 管理员自然语言问答（NL→统计，`role≥1`，只读） | 待用户指令 |
 
 ---
 
@@ -495,7 +537,7 @@ chensong:
 | # | 项 | 用户答复 | 落点 |
 |---|---|---|---|
 | 1 | more 第 6 项（管理员自然语言问答） | ✅ 方案可行、**排到后期** | §2.1 编号 6、§14 批次 6 |
-| 2 | QQ 触发条件 | **关键词命中 且 @ 机器人**（`@` 只解析 CQ 段不查库；身份查库放链路最后，降低 SQL 消耗） | §6-C/D/F |
+| 2 | QQ 触发条件 | ~~关键词命中 且 @ 机器人~~ → **已被 2026-10-04 定稿取代：取消关键词过滤，仅需 @ 机器人**（§6-D） | §6-C/D/F |
 | 3 | `agent_public_base_url` | 按建议 `http://111.229.234.32:8080`；**拼接前检测 `image_url` 是否以 `/` 开头** | §5.1、§12 |
 | 4 | 消息清洗位置（追加意见） | 在 **`chensong/internal/utils/filter.go`** 内新增「图片清洗」等函数（图片段含长 URI） | §3、§6-J |
 
@@ -534,3 +576,15 @@ chensong:
 | 2026-10-03 | **条数校验修复（用户反馈）**：精排摘要自报「找到1条」但实际 5 条 → 条数改由代码渲染，prompt 禁止写数量，schema 层丢弃含数字/中文数词的摘要（§4.2） | 已实现 |
 | 2026-10-03 | **contact 问题定位与修复**：建帖从未赋值 `req.Contact` + 两个 prompt 禁止联系方式 + 草稿无该字段 → 新增 `contact` 抽取（仅用户明确给出，不编造）、合并 patch 支持 contact、草稿回显、写入 `items.contact`（开关 `openai.agent_fill_contact`，缺省开启）（§8、§12） | 已实现 |
 | 2026-10-03 | **批次 3（QQBOT）代码完成**：`filter.go` 新增 `CleanForAgent`/`HasAtBot`/`ContainsKeyword`；新增 `chensong/internal/service/lnf_agent.go`（Trigger/MarkOnce/Handle/replyGroup）；handler 插入 Agent 分支（emoji 链路不变）；orchestrator 新增 `ChatQQ` + `HasQQSession`（会话域 `qq:<QQ号>`）；触发=@机器人 且（关键词 或 进行中会话）；未绑定 QQ 提示、闲聊静默、每QQ冷却+每群频控、message_id 幂等（§6） | 待用户在真实群验证 |
+| 2026-10-04 | **触发方式定稿（用户）**：**删除关键词过滤**（补充信息/确认类消息会被误拦）→ 触发=仅 activated_group + @机器人 + 文本非空且 ≤500 字；`lnf_keywords` 配置项与链路引用已移除 | 已实现 |
+| 2026-10-04 | **QQ 联系方式定稿（用户）**：建帖时自动用发送者 QQ 号兜底写入 `contact`；对话中明确给出联系方式则覆盖（新增 `ChatQQ(..., fallbackContact, ...)`）（§6、§8） | 已实现 |
+| 2026-10-04 | **冷却修正（用户反馈）**：同一 QQ 60s 冷却会把第二步「确认/补充信息」挡死 → 冷却改为**仅拦开新会话的消息**（`HasQQSession` 放行进行中会话）；进行中会话仅受群级频控约束（§6-E） | 已实现 |
+| 2026-10-04 | **群频控缺省调整为 10 条/分钟（用户定稿）**：`config/chensong.go` 缺省与 `config.yaml` / `config.yaml.example` 同步为 10；废弃的 `lnf_keywords` 行在配置文件中改为注释 | 已实现 |
+| 2026-10-04 | **API 限流定稿（用户）**：每用户**保持 10 次/分钟**（`agent_rate_limit_per_minute: 10`）；代码缺省同步由 3 改回 10；全系统 30 次/分钟保持（走缺省，未写入 config.yaml）（§5、§11-8、§12） | 已实现 |
+| 2026-10-04 | **删除「反向匹配推送」功能（用户）**：代码移除 `agent_reverse_match_*` 配置与相关默认值；`config.yaml` / `config.yaml.example` 同步删除对应 2 行；文档 §1、§2.1、§10、§12、§14 同步（批次 4 仅保留「相似帖子推荐」接口）；Agent 目前**无任何主动推送** | 已同步 |
+| 2026-10-04 | **QQ 侧体验修复（用户反馈）**：① 触发即回执「我正在思考」；② 昵称改用 `users.nickname`（兜底群名片/群昵称）；③ **QQ 会话改为续用**（`reuseSession`）——修复“补充信息接不上/被当成新对话”的根因（严格会话规则对 QQ 不适用，§9.1 已注明例外） | 已实现 |
+| 2026-10-04 | **回执与限流文案（用户定稿）**：① 回执改为**判类之后**发（`onIntent` 回调），**闲聊/无关不回执**，确认轮必回执；② 每 QQ 冷却超出时**回一句提醒**（群级超出仍静默）；③ 限流检查顺序调为“群级 → 每 QQ” | 已实现 |
+| 2026-10-04 | **批次 4 完成**：① 新增 `GET /item/{itemID}/similar`（公开、纯 SQL、同类型优先+相反类型补齐，默认 5 条最多 10；新文件 `agent/orchestrator/similar.go`、`handler/basic/item_similar_handler.go`，`router/basic/item_router.go` 加一行）；② **notification 打通**：新增 `agent/orchestrator/notify.go`（注入点 `NotifyFn`）——建帖成功写 `type=0 系统通知`（QQ+API）、匹配成功写 `type=1 物品匹配`（仅 QQ，避免与会话响应重复）；绑定处 `NotificationService.Create(0, ...)`（§10、§14） | 待用户验证 |
+| 2026-10-04 | **通知覆盖补充（用户指令）**：① `ClaimService` 新增通知发帖人；② `WithdrawClaimService` 新增通知另一方；③ `ChangeUserRoleService` 新增角色变更通知（type=0）；既有 confirm/close/auto-close 已有通知（§10.2）；其他候选位置已列出待用户确认（未改动） | 已实现 |
+| 2026-10-04 | **#2 认领超时提醒 + #6 积分变动统一（用户指定）**：① 新增 `RemindExpiringClaimsService`（挂入既有定时任务，超时前 2h 提醒发帖人，Redis 去重，新 DAO 文件）；② `ChangeUserCreditRequest` 与认领奖励发分均补 type=5 积分变动通知（含余额）；商城兑换既有已覆盖；**评论通知按用户要求忽略**（§10.3） | 已实现 |
+| 2026-10-04 | **批次 5 完成（文档同步）**：① `api_guide.md` 新增 **第十三节 Agent 智能助手模块**（人类阅读版，含应用场景表、接口清单、两步确认、会话严格模式、12xxxx、建议测试用例 10 条、注意事项）；② `api_agent.md` 新增 **§7 agent 模块**（机读版：7.1 应用场景 / 7.2 数据模型 / 7.3 接口明细 / 7.4 枚举速查 / 7.5 陷阱清单 10 条）；两份文档行尾已统一为 CRLF；顶部“本次新增”已更新 | 已完成 |

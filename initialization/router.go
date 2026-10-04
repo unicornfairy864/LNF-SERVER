@@ -33,6 +33,10 @@ func InitRouter() (r *gin.Engine) {
 
 		// Agent 编排层依赖注入：建帖复用 ItemService.CreateService（避免 orchestrator 直接 import service 造成循环依赖）
 		orchestrator.CreateItemFn = service.ItemService.CreateService
+		// Agent 站内通知注入：NotificationService.Create(adminID=0, ...)——建帖成功(type=0) / 匹配成功(type=1)
+		orchestrator.NotifyFn = func(userID int64, ntype int8, title, content string, relatedID *int64) error {
+			return service.NotificationService.Create(0, userID, ntype, title, content, relatedID)
+		}
 		// ChenSong
 		chensongGroup := api.Group("chensong")
 		chensongGroup.Use(chensong.SlMiddleware.ReceiveMiddleWare()).POST("/receive", chensong.SlHandler.ReceiverHandler)

@@ -42,9 +42,9 @@ chensong:
 
   # ---- LNF Agent（QQ 侧，见 agent.md/agent.md §6）----
   # 关键词预过滤：命中且 @ 机器人才触发 agent
-  lnf_keywords: "丢,丢了,丢失,不见了,捡,捡到,拾到,招领,失物,认领"
+  # lnf_keywords 已废弃（2026-10-04：触发不再依赖关键词，可整行删除）
   lnf_cooldown: 60s
-  lnf_group_rate_per_minute: 3
+  lnf_group_rate_per_minute: 10
 
 
 # Agent
@@ -69,8 +69,6 @@ openai:
   agent_match_time_window_days: 30
   agent_default_location_id: 140
   agent_public_base_url: "http://111.229.234.32:8080"
-  agent_reverse_match_enabled: false
-  agent_reverse_match_days: 30
 
 
 # Storage (upload)

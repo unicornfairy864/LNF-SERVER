@@ -28,9 +28,8 @@ type OpenAIConfig struct {
 	AgentPublicBaseURL       string        `mapstructure:"agent_public_base_url"`             // 多模态：图片相对路径（以 "/" 开头）拼接前缀
 	// AgentFillContact 是否把「用户明确给出的」联系方式写入 items.contact（不编造、不推断）。
 	// 指针类型：缺省（未配置）视为 true，显式 false 关闭。
-	AgentFillContact         *bool `mapstructure:"agent_fill_contact"`
-	AgentReverseMatchEnabled bool  `mapstructure:"agent_reverse_match_enabled"` // 反向匹配推送开关（批次 4）
-	AgentReverseMatchDays    int   `mapstructure:"agent_reverse_match_days"`    // 反向匹配回溯天数（批次 4）
+	AgentFillContact *bool `mapstructure:"agent_fill_contact"`
+	// 注：原 agent_reverse_match_*（反向匹配推送）配置已随功能取消而移除（2026-10-04）
 }
 
 // Agent 配置缺省值（字段缺省/非法时回退，见 AgentValues）
@@ -42,13 +41,12 @@ const (
 	AgentDefaultStrongThreshold     = 0.80
 	AgentDefaultAmbiguousThreshold  = 0.50
 	AgentDefaultFollowupMaxRounds   = 1
-	AgentDefaultRateLimitPerMinute  = 3
+	AgentDefaultRateLimitPerMinute  = 10
 	AgentDefaultRateLimitTotalMin   = 30
 	AgentDefaultMatchMinScore       = 2
 	AgentDefaultMatchTimeBeforeDays = 1
 	AgentDefaultMatchTimeWindowDays = 30
 	AgentDefaultLocationID          = int64(140)
-	AgentDefaultReverseMatchDays    = 30
 	AgentDefaultFillContact         = true
 )
 
@@ -70,8 +68,6 @@ type AgentSettings struct {
 	DefaultLocationID   int64
 	PublicBaseURL       string
 	FillContact         bool
-	ReverseMatchEnabled bool
-	ReverseMatchDays    int
 }
 
 // AgentValues 返回归一化后的 Agent 配置
@@ -92,8 +88,7 @@ func (c OpenAIConfig) AgentValues() AgentSettings {
 		MatchTimeWindowDays: c.AgentMatchTimeWindowDays,
 		DefaultLocationID:   c.AgentDefaultLocationID,
 		PublicBaseURL:       c.AgentPublicBaseURL,
-		ReverseMatchEnabled: c.AgentReverseMatchEnabled,
-		ReverseMatchDays:    c.AgentReverseMatchDays,
+		// ReverseMatch* 已随反向匹配推送功能取消而移除（2026-10-04）
 	}
 	if s.Timeout <= 0 {
 		s.Timeout = AgentDefaultTimeout
@@ -133,9 +128,6 @@ func (c OpenAIConfig) AgentValues() AgentSettings {
 	}
 	if s.DefaultLocationID <= 0 {
 		s.DefaultLocationID = AgentDefaultLocationID
-	}
-	if s.ReverseMatchDays <= 0 {
-		s.ReverseMatchDays = AgentDefaultReverseMatchDays
 	}
 	s.PublicBaseURL = trimTrailingSlash(s.PublicBaseURL)
 	// 联系方式：缺省开启（仅写入用户明确给出的值，不编造）；显式 false 关闭

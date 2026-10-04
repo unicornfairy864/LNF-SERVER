@@ -418,7 +418,8 @@ func buildItemResponse(item *model.Item) *model.ItemResponse {
 // ==================== 建帖（复用 ItemService.CreateService 的全部校验） ====================
 
 // createItemFromDraft 按草稿建帖；返回新物品 ID（0 = 已创建但未能定位 ID，此时不返回该字段）
-func createItemFromDraft(userID int64, d *model.AgentDraft, st config.AgentSettings) (int64, response.Code) {
+// fallbackContact 为联系方式兜底（QQ 侧=发送者 QQ 号）；草稿中用户明确给出的 contact 优先
+func createItemFromDraft(userID int64, d *model.AgentDraft, st config.AgentSettings, fallbackContact string) (int64, response.Code) {
 	if d == nil {
 		return 0, response.CodeAgentStageConflict
 	}
@@ -467,9 +468,16 @@ func createItemFromDraft(userID int64, d *model.AgentDraft, st config.AgentSetti
 		CreditReward:   0,
 		TagIDs:         d.TagIDs,
 	}
-	// 联系方式：仅写入用户明确给出的值（开关 openai.agent_fill_contact，缺省开启）
-	if st.FillContact && d.Contact != nil {
-		if c := strings.TrimSpace(*d.Contact); c != "" {
+	// 联系方式：优先用户在对话中明确给出的（草稿 contact）；否则用调用方兜底（QQ 侧=发送者 QQ）
+	// 开关 openai.agent_fill_contact 控制是否写入；缺省开启，不编造
+	contact := d.Contact
+	if contact == nil || strings.TrimSpace(*contact) == "" {
+		if fc := strings.TrimSpace(fallbackContact); fc != "" {
+			contact = &fc
+		}
+	}
+	if st.FillContact && contact != nil {
+		if c := strings.TrimSpace(*contact); c != "" {
 			req.Contact = &c
 		}
 	}

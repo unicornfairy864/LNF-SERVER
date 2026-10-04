@@ -108,7 +108,7 @@ func dropSession(sc sessionScope) {
 }
 
 // HasQQSession QQ 域是否存在进行中的会话
-// 供 QQ 侧判断“确认轮”消息是否放行（确认类消息通常不含关键词，不应被关键词预过滤拦住）
+// 用途：QQ 侧限流判断——第二步「确认/补充信息」应放行，不能被“新会话冷却”挡死
 func HasQQSession(qq string) bool {
 	if qq == "" {
 		return false

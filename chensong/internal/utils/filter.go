@@ -169,7 +169,7 @@ func segmentAtQQ(raw json.RawMessage) (string, bool) {
 	return v, true
 }
 
-// ContainsKeyword 关键词预过滤（逗号分隔，大小写不敏感；空配置视为不过滤）
+// ContainsKeyword 关键词匹配（已废弃：2026-10-04 起触发不再依赖关键词，保留工具函数备用）
 func ContainsKeyword(text, keywords string) bool {
 	text = strings.ToLower(text)
 	for _, kw := range strings.Split(keywords, ",") {
