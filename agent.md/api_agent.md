@@ -889,3 +889,110 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 8. 清单接口只有摘要字段，**没有 `contact`/发布者信息**；需要详情请另调 `/item/:itemID`（注意该接口会使 `view_count+1`）。
 9. `funnel` 各层不嵌套，不能按递减漏斗做校验；`adjacent_ratios` 可 >100。
 10. `return-duration` 的 `approximate` 恒为 `true`，单位为秒；`group_by=none` 时只看 `overall`、`groups` 为 `[]`。
+
+---
+
+## 7. agent 模块（智能助手：对话式发帖 / 找匹配 / 相似推荐）
+
+> 依据：后端代码现状（2026-10-04）。路由 `router/advanced/agent_router.go` + `router/basic/item_router.go`（相似推荐）；处理 `handler/advanced/agent_handler.go` + `handler/basic/item_similar_handler.go`；编排 `agent/orchestrator/*`；契约 `model/basic/agent.go`。
+> 前缀：`/api/v1/agent`（4 个 POST，**需登录**）+ `/api/v1/item/:itemID/similar`（1 个 GET，**无需登录**）。全部走统一 JSON 信封（HTTP 200，成功 `code=0`，失败 `data={}`）。
+
+### 7.1 应用场景（决定你生成什么界面）
+
+| 场景 | 触发方式 | 调用 | 关键返回 |
+|---|---|---|---|
+| **A 一句话发帖** | 用户输入自然语言（陈述句） | `POST /agent/chat` | `stage=need_confirm` + `draft`；下一轮确认/补充后 `stage=created` + `created_item_id` |
+| **B 找匹配** | 用户输入疑问句（「有人捡到…吗」「帮我找找」） | `POST /agent/chat`（或只读 `POST /agent/match`） | `stage=matched` + `matches[].item`；无命中 `stage=no_match` |
+| **C 详情页相似推荐** | 打开物品详情 | `GET /item/:itemID/similar` | `ItemResponse[]` |
+| **D 智能填充表单** | 用户点“智能填写” | `POST /agent/extract` | `draft` 字段灌表单，最后仍走 `/item/create` |
+
+- 后端按句式自动判类，**不要让用户选“发帖还是找东西”**：陈述句/要求登记 → `create_lost|create_found`；疑问句 → `match`。
+- 同一套能力已接入 QQ 群机器人（`activated_group` 内 @机器人 触发，群内先回执“我正在思考”），前端无需实现。
+
+### 7.2 数据模型（新增）
+
+**AgentDraft**（草稿；字段与 `/item/create` 对齐）
+```json
+{ "type": 1, "title": "拾到黑色保温杯", "description": "…", "tag_ids": [33,53], "tag_names": ["水杯","黑色"],
+  "location_id": 30, "location_name": "屏峰校区/图书馆", "location_detail": "三楼", "contact": "12345678",
+  "lost_found_time": "2026-10-03T12:00:00+08:00", "time_from": "…", "time_to": "…",
+  "missing_fields": ["time","contact"], "followup_question": "大概什么时候捡到的？" }
+```
+- `type`：0 失物 / 1 招领；`tag_ids` 必定来自 `tags` 表，可直接提交 `/item/create`
+- `location_id` 可为 `null`（建帖时后端补 `140「其他地点」`）；`location_detail` 只放链路表达不了的细节（楼层/门牌）
+- `missing_fields[]` 取值：`item` / `location` / `location_detail` / `time` / `contact` / `color` / `features`
+- `contact` 仅当用户**明确给出**时存在（QQ 侧自动用发送者 QQ 兜底；API 侧不兜底）
+
+**AgentMatchBrief**
+```json
+{ "item_id": 91, "score": 0.92, "reasons": ["品类一致","颜色一致"], "risk": [], "item": { /* ItemResponse */ } }
+```
+- `item` 即标准 `ItemResponse`（含 `contact`），可直接复用现有卡片组件；`score` ∈ [0,1]；`reasons`/`risk` 可为空数组
+
+**AgentChatResponse**（`/agent/chat`）
+```json
+{ "session_id": "as_…", "stage": "need_confirm", "reply": "…", "intent": "create_found",
+  "questions": ["…"], "matches": [], "similar": [], "draft": { /* AgentDraft */ }, "created_item_id": null }
+```
+- `questions` / `matches` / `similar` 恒为数组（无内容为 `[]`，**不是 null**）；`draft`、`created_item_id` 可能缺省
+- `stage` 枚举：`need_confirm` | `created` | `matched` | `no_match` | `chitchat` | `cancelled`
+- `intent` 枚举：`create_lost` | `create_found` | `match` | `chitchat` | `other`
+
+**AgentMatchResponse**（`/agent/match`）：`{ intent, entities, matches, similar, summary, verdict }`
+- `verdict` 枚举：`strong_match` | `ambiguous` | `no_match`；未命中时 `matches=[]` 且仍为 `code=0`
+
+**AgentExtractResponse**（`/agent/extract`）：`{ intent, is_lnf_context, draft, missing_fields, questions }`
+
+### 7.3 接口明细
+
+#### POST `/agent/chat`（需登录）主入口
+请求：`session_id`(可选) · `text`(必填，≤500 字符) · `image_urls`(可选 ≤3；`/` 开头自动拼公网前缀，也接受公网 URL) · `action`(`auto`|`confirm`|`cancel`)
+
+**会话与两步确认（状态机，必须按此实现）**
+1. 首轮（不带 `session_id`）→ `stage=need_confirm` + `draft` + `reply`（文案已含缺失项与发布规则）
+2. 第二轮（**必须回传 `session_id`**）→
+   - 补充信息 → 合并后**建帖** → `stage=created`
+   - 明确确认（「确认」「可以」…）→ **建帖**
+   - 取消/拒绝（「算了」「不发了」…）→ `stage=cancelled`（**不建帖**）
+   - 其他内容 → `stage=cancelled`（**不建帖**）；LLM 故障 → `code=120002`（不建帖，会话与草稿保留可重试）
+   - 也可直接用 `action=confirm` / `action=cancel` 显式表达
+3. 会话严格模式：不带 `session_id` 调用会**新建并覆盖**旧会话（旧 ID 立即失效）；带错/过期 `session_id` → `120001` 且**不改动**已存会话；TTL 30 分钟（滑动续期）；单会话最多 3 轮用户消息
+
+**限流**：每用户 10 次/分钟 + 全系统 30 次/分钟（三个接口共享计数）→ `120004`
+
+#### POST `/agent/match`（需登录，只读）
+请求 `{ text, image_urls?, top_n? }`（`top_n` 默认 3，最大 10）→ 响应 `AgentMatchResponse`。**不建会话、不建帖、无副作用**。
+
+#### POST `/agent/extract`（需登录，只读）
+请求 `{ text, image_urls? }` → 响应 `AgentExtractResponse`。仅抽取，供表单智能填充。
+
+#### POST `/agent/session/close`（需登录）
+请求 `{ session_id? }` → 关闭当前用户会话（幂等；`session_id` 可空）。
+
+#### GET `/item/:itemID/similar`（无需登录）
+Query `limit`（默认 5，最大 10）→ `data` 为 `ItemResponse[]`：同类型优先、相反类型补齐；**不含自身**；物品不存在/已删除 → `20001`；不调用 LLM、无额外成本。
+
+### 7.4 枚举速查（agent）
+
+| 字段 | 取值 |
+|---|---|
+| `stage` | `need_confirm` / `created` / `matched` / `no_match` / `chitchat` / `cancelled` |
+| `intent` | `create_lost` / `create_found` / `match` / `chitchat` / `other` |
+| `action` | `auto` / `confirm` / `cancel` |
+| `verdict` | `strong_match` / `ambiguous` / `no_match` |
+| `missing_fields[]` | `item` / `location` / `location_detail` / `time` / `contact` / `color` / `features` |
+| 错误码 | `120001` 会话不存在或过期 / `120002` 智能服务不可用 / `120003` 输入不合法 / `120004` 过于频繁 / `120005` 状态不允许 / `120006` 功能未开启 / `120007` **预留（当前不返回）** |
+| 站内通知副作用 | agent 建帖 → `type=0 系统通知`（QQ+API）；**QQ 侧**匹配成功 → `type=1 物品匹配`（API 侧不写） |
+
+### 7.5 陷阱清单（agent）
+
+1. **不要假设“第二轮随便回一句就会发布”**：只有「补充信息」或「明确确认」才建帖，其他内容返回 `stage=cancelled`（不建帖）。
+2. **第二轮必须回传 `session_id`**：不带 = 新会话（覆盖旧会话、草稿丢失）；带错 = `120001`（不会自动新建）。
+3. 三个 `/agent/*` 共享每用户 10 次/分钟限流；`120004` 时不要重试轰炸，提示用户稍后。
+4. `stage=chitchat` 是正常业务态（非错误），`reply` 可直接展示；`stage=no_match` 也是 `code=0`，且 `similar` 可能非空。
+5. `stage=cancelled` 同时用于“用户主动取消”与“确认轮收到无关内容”，可用 `reply` 文案区分语义。
+6. `matches[].item` 含 `contact`（与详情接口同源）；若产品要裁剪隐私，需在这里一并处理。
+7. `draft.location_id=null` 合法（建帖时补 `140「其他地点」`）；展示时 **地点全链 + location_detail**，不要重复拼接。
+8. 极端情况下 `created_item_id` 可能缺省（已建帖但 ID 定位失败）：以 `stage=created` 为准，用“我的发布”列表刷新获取。
+9. 单次 `/agent/chat` 耗时 2~8 秒，**必须**加 loading 与 ≥30s 超时；请求未返回时不要重复提交（会新建/覆盖会话）。
+10. `/item/:itemID/similar` 是公开接口；但**详情接口 `/item/:itemID` 会使 `view_count+1`**，列表渲染时不要顺手调详情。

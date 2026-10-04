@@ -527,7 +527,7 @@ chensong:
 | 2 | API 侧：`/agent/chat`、`/agent/match`、`/agent/extract`、`/agent/session/close` + 召回 + 精排 + 建帖确认 + 多模态 + swagger | ✅ 代码完成（`go build` + `go vet` 通过）；**待用户 run dev + Postman 验收**；Swagger 需用户执行 `swag init` |
 | 3 | QQBOT：前置拦截 + @机器人触发 + 复用主链路 + 回复 + 限流 + 二次确认 + emoji 链路互斥 | ✅ 代码完成（build/vet 通过）；**待用户在真实群验证** |
 | 4 | more：相似帖子推荐接口（`GET /item/{id}/similar`，纯 SQL 无 LLM）+ notification 打通（站内通知） | ✅ 代码完成（2026-10-04，build/vet 通过）；待用户验证 |
-| 5 | 文档同步：`api_guide.md` + `api_agent.md`（不含 common_response_code.md / README） | 待开发 |
+| 5 | 文档同步：`api_guide.md` + `api_agent.md`（不含 common_response_code.md / README） | ✅ **已完成（2026-10-04）**：新增 `api_guide.md` 第十三节（771 行）与 `api_agent.md` §7（999 行），**含完整应用场景表（A 一句话发帖 / B 找匹配 / C 相似推荐 / D QQ 机器人）**、数据模型、两步确认状态机、陷阱清单；评论通知按用户要求未做 |
 | 6（后期） | 管理员自然语言问答（NL→统计，`role≥1`，只读） | 待用户指令 |
 
 ---
@@ -587,3 +587,4 @@ chensong:
 | 2026-10-04 | **批次 4 完成**：① 新增 `GET /item/{itemID}/similar`（公开、纯 SQL、同类型优先+相反类型补齐，默认 5 条最多 10；新文件 `agent/orchestrator/similar.go`、`handler/basic/item_similar_handler.go`，`router/basic/item_router.go` 加一行）；② **notification 打通**：新增 `agent/orchestrator/notify.go`（注入点 `NotifyFn`）——建帖成功写 `type=0 系统通知`（QQ+API）、匹配成功写 `type=1 物品匹配`（仅 QQ，避免与会话响应重复）；绑定处 `NotificationService.Create(0, ...)`（§10、§14） | 待用户验证 |
 | 2026-10-04 | **通知覆盖补充（用户指令）**：① `ClaimService` 新增通知发帖人；② `WithdrawClaimService` 新增通知另一方；③ `ChangeUserRoleService` 新增角色变更通知（type=0）；既有 confirm/close/auto-close 已有通知（§10.2）；其他候选位置已列出待用户确认（未改动） | 已实现 |
 | 2026-10-04 | **#2 认领超时提醒 + #6 积分变动统一（用户指定）**：① 新增 `RemindExpiringClaimsService`（挂入既有定时任务，超时前 2h 提醒发帖人，Redis 去重，新 DAO 文件）；② `ChangeUserCreditRequest` 与认领奖励发分均补 type=5 积分变动通知（含余额）；商城兑换既有已覆盖；**评论通知按用户要求忽略**（§10.3） | 已实现 |
+| 2026-10-04 | **批次 5 完成（文档同步）**：① `api_guide.md` 新增 **第十三节 Agent 智能助手模块**（人类阅读版，含应用场景表、接口清单、两步确认、会话严格模式、12xxxx、建议测试用例 10 条、注意事项）；② `api_agent.md` 新增 **§7 agent 模块**（机读版：7.1 应用场景 / 7.2 数据模型 / 7.3 接口明细 / 7.4 枚举速查 / 7.5 陷阱清单 10 条）；两份文档行尾已统一为 CRLF；顶部“本次新增”已更新 | 已完成 |
