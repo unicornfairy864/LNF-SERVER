@@ -14,37 +14,49 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 	if co == nil {
 		return response.CodeParamError
 	}
-	if co.ParentID != nil {
-		rq := model.CommentsQuery{StartedID: co.ParentID, Limit: 1}
-		oldco, err := dao.CommentDao.GetComments(&rq)
-		if err != nil || oldco == nil {
-			return response.CodeDatabaseError
-		}
-		co.RootID = oldco[0].RootID
-	} else {
-		co.RootID = 0
-	}
 	err := dao.CommentDao.CreateComment(co)
 	if err != nil {
 		return response.CodeDatabaseError
 	}
+	if co.ParentID != nil {
+		rq := model.CommentsQuery{
+			ID: ccrq.ParentID,
+		}
+		oldco, err := dao.CommentDao.GetComments(&rq)
+		if err != nil {
+			return response.CodeDatabaseError
+		}
+		if oldco == nil {
+			return response.CodeCommentNotFound
+		}
+		co.RootID = oldco[0].RootID
+	} else {
+		co.RootID = co.ID
+	}
+	err = dao.CommentDao.InnerUpdate(co)
 	return response.CodeSuccess
 }
 
 // 管理员更新评论状态
 func (c *CommentServiceGroup) UpdateComment(ucrq *model.UpdateCommentRequest) response.Code {
 	qu := model.CommentsQuery{
-		UserID: ucrq.ID,
+		ID: ucrq.ID,
 	}
 	co, err := dao.CommentDao.GetComments(&qu)
 	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if co == nil {
 		return response.CodeCommentNotFound
 	}
 	qu = model.CommentsQuery{
 		RootID: &co[0].RootID,
 	}
 	cos, err := dao.CommentDao.GetComments(&qu)
-	is_child := make(map[int64]*bool, len(cos))
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	is_child := make(map[int64]bool, len(cos))
 	mcos := make(map[int64]*model.Comment, len(cos))
 	for _, item := range cos {
 		mcos[item.ID] = item
@@ -54,7 +66,7 @@ func (c *CommentServiceGroup) UpdateComment(ucrq *model.UpdateCommentRequest) re
 	}
 	ids := []*int64{}
 	for id, isChild := range is_child {
-		if *isChild {
+		if isChild {
 			ids = append(ids, &id)
 		}
 	}
@@ -66,53 +78,85 @@ func (c *CommentServiceGroup) UpdateComment(ucrq *model.UpdateCommentRequest) re
 }
 
 // 获取批量列表
-func (c *CommentServiceGroup) GetList(cgrq *model.CommentGetlistRequestQuery, iid *model.ItemRequestParam) (*model.CommentsListDTO, response.Code) {
-	qu := model.CommentsQuery{
-		ItemID:    &iid.ItemID,
-		StartedID: &cgrq.StartedID,
-		Limit:     cgrq.Limit,
+func (c *CommentServiceGroup) GetList(cgrq *model.CommentGetlistRequestQuery, iid *model.CommentGetListRequestParam) (*model.CommentsListDTO, response.Code) {
+	itemcheck := dao.ItemDao.GetItemByID(iid.ItemID)
+	if itemcheck.ID == 0 {
+		return nil, response.CodeItemNotFound
 	}
-	cos, err := dao.CommentDao.GetComments(&qu)
-	if err != nil {
-		return nil, response.CodeDatabaseError
-	}
+	loop := int64(0)
 	coDTOs := []*model.CommentDTO{}
-	for _, item := range cos {
-		coDTOs = append(coDTOs, item.ToDTO())
+	for {
+		startat := cgrq.StartedID - loop*cgrq.Limit
+		qu := model.CommentsQuery{
+			ItemID:    &iid.ItemID,
+			StartedID: &startat,
+			Limit:     cgrq.Limit,
+		}
+		cos, err := dao.CommentDao.GetComments(&qu)
+		if err != nil {
+			return nil, response.CodeDatabaseError
+		}
+		if cos == nil {
+			rt := model.ToList(len(coDTOs), coDTOs)
+			return rt, response.CodeSuccess
+		}
+		for _, item := range cos {
+			if item.Status == 1 {
+				coDTOs = append(coDTOs, item.ToDTO())
+			}
+			if len(coDTOs) >= int(cgrq.Limit) {
+				rt := model.ToList(len(coDTOs), coDTOs)
+				return rt, response.CodeSuccess
+			}
+		}
+		loop++
 	}
-	rt := model.ToList(len(cos), coDTOs)
-	return rt, response.CodeSuccess
 }
 
 // 获取子评论
-func (c *CommentServiceGroup) GetChildComments(gcrq *model.GetChildrenRequestQuery, iid *model.ItemRequestParam) (*model.CommentsListDTO, response.Code) {
+func (c *CommentServiceGroup) GetChildComments(gcrq *model.GetChildrenRequest) (*model.CommentsListDTO, response.Code) {
+	if gcrq.MaxCount == 0 {
+		gcrq.MaxCount = 100
+	}
 	qu := model.CommentsQuery{
-		ItemID:    &iid.ItemID,
-		StartedID: &gcrq.ID,
-		Limit:     1,
+		ID: &gcrq.ID,
 	}
 	rco, err := dao.CommentDao.GetComments(&qu)
 	if err != nil {
 		return nil, response.CodeDatabaseError
 	}
+	if rco == nil {
+		return nil, response.CodeCommentNotFound
+	}
 	qu = model.CommentsQuery{
 		RootID: &rco[0].RootID,
 	}
 	cos, err := dao.CommentDao.GetComments(&qu)
-	is_child := make(map[int64]*bool, len(cos))
-	depth := make(map[int64]*int64, len(cos))
+	is_child := make(map[int64]bool, len(cos))
+	depth := make(map[int64]int64, len(cos))
 	mcos := make(map[int64]*model.Comment, len(cos))
 	for _, item := range cos {
-		mcos[item.ID] = item
+		if item.Status == 1 {
+			mcos[item.ID] = item
+		}
 	}
-	for _, item := range cos {
+	for _, item := range mcos {
 		isChild(mcos, is_child, depth, item.ID, gcrq.ID)
 	}
-	de := gcrq.Depth
+	de := gcrq.Depth + depth[gcrq.ID]
+	var demax int64
+	for _, item := range depth {
+		if demax < item {
+			demax = item
+		}
+	}
+	if de > demax {
+		de = demax
+	}
 	for {
 		count := int64(0)
 		for id, d := range depth {
-			if *is_child[id] && *d <= de {
+			if is_child[id] && d <= de {
 				count++
 			}
 		}
@@ -126,7 +170,7 @@ func (c *CommentServiceGroup) GetChildComments(gcrq *model.GetChildrenRequestQue
 	}
 	ids := []int64{}
 	for id, ic := range is_child {
-		if *ic == true && *depth[id] <= de {
+		if ic == true && depth[id] <= de && depth[id] > depth[gcrq.ID] {
 			ids = append(ids, id)
 		}
 	}
@@ -145,7 +189,7 @@ func (c *CommentServiceGroup) GetChildComments(gcrq *model.GetChildrenRequestQue
 	return rt, response.CodeSuccess
 }
 
-func isChild(mcos map[int64]*model.Comment, is_child map[int64]*bool, depth map[int64]*int64, id int64, rootID int64) (int64, bool) {
+func isChild(mcos map[int64]*model.Comment, is_child map[int64]bool, depth map[int64]int64, id int64, rootID int64) (int64, bool) {
 	ic, ok := is_child[id]
 	nodp := false
 	de := int64(-1)
@@ -154,30 +198,31 @@ func isChild(mcos map[int64]*model.Comment, is_child map[int64]*bool, depth map[
 	}
 	if ok == true {
 		if !nodp {
-			de = *(depth[id])
+			de = depth[id]
 		}
-		return de, *ic
+		return de, ic
 	}
 
 	if id == rootID {
-		*is_child[id] = true
+		is_child[id] = true
 		ic = is_child[id]
 	}
 
-	if mcos[id].RootID != 0 {
+	if mcos[id].RootID != mcos[id].ID {
 		pde, pic := isChild(mcos, is_child, depth, *mcos[id].ParentID, rootID)
 		if !nodp {
-			*depth[id] = pde + 1
-			de = *depth[id]
+			depth[id] = pde + 1
+			de = depth[id]
 		}
-		if *ic == false {
-			*ic = pic
+		if ic == false {
+			is_child[id] = pic
+			ic = pic
 		}
 	} else {
 		if !nodp {
-			*depth[id] = 0
-			de = *depth[id]
+			depth[id] = 0
+			de = depth[id]
 		}
 	}
-	return de, *ic
+	return de, ic
 }

@@ -846,7 +846,7 @@
         },
         "/api/v1/agent/chat": {
             "post": {
-                "description": "普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。\u003cbr /\u003e\n首轮：自动判类 + 抽取，分为三种走向：\u003cbr /\u003e\n1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；\u003cbr /\u003e\n2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；\u003cbr /\u003e\n3) 闲聊/无关 → chitchat 固定话术。\u003cbr /\u003e\n确认轮：用户回复补充信息（自动合并后直接建帖）、回复「确认」（用草稿建帖，缺地点自动填 agent_default_location_id）、回复「取消」则结束。\u003cbr /\u003e\n建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。\u003cbr /\u003e\naction=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。\u003cbr /\u003e\n错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用",
+                "description": "普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。\u003cbr /\u003e\n首轮：自动判类 + 抽取，分为三种走向：\u003cbr /\u003e\n1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；\u003cbr /\u003e\n2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；\u003cbr /\u003e\n3) 闲聊/无关 → chitchat 固定话术。\u003cbr /\u003e\n确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。\u003cbr /\u003e\n用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。\u003cbr /\u003e\n建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。\u003cbr /\u003e\naction=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。\u003cbr /\u003e\n错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用",
                 "consumes": [
                     "application/json"
                 ],
@@ -1713,6 +1713,221 @@
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{item_id}/comments": {
+            "get": {
+                "description": "无需登录；按 id 降序返回该物品的评论（含根评论与回复，不做 root 过滤）；\u003cbr /\u003estarted_id 为游标：返回 id \u003c= started_id 的评论，缺省或 \u003c=0 表示不限制；limit 为返回条数上限，缺省 0；\u003cbr /\u003e数据库错误返回 6；成功 data 为 {total, comment_dtos}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comment"
+                ],
+                "summary": "公开获取物品评论列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "物品ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页游标：返回 id \u003c= started_id 的评论，缺省或\u003c=0 表示不限",
+                        "name": "started_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回条数上限，缺省0",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.CommentsListDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{item_id}/comments/create": {
+            "post": {
+                "description": "需登录（JWT）；user_id 以登录态为准（请求体 user_id 会被覆盖）；item_id 以请求体为准，路径参数不参与业务校验；\u003cbr /\u003eparent_id 不传时创建根评论（root_id=0），传入时取父评论的 root_id 写入新评论；\u003cbr /\u003e请求体缺字段或 JSON 类型错误返回 1，父评论不存在或数据库错误返回 6；成功 data 为 {}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comment"
+                ],
+                "summary": "创建评论/回复",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "物品ID（路由占位，实际以请求体 item_id 为准）",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "创建评论请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateCommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{item_id}/comments/replies": {
+            "get": {
+                "description": "无需登录；以 query id 定位目标评论（限定在路径 item_id 下），返回其所在评论树中不超过 depth 深度、受 max_count 裁剪的节点（含目标评论本身）；\u003cbr /\u003edepth 缺省 0：0 仅目标评论，1 再含一级回复，以此类推；max_count 为返回节点数上限，缺省 0；裁剪深度降到 0 仍超限返回 1；\u003cbr /\u003e数据库错误返回 6；成功 data 为 {total, comment_dtos}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comment"
+                ],
+                "summary": "公开获取评论回复子树",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "物品ID",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "目标评论ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "展开深度，缺省0（0=仅目标评论本身）",
+                        "name": "depth",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回节点数上限，缺省0",
+                        "name": "max_count",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.CommentsListDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/item/{item_id}/comments/update": {
+            "patch": {
+                "description": "需 serviceAdmin 及以上角色（role\u003e=1）登录；请求体 id、status 均必填（当前未做缺省保护）；\u003cbr /\u003e按 id 定位评论后，对其所在评论树的子树节点批量更新 status；status 取值：0待审核 1正常 2已隐藏；\u003cbr /\u003e评论查询错误返回 110001，数据库错误返回 6；成功 data 为 {}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "comment"
+                ],
+                "summary": "管理员更新评论状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "物品ID（路由占位，当前实现不参与业务校验）",
+                        "name": "item_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新评论请求体",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateCommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
                         }
                     }
                 }
@@ -2990,6 +3205,10 @@
         "model.AgentDraft": {
             "type": "object",
             "properties": {
+                "contact": {
+                    "description": "仅当用户明确给出联系方式时才有值（不编造）",
+                    "type": "string"
+                },
                 "description": {
                     "description": "≤200 字",
                     "type": "string"
@@ -3306,6 +3525,46 @@
                 }
             }
         },
+        "model.CommentDTO": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CommentsListDTO": {
+            "type": "object",
+            "properties": {
+                "comment_dtos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CommentDTO"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.CreateAnnouncementRequest": {
             "type": "object",
             "required": [
@@ -3325,6 +3584,27 @@
                     "type": "string"
                 },
                 "type": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CreateCommentRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "item_id"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "user_id": {
                     "type": "integer"
                 }
             }
@@ -4295,6 +4575,18 @@
                 },
                 "start_date": {
                     "type": "string"
+                }
+            }
+        },
+        "model.UpdateCommentRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "仅管理员或特定场景使用",
+                    "type": "integer"
                 }
             }
         },

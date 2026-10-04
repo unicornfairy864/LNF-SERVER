@@ -19,9 +19,11 @@ func (c *CommentGroup) UpdateComment(ids []*int64, status int8) error {
 
 func (c *CommentGroup) GetComments(cq *model.CommentsQuery) ([]*model.Comment, error) {
 	var cos []*model.Comment
-	var limit int
 	db := global.LNF_DB
 
+	if cq.ID != nil {
+		db = db.Where("id = ?", cq.ID)
+	}
 	if cq.ItemID != nil {
 		db = db.Where("item_id = ?", cq.ItemID)
 	}
@@ -38,13 +40,18 @@ func (c *CommentGroup) GetComments(cq *model.CommentsQuery) ([]*model.Comment, e
 		db = db.Where("id IN ?", *cq.IDs)
 	}
 	if cq.Limit != 0 {
-		limit = int(cq.Limit)
+		db = db.Limit(int(cq.Limit))
 	}
-	db = db.Order("id DESC").Limit(limit).Find(&cos)
+	db = db.Order("id DESC").Find(&cos)
 
 	err := db.Error
 	if err != nil {
 		return nil, err
 	}
 	return cos, nil
+}
+
+func (c *CommentGroup) InnerUpdate(co *model.Comment) error {
+	err := global.LNF_DB.Updates(co).Error
+	return err
 }

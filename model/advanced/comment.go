@@ -66,7 +66,7 @@ func ToList(total int, cDTOs []*CommentDTO) *CommentsListDTO {
 // CreateCommentRequest 创建评论的请求体
 type CreateCommentRequest struct {
 	ItemID   int64  `json:"item_id" binding:"required"`
-	UserID   int64  `json:"user_id" binding:"reqiured"`
+	UserID   int64  `json:"user_id" binding:"required"`
 	ParentID *int64 `json:"parent_id"`
 	Content  string `json:"content" binding:"required"`
 }
@@ -86,8 +86,8 @@ func (r *CreateCommentRequest) ToModel(userID int64) *Comment {
 
 // UpdateCommentRequest 更新评论的请求体
 type UpdateCommentRequest struct {
-	ID     *int64 `json:"id"`
-	Status *int8  `json:"status"` //仅管理员或特定场景使用
+	ID     *int64 `json:"id" binding:"required"`
+	Status *int8  `json:"status" binding:"required"` //仅管理员或特定场景使用
 }
 
 //获取评论列表的请求体
@@ -95,21 +95,20 @@ type CommentGetlistRequestQuery struct {
 	StartedID int64 `form:"started_id"`
 	Limit     int64 `form:"limit"`
 }
+type CommentGetListRequestParam struct {
+	ItemID int64 `param:"item_id"`
+}
 
 //获取子节点的请求体
-type GetChildrenRequestQuery struct {
+type GetChildrenRequest struct {
 	ID       int64 `json:"id" form:"id" binding:"required"`
 	Depth    int64 `json:"depth" form:"depth"`
 	MaxCount int64 `json:"max_count" form:"max_count"` // 总节点数上限
 }
 
-//上两个方法公用的itemid结构体
-type ItemRequestParam struct {
-	ItemID int64 `param:"item_id"`
-}
-
 //dao获取comments的入参结构体
 type CommentsQuery struct {
+	ID        *int64
 	ItemID    *int64
 	RootID    *int64
 	UserID    *int64

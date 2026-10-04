@@ -64,6 +64,9 @@ definitions:
     type: object
   model.AgentDraft:
     properties:
+      contact:
+        description: 仅当用户明确给出联系方式时才有值（不编造）
+        type: string
       description:
         description: ≤200 字
         type: string
@@ -275,6 +278,32 @@ definitions:
     - id
     - status
     type: object
+  model.CommentDTO:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      item_id:
+        type: integer
+      parent_id:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  model.CommentsListDTO:
+    properties:
+      comment_dtos:
+        items:
+          $ref: '#/definitions/model.CommentDTO'
+        type: array
+      total:
+        type: integer
+    type: object
   model.CreateAnnouncementRequest:
     properties:
       content:
@@ -290,6 +319,20 @@ definitions:
     - is_top
     - title
     - type
+    type: object
+  model.CreateCommentRequest:
+    properties:
+      content:
+        type: string
+      item_id:
+        type: integer
+      parent_id:
+        type: integer
+      user_id:
+        type: integer
+    required:
+    - content
+    - item_id
     type: object
   model.CreateGoodRequest:
     properties:
@@ -933,6 +976,14 @@ definitions:
         type: array
       start_date:
         type: string
+    type: object
+  model.UpdateCommentRequest:
+    properties:
+      id:
+        type: integer
+      status:
+        description: 仅管理员或特定场景使用
+        type: integer
     type: object
   model.UpdateGoodRequest:
     properties:
@@ -2037,7 +2088,8 @@ paths:
         1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；<br />
         2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；<br />
         3) 闲聊/无关 → chitchat 固定话术。<br />
-        确认轮：用户回复补充信息（自动合并后直接建帖）、回复「确认」（用草稿建帖，缺地点自动填 agent_default_location_id）、回复「取消」则结束。<br />
+        确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。<br />
+        用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。<br />
         建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。<br />
         action=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。<br />
         错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用
@@ -2201,6 +2253,151 @@ paths:
       summary: 公开获取公告详情
       tags:
       - announcement
+  /api/v1/item/{item_id}/comments:
+    get:
+      consumes:
+      - application/json
+      description: 无需登录；按 id 降序返回该物品的评论（含根评论与回复，不做 root 过滤）；<br />started_id 为游标：返回
+        id <= started_id 的评论，缺省或 <=0 表示不限制；limit 为返回条数上限，缺省 0；<br />数据库错误返回 6；成功 data
+        为 {total, comment_dtos}
+      parameters:
+      - description: 物品ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      - description: 分页游标：返回 id <= started_id 的评论，缺省或<=0 表示不限
+        in: query
+        name: started_id
+        type: integer
+      - description: 返回条数上限，缺省0
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.CommentsListDTO'
+              type: object
+      summary: 公开获取物品评论列表
+      tags:
+      - comment
+  /api/v1/item/{item_id}/comments/create:
+    post:
+      consumes:
+      - application/json
+      description: 需登录（JWT）；user_id 以登录态为准（请求体 user_id 会被覆盖）；item_id 以请求体为准，路径参数不参与业务校验；<br
+        />parent_id 不传时创建根评论（root_id=0），传入时取父评论的 root_id 写入新评论；<br />请求体缺字段或 JSON
+        类型错误返回 1，父评论不存在或数据库错误返回 6；成功 data 为 {}
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 物品ID（路由占位，实际以请求体 item_id 为准）
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      - description: 创建评论请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 创建评论/回复
+      tags:
+      - comment
+  /api/v1/item/{item_id}/comments/replies:
+    get:
+      consumes:
+      - application/json
+      description: 无需登录；以 query id 定位目标评论（限定在路径 item_id 下），返回其所在评论树中不超过 depth 深度、受
+        max_count 裁剪的节点（含目标评论本身）；<br />depth 缺省 0：0 仅目标评论，1 再含一级回复，以此类推；max_count
+        为返回节点数上限，缺省 0；裁剪深度降到 0 仍超限返回 1；<br />数据库错误返回 6；成功 data 为 {total, comment_dtos}
+      parameters:
+      - description: 物品ID
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      - description: 目标评论ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: 展开深度，缺省0（0=仅目标评论本身）
+        in: query
+        name: depth
+        type: integer
+      - description: 返回节点数上限，缺省0
+        in: query
+        name: max_count
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.CommentsListDTO'
+              type: object
+      summary: 公开获取评论回复子树
+      tags:
+      - comment
+  /api/v1/item/{item_id}/comments/update:
+    patch:
+      consumes:
+      - application/json
+      description: 需 serviceAdmin 及以上角色（role>=1）登录；请求体 id、status 均必填（当前未做缺省保护）；<br
+        />按 id 定位评论后，对其所在评论树的子树节点批量更新 status；status 取值：0待审核 1正常 2已隐藏；<br />评论查询错误返回
+        110001，数据库错误返回 6；成功 data 为 {}
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 物品ID（路由占位，当前实现不参与业务校验）
+        in: path
+        name: item_id
+        required: true
+        type: integer
+      - description: 更新评论请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 管理员更新评论状态
+      tags:
+      - comment
   /api/v1/item/{itemID}:
     get:
       consumes:
