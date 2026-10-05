@@ -13,20 +13,20 @@ func (l *CommentRouter) CreateRouter(api *gin.RouterGroup) {
 	//public
 	public := userGroup.Group("")
 	{
-		public.GET("/item/:item_id/comments", handler.CommentHandler.GetListHandler)
-		public.GET("/item/:item_id/comments/replies", handler.CommentHandler.GetChildHandler)
+		public.GET("/item/:itemID/comments", handler.CommentHandler.GetListHandler)
+		public.GET("/item/:itemID/comments/replies", handler.CommentHandler.GetChildHandler)
 	}
 	//private
 	private := userGroup.Group("")
 	private.Use(middleware.JWTAuthMiddleware())
 	{
-		private.POST("/item/:item_id/comments/create", handler.CommentHandler.CreateHandler)
+		private.POST("/item/:itemID/comments/create", handler.CommentHandler.CreateHandler)
 	}
 	//admin
 	admin := userGroup.Group("")
 	admin.Use(middleware.JWTAuthMiddleware())
 	admin.Use(middleware.ServiceAdminAuthMiddleware())
 	{
-		admin.PATCH("/item/:item_id/comments/update", handler.CommentHandler.UpdateHandler)
+		admin.PATCH("/item/:itemID/comments/update", handler.CommentHandler.UpdateHandler)
 	}
 }

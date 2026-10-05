@@ -96,7 +96,7 @@ type CommentGetlistRequestQuery struct {
 	Limit     int64 `form:"limit"`
 }
 type CommentGetListRequestParam struct {
-	ItemID int64 `param:"item_id"`
+	ItemID int64 `uri:"itemID"`
 }
 
 //获取子节点的请求体
