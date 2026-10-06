@@ -14,10 +14,6 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 	if co == nil {
 		return response.CodeParamError
 	}
-	err := dao.CommentDao.CreateComment(co)
-	if err != nil {
-		return response.CodeDatabaseError
-	}
 	if co.ParentID != nil {
 		rq := model.CommentsQuery{
 			ID: ccrq.ParentID,
@@ -26,14 +22,24 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 		if err != nil {
 			return response.CodeDatabaseError
 		}
-		if oldco == nil {
+		if len(oldco) == 0 {
 			return response.CodeCommentNotFound
 		}
 		co.RootID = oldco[0].RootID
-	} else {
-		co.RootID = co.ID
 	}
-	err = dao.CommentDao.InnerUpdate(co)
+
+	err := dao.CommentDao.CreateComment(co)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if co.ParentID == nil {
+		co.RootID = co.ID
+		err = dao.CommentDao.InnerUpdate(co)
+	}
+	if err != nil {
+		dao.CommentDao.InnerDelete(co.ID)
+		return response.CodeDatabaseError
+	}
 	return response.CodeSuccess
 }
 
@@ -92,13 +98,13 @@ func (c *CommentServiceGroup) GetList(cgrq *model.CommentGetlistRequestQuery, ii
 			StartedID: &startat,
 			Limit:     cgrq.Limit,
 		}
+		if startat <= 0 {
+			rt := model.ToList(len(coDTOs), coDTOs)
+			return rt, response.CodeSuccess
+		}
 		cos, err := dao.CommentDao.GetComments(&qu)
 		if err != nil {
 			return nil, response.CodeDatabaseError
-		}
-		if cos == nil {
-			rt := model.ToList(len(coDTOs), coDTOs)
-			return rt, response.CodeSuccess
 		}
 		for _, item := range cos {
 			if item.Status == 1 {

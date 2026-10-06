@@ -19,7 +19,7 @@ func (c *CommentGroup) UpdateComment(ids []*int64, status int8) error {
 
 func (c *CommentGroup) GetComments(cq *model.CommentsQuery) ([]*model.Comment, error) {
 	var cos []*model.Comment
-	db := global.LNF_DB
+	db := global.LNF_DB.Where("is_deleted = ?", 0)
 
 	if cq.ID != nil {
 		db = db.Where("id = ?", cq.ID)
@@ -54,4 +54,8 @@ func (c *CommentGroup) GetComments(cq *model.CommentsQuery) ([]*model.Comment, e
 func (c *CommentGroup) InnerUpdate(co *model.Comment) error {
 	err := global.LNF_DB.Updates(co).Error
 	return err
+}
+
+func (c *CommentGroup) InnerDelete(id int64) {
+	global.LNF_DB.Where("id = ?", id).Update("is_deleted", 1)
 }
