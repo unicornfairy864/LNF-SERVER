@@ -8,7 +8,7 @@ type Comment struct {
 	ItemID    int64     `gorm:"column:item_id;type:bigint;not null;index:idx_item"                                 json:"item_id"` // 物品ID
 	UserID    int64     `gorm:"column:user_id;type:bigint;not null;index:idx_user_created,priority:1"              json:"user_id"` // 评论用户ID
 	RootID    int64     `gorm:"column:root_id;type:bigint"`
-	ParentID  *int64    `gorm:"column:parent_id;type:bigint;index:idx_parent_created,priority:1"                   json:"parent_id"`                                             // 父评论ID（支持回复评论）
+	ParentID  int64     `gorm:"column:parent_id;type:bigint;index:idx_parent_created,priority:1"                   json:"parent_id"`                                             // 父评论ID（支持回复评论）
 	Content   string    `gorm:"column:content;type:text;not null"                                                  json:"content"`                                               // 评论内容（支持 markdown）
 	Status    int8      `gorm:"column:status;type:tinyint;not null;default:1"                                      json:"status"`                                                // 状态: 0待审核 1正常 2已隐藏
 	CreatedAt time.Time `gorm:"column:created_at;type:datetime;not null;autoCreateTime;index:idx_user_created,priority:2;index:idx_parent_created,priority:2" json:"created_at"` // 创建时间
@@ -26,7 +26,7 @@ type CommentDTO struct {
 	ID        int64     `json:"id"`
 	ItemID    int64     `json:"item_id"`
 	UserID    int64     `json:"user_id"`
-	ParentID  *int64    `json:"parent_id"`
+	ParentID  int64     `json:"parent_id"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -79,7 +79,7 @@ func (r *CreateCommentRequest) ToModel(userID int64) *Comment {
 	return &Comment{
 		ItemID:   r.ItemID,
 		UserID:   userID,
-		ParentID: r.ParentID,
+		ParentID: *r.ParentID,
 		Content:  r.Content,
 	}
 }

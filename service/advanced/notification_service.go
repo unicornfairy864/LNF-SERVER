@@ -157,12 +157,11 @@ func (s *NotificationServiceGroup) BatchDelete(ids []int64, userID int64) respon
 //     先积分变动后发货提醒；群内 at 提醒由 chensong 发送）
 func (s *NotificationServiceGroup) Create(adminID, userID int64, ntype int8, title, content string, relatedID *int64) error {
 	n := &model.Notification{
-		AdminID:   adminID,
-		UserID:    userID,
-		Type:      ntype,
-		Title:     title,
-		Content:   content,
-		RelatedID: relatedID,
+		AdminID: adminID,
+		UserID:  userID,
+		Type:    ntype,
+		Title:   title,
+		Content: content,
 	}
 	if err := dao.NotificationDao.Create(n); err != nil {
 		return err

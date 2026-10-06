@@ -14,7 +14,7 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 	if co == nil {
 		return response.CodeParamError
 	}
-	if co.ParentID != nil {
+	if co.ParentID != 0 {
 		rq := model.CommentsQuery{
 			ID: ccrq.ParentID,
 		}
@@ -32,7 +32,7 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 	if err != nil {
 		return response.CodeDatabaseError
 	}
-	if co.ParentID == nil {
+	if co.ParentID == 0 {
 		co.RootID = co.ID
 		err = dao.CommentDao.InnerUpdate(co)
 	}
@@ -215,7 +215,7 @@ func isChild(mcos map[int64]*model.Comment, is_child map[int64]bool, depth map[i
 	}
 
 	if mcos[id].RootID != mcos[id].ID {
-		pde, pic := isChild(mcos, is_child, depth, *mcos[id].ParentID, rootID)
+		pde, pic := isChild(mcos, is_child, depth, mcos[id].ParentID, rootID)
 		if !nodp {
 			depth[id] = pde + 1
 			de = depth[id]

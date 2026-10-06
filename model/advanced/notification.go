@@ -12,8 +12,7 @@ type Notification struct {
 	//  6 商品兑换：兑换成功后写入发货提醒（同上）
 	Type      int8       `gorm:"column:type;not null"                                      json:"type"       comment:"类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换"`
 	Title     string     `gorm:"column:title;type:varchar(100);not null"                   json:"title"      comment:"通知标题"`
-	Content   string     `gorm:"column:content;type:text"                                  json:"content"    comment:"通知内容（支持markdown格式）"`
-	RelatedID *int64     `gorm:"column:related_id"                                         json:"related_id" comment:"关联ID（物品ID/认领ID/评论ID等）"`
+	Content   string     `gorm:"column:content;type:text"                                     json:"related_id" comment:"关联ID（物品ID/认领ID/评论ID等）"`
 	IsRead    int8       `gorm:"column:is_read;not null;default:0"                         json:"is_read"    comment:"是否已读: 0未读 1已读"`
 	ReadAt    *time.Time `gorm:"column:read_at"                                            json:"read_at"    comment:"阅读时间"`
 	CreatedAt time.Time  `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"      json:"created_at" comment:"创建时间"`
@@ -68,12 +67,11 @@ type NotificationItem struct {
 // ToNotification 发送请求转模型
 func ToNotification(r *NotificationSendRequest, adminID, userID int64) *Notification {
 	return &Notification{
-		AdminID:   adminID,
-		UserID:    userID,
-		Type:      *r.Type, // binding required 保证非 nil（0 是合法值）
-		Title:     r.Title,
-		Content:   r.Content,
-		RelatedID: r.RelatedID,
+		AdminID: adminID,
+		UserID:  userID,
+		Type:    *r.Type, // binding required 保证非 nil（0 是合法值）
+		Title:   r.Title,
+		Content: r.Content,
 	}
 }
 
@@ -85,7 +83,6 @@ func ToNotificationResponse(n *Notification) map[string]any {
 		"type":       n.Type,
 		"title":      n.Title,
 		"content":    n.Content,
-		"related_id": n.RelatedID,
 		"is_read":    n.IsRead,
 		"read_at":    n.ReadAt,
 		"created_at": n.CreatedAt,
