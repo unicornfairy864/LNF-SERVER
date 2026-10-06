@@ -229,6 +229,20 @@ func (itemGroup *ItemGroup) WithdrawClaim(itemID int64) (int64, error) {
 	return res.RowsAffected, res.Error
 }
 
+// AdminResetClaimedItem 管理员强制撤回认领（status=1 → 0，清空认领字段；条件更新防并发）
+// SQL 与 WithdrawClaim 相同，但为管理员操作保留独立语义与日志定位
+func (itemGroup *ItemGroup) AdminResetClaimedItem(itemID int64) (int64, error) {
+	res := global.LNF_DB.Model(&model.Item{}).
+		Where("id = ? AND status = 1 AND is_deleted = 0", itemID).
+		Updates(map[string]interface{}{
+			"status":        0,
+			"claim_user_id": nil,
+			"claim_time":    nil,
+			"updated_at":    time.Now(),
+		})
+	return res.RowsAffected, res.Error
+}
+
 // CloseItem 关闭物品（发帖者自己找回，不发积分；status=0/1 → 2，清空认领字段）
 func (itemGroup *ItemGroup) CloseItem(itemID int64) (int64, error) {
 	res := global.LNF_DB.Model(&model.Item{}).

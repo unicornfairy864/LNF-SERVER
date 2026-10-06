@@ -648,6 +648,65 @@ func (itemService *ItemServiceGroup) WithdrawClaimService(userID int64, itemID i
 	return response.CodeSuccess
 }
 
+// notifyAdminResetToParties 管理员强制撤回认领后通知双方（type=3 认领结果，系统触发 adminID=0）。
+// 发布者与认领者各一条；认领者为空时跳过，认领者即发布者时只发一条；
+// 发送失败仅记日志，不影响状态回退主流程
+func notifyAdminResetToParties(item *model.Item, claimUserID int64) {
+	posterContent := fmt.Sprintf("你发布的物品「%s」的认领已被管理员撤销，物品恢复为“已发布”状态，可再次被认领。", item.Title)
+	if err := notificationService.Create(0, item.UserID, notificationTypeClaimResult, "认领已被管理员撤销", posterContent); err != nil {
+		log.Printf("[item] 管理员撤回认领通知发送失败 item_id=%d poster_id=%d: %v", item.ID, item.UserID, err)
+	}
+	if claimUserID == 0 || claimUserID == item.UserID {
+		return
+	}
+	claimerContent := fmt.Sprintf("你认领的物品「%s」的认领已被管理员撤销，物品恢复为“已发布”状态。", item.Title)
+	if err := notificationService.Create(0, claimUserID, notificationTypeClaimResult, "认领已被管理员撤销", claimerContent); err != nil {
+		log.Printf("[item] 管理员撤回认领通知发送失败 item_id=%d claim_user_id=%d: %v", item.ID, claimUserID, err)
+	}
+}
+
+// AdminResetClaimedService 管理员强制将已认领物品（status=1）回退为已发布（status=0）。
+// 权限由路由层 ServiceAdminAuthMiddleware 保证（role>=1，服务管理员与系统管理员均可）。
+// 回退同时清空认领字段（与用户自助撤回 WithdrawClaim 语义一致），并向发布者与认领者双方发送通知。
+// 物品不存在/已删→20001；已关闭→20002；本就已发布（无需回退）→20011；数据库异常→6
+func (itemService *ItemServiceGroup) AdminResetClaimedService(itemID int64) response.Code {
+	item := dao.ItemDao.GetItemByID(itemID)
+	if item.ID == 0 {
+		return response.CodeItemNotFound
+	}
+	if item.Status == itemStatusClosed {
+		return response.CodeItemClosed
+	}
+	if item.Status == itemStatusPublished {
+		return response.CodeItemAlreadyPublished
+	}
+	// 通知对象需在清空认领字段前捕获
+	claimUserID := int64(0)
+	if item.ClaimUserID != nil {
+		claimUserID = *item.ClaimUserID
+	}
+	affected, err := dao.ItemDao.AdminResetClaimedItem(itemID)
+	if err != nil {
+		return response.CodeDatabaseError
+	}
+	if affected == 0 {
+		// 并发下状态已变化，重查给出准确错误
+		item = dao.ItemDao.GetItemByID(itemID)
+		if item.ID == 0 {
+			return response.CodeItemNotFound
+		}
+		if item.Status == itemStatusClosed {
+			return response.CodeItemClosed
+		}
+		if item.Status == itemStatusPublished {
+			return response.CodeItemAlreadyPublished
+		}
+		return response.CodeDatabaseError
+	}
+	notifyAdminResetToParties(&item, claimUserID)
+	return response.CodeSuccess
+}
+
 // ConfirmClaimService 发帖者确认由他人找回：关闭物品并给拾到者加 server.claim_credit 积分
 func (itemService *ItemServiceGroup) ConfirmClaimService(userID int64, itemID int64) response.Code {
 	item := dao.ItemDao.GetItemByID(itemID)

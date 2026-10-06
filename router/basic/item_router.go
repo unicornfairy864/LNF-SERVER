@@ -33,10 +33,12 @@ func (i *ItemRouter) CreateRouter(api *gin.RouterGroup) {
 		private.POST("/:itemID/confirm", handler.ItemHandler.ConfirmClaimHandler)
 		private.POST("/:itemID/close", handler.ItemHandler.CloseSelfHandler)
 	}
-	// Admin（审核/状态流转等管理接口由后续 audit 模块补充）
+	// Admin（其余审核/状态流转管理接口由后续 audit 模块补充）
 	admin := userGroup.Group("/admin")
 	admin.Use(middleware.JWTAuthMiddleware())
 	admin.Use(middleware.ServiceAdminAuthMiddleware())
 	{
+		// 管理员强制撤回认领（status=1 → 0 并通知双方）：服务管理员/系统管理员均可
+		admin.POST("/item/:itemID/reset", handler.ItemHandler.AdminResetClaimedHandler)
 	}
 }

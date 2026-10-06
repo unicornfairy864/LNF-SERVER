@@ -327,3 +327,27 @@ func (itemHandler *ItemHandlerGroup) CloseSelfHandler(c *gin.Context) {
 	}
 	response.Success(c)
 }
+
+// ==================== 管理员 ====================
+
+// AdminResetClaimedHandler 管理员强制将已认领物品回退为已发布
+// @Summary      管理员强制撤回物品认领状态
+// @Description  需 serviceAdmin 及以上角色（role>=1）登录，服务管理员与系统管理员均可；<br />仅可将 status=1（已认领）的物品强制改为 status=0（已发布），同时清空认领人字段，并向发布者与认领者发送通知；<br />物品不存在或已删除返回 20001，已关闭返回 20002，本就已发布返回 20011，物品ID非法返回 1，数据库错误返回 6；成功 data 为 {}
+// @Tags         item
+// @Produce      json
+// @Param        Authorization  header  string  true  "Bearer JWT"
+// @Param        itemID  path  int  true  "物品ID"
+// @Success      200  {object}  response.CommonResponse{}
+// @Router       /api/v1/admin/item/{itemID}/reset [post]
+func (itemHandler *ItemHandlerGroup) AdminResetClaimedHandler(c *gin.Context) {
+	itemID, ok := parseItemID(c)
+	if !ok {
+		return
+	}
+	code := service.ItemService.AdminResetClaimedService(itemID)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.Success(c)
+}
