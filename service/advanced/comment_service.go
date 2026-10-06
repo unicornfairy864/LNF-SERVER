@@ -16,7 +16,7 @@ func (c *CommentServiceGroup) CreateComment(ccrq *model.CreateCommentRequest) re
 	}
 	if co.ParentID != 0 {
 		rq := model.CommentsQuery{
-			ID: ccrq.ParentID,
+			ID: &ccrq.ParentID,
 		}
 		oldco, err := dao.CommentDao.GetComments(&rq)
 		if err != nil {

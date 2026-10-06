@@ -67,7 +67,7 @@ func ToList(total int, cDTOs []*CommentDTO) *CommentsListDTO {
 type CreateCommentRequest struct {
 	ItemID   int64  `json:"item_id" binding:"required"`
 	UserID   int64  `json:"user_id" binding:"required"`
-	ParentID *int64 `json:"parent_id"`
+	ParentID int64  `json:"parent_id"`
 	Content  string `json:"content" binding:"required"`
 }
 
@@ -79,7 +79,7 @@ func (r *CreateCommentRequest) ToModel(userID int64) *Comment {
 	return &Comment{
 		ItemID:   r.ItemID,
 		UserID:   userID,
-		ParentID: *r.ParentID,
+		ParentID: r.ParentID,
 		Content:  r.Content,
 	}
 }
