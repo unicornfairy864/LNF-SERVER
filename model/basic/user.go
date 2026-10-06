@@ -158,13 +158,56 @@ func UserToPublicUserResponse(u *User) *PublicUserResponse {
 	}
 }
 
+// CreditLog 积分变动流水模型（credit_logs）。
+// 2026-10-07：为支撑「我的积分流水」查询补齐主键与列映射。此前该结构仅用于写入
+// （无主键、无 TableName，靠 gorm 命名约定映射 credit_logs）；本次字段类型未变更，
+// 写入路径（dao/user_dao.go AddUserCreditTx）行为不变。
+// 字段说明：related_id 现有写入路径未填充（历史数据恒 NULL）；operator_id 列可空但写入路径恒赋 0；
+// is_deleted 为内部逻辑删除位（查询恒过滤 =0，沿用项目惯例 json:"-" 不外泄）。
 type CreditLog struct {
-	UserID       int64     `json:"user_id"`
+	ID           int64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	UserID       int64     `gorm:"column:user_id;type:bigint;not null;index:idx_user_created,priority:1" json:"user_id"`
+	ChangeAmount int64     `gorm:"column:change_amount;type:int;not null" json:"change_amount"`
+	BeforeAmount int64     `gorm:"column:before_amount;type:int;not null" json:"before_amount"`
+	AfterAmount  int64     `gorm:"column:after_amount;type:int;not null" json:"after_amount"`
+	Type         int64     `gorm:"column:type;type:tinyint;not null" json:"type"`
+	RelatedID    *int64    `gorm:"column:related_id;type:bigint" json:"related_id,omitempty"`
+	Description  string    `gorm:"column:description;type:varchar(255)" json:"description"`
+	OperatorID   int64     `gorm:"column:operator_id;type:bigint" json:"operator_id"`
+	CreatedAt    time.Time `gorm:"column:created_at;type:datetime;not null;default:CURRENT_TIMESTAMP;index:idx_user_created,priority:2" json:"created_at"`
+	IsDeleted    int8      `gorm:"column:is_deleted;type:tinyint;not null;default:0" json:"-"`
+}
+
+// TableName 指定表名
+func (CreditLog) TableName() string {
+	return "credit_logs"
+}
+
+// CreditLogListQuery 我的积分流水查询条件（GET 参数）
+// Type 为指针：0（拾金不昧奖励）是合法值，用指针区分「不筛」与「筛 0」；
+// binding oneof 拦截越界值 → 参数错误；传空串（?type=）会因指针解析失败返回参数错误，不筛请省略参数
+type CreditLogListQuery struct {
+	Type     *int64 `form:"type,omitempty" binding:"omitempty,oneof=0 1 2 3 4"`
+	Page     int    `form:"page,omitempty" binding:"omitempty,min=1"`
+	PageSize int    `form:"page_size,omitempty" binding:"omitempty,min=1,max=100"`
+}
+
+// CreditLogItem 积分流水列表项（对外字段白名单：不含 operator_id / related_id / is_deleted）
+type CreditLogItem struct {
+	ID           int64     `json:"id"`
 	ChangeAmount int64     `json:"change_amount"`
 	BeforeAmount int64     `json:"before_amount"`
 	AfterAmount  int64     `json:"after_amount"`
 	Type         int64     `json:"type"`
+	TypeLabel    string    `json:"type_label"`
 	Description  string    `json:"description"`
-	OperatorID   int64     `json:"operator_id"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// CreditLogListResponse 积分流水分页列表响应（空数据时 logs 为空数组而非 null）
+type CreditLogListResponse struct {
+	Total    int64           `json:"total"`
+	Page     int             `json:"page"`
+	PageSize int             `json:"page_size"`
+	Logs     []CreditLogItem `json:"logs"`
 }

@@ -117,3 +117,32 @@ func (userGroup *UserGroup) AddUserCreditTx(db *gorm.DB, id int64, delta int64, 
 		return nil
 	})
 }
+
+// creditLogListCols 积分流水列表显式列白名单：不含 operator_id / related_id / is_deleted。
+// 既保证内部字段不外泄，也避免把 operator_id 的 NULL 扫描进非指针 int64 导致查询报错
+const creditLogListCols = "id, user_id, change_amount, before_amount, after_amount, type, description, created_at"
+
+// GetCreditLogsByUserID 分页查询用户积分流水（仅本人；is_deleted=0；q.Type 非 nil 时按类型筛选）。
+// 排序 created_at DESC, id DESC：created_at 为秒级 DATETIME，同秒多行需 id 兜底保证翻页稳定；
+// WHERE user_id + ORDER BY created_at 命中既有 idx_user_created，无需新增索引
+func (userGroup *UserGroup) GetCreditLogsByUserID(userID int64, q *model.CreditLogListQuery) (logs []model.CreditLog, total int64, err error) {
+	// 每次调用返回全新条件链，避免 Count 污染后续 Find
+	base := func() *gorm.DB {
+		db := global.LNF_DB.Model(&model.CreditLog{}).
+			Where("user_id = ? AND is_deleted = 0", userID)
+		if q.Type != nil {
+			db = db.Where("type = ?", *q.Type)
+		}
+		return db
+	}
+	if err = base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err = base().
+		Select(creditLogListCols).
+		Order("created_at DESC, id DESC").
+		Offset((q.Page - 1) * q.PageSize).
+		Limit(q.PageSize).
+		Find(&logs).Error
+	return logs, total, err
+}

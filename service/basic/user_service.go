@@ -24,6 +24,12 @@ type UserServiceGroup struct{}
 // （3 认领结果 / 5 积分变动 见 item_service.go 的常量块，同包共享）
 const notificationTypeSystem int8 = 0
 
+// 积分流水列表分页缺省值（上限 100 由 model.CreditLogListQuery 的 binding max=100 拦截）
+const (
+	creditLogDefaultPage     = 1
+	creditLogDefaultPageSize = 10
+)
+
 func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*model.User, response.Code) {
 	// 判断表单是否符合要求
 	if req.Username == "" || req.Nickname == "" || req.Password == "" ||
@@ -367,4 +373,39 @@ func creditLogLabel(logType int64) string {
 	default:
 		return "系统调整"
 	}
+}
+
+// ListCreditLogsService 我的积分流水分页查询（仅本人；type 可选筛选；空列表返回空数组而非 null）。
+// page/page_size 缺省归一化为 1/10；type_label 复用同包 creditLogLabel
+func (userService *UserServiceGroup) ListCreditLogsService(userID int64, q *model.CreditLogListQuery) (*model.CreditLogListResponse, response.Code) {
+	if q.Page <= 0 {
+		q.Page = creditLogDefaultPage
+	}
+	if q.PageSize <= 0 {
+		q.PageSize = creditLogDefaultPageSize
+	}
+	logs, total, err := dao.UserDao.GetCreditLogsByUserID(userID, q)
+	if err != nil {
+		return nil, response.CodeDatabaseError
+	}
+	items := make([]model.CreditLogItem, 0, len(logs))
+	for i := range logs {
+		l := &logs[i]
+		items = append(items, model.CreditLogItem{
+			ID:           l.ID,
+			ChangeAmount: l.ChangeAmount,
+			BeforeAmount: l.BeforeAmount,
+			AfterAmount:  l.AfterAmount,
+			Type:         l.Type,
+			TypeLabel:    creditLogLabel(l.Type),
+			Description:  l.Description,
+			CreatedAt:    l.CreatedAt,
+		})
+	}
+	return &model.CreditLogListResponse{
+		Total:    total,
+		Page:     q.Page,
+		PageSize: q.PageSize,
+		Logs:     items,
+	}, response.CodeSuccess
 }

@@ -28,6 +28,9 @@ func (userRouter *UserRouter) CreateRouter(api *gin.RouterGroup) {
 		private.GET("/me", handler.UserHandler.GetMeHandler)
 		private.POST("/me", handler.UserHandler.GetMeHandler)
 
+		// 积分流水（我的积分变动记录，仅返回本人数据）
+		private.GET("/credit-logs", handler.UserHandler.ListCreditLogsHandler)
+
 		private.POST("/qq/get-code", handler.UserHandler.QQGetCodeHandler)
 		private.POST("/qq/bind", handler.UserHandler.QQBindHandler)
 
