@@ -17,10 +17,10 @@ type CommentHandlerGroup struct{}
 // @Accept       json
 // @Produce      json
 // @Param        Authorization  header  string  true  "Bearer JWT"
-// @Param        item_id        path    int     true  "物品ID（路由占位，实际以请求体 item_id 为准）"
+// @Param        itemID       path    int     true  "物品ID（路由占位，实际以请求体 item_id 为准）"
 // @Param        request        body    model.CreateCommentRequest  true  "创建评论请求体"
 // @Success      200  {object}  response.CommonResponse{}
-// @Router       /api/v1/item/{item_id}/comments/create [post]
+// @Router       /api/v1/item/{itemID}/comments/create [post]
 func (c *CommentHandlerGroup) CreateHandler(g *gin.Context) {
 	req := model.CreateCommentRequest{}
 	if err := g.ShouldBindBodyWithJSON(&req); err != nil {
@@ -43,10 +43,10 @@ func (c *CommentHandlerGroup) CreateHandler(g *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        Authorization  header  string  true  "Bearer JWT"
-// @Param        item_id        path    int     true  "物品ID（路由占位，当前实现不参与业务校验）"
+// @Param        itemID       path    int     true  "物品ID（路由占位，当前实现不参与业务校验）"
 // @Param        request        body    model.UpdateCommentRequest  true  "更新评论请求体"
 // @Success      200  {object}  response.CommonResponse{}
-// @Router       /api/v1/item/{item_id}/comments/update [patch]
+// @Router       /api/v1/item/{itemID}/comments/update [patch]
 func (c *CommentHandlerGroup) UpdateHandler(g *gin.Context) {
 	req := model.UpdateCommentRequest{}
 	if err := g.ShouldBindBodyWithJSON(&req); err != nil {
@@ -67,11 +67,11 @@ func (c *CommentHandlerGroup) UpdateHandler(g *gin.Context) {
 // @Tags         comment
 // @Accept       json
 // @Produce      json
-// @Param        item_id     path   int  true   "物品ID"
+// @Param        itemID    path   int  true   "物品ID"
 // @Param        started_id  query  int  false  "分页游标：返回 id <= started_id 的评论；首次建议传大于全部评论 id 的正数，翻页传本批最后一条 id - 1（缺省 0 可能重复首批）"
 // @Param        limit       query  int  false  "本次返回条数上限，缺省 0（此时至多返回 1 条），请传正整数"
 // @Success      200  {object}  response.CommonResponse{data=model.CommentsListDTO}
-// @Router       /api/v1/item/{item_id}/comments [get]
+// @Router       /api/v1/item/{itemID}/comments [get]
 func (c *CommentHandlerGroup) GetListHandler(g *gin.Context) {
 	qreq := model.CommentGetlistRequestQuery{}
 	preq := model.CommentGetListRequestParam{}
@@ -97,12 +97,12 @@ func (c *CommentHandlerGroup) GetListHandler(g *gin.Context) {
 // @Tags         comment
 // @Accept       json
 // @Produce      json
-// @Param        item_id    path   int  true   "物品ID（路由占位，当前实现不参与校验）"
+// @Param        itemID    path   int  true   "物品ID（路由占位，当前实现不参与校验）"
 // @Param        id         query  int  true   "目标评论ID"
 // @Param        depth      query  int  false  "向下展开层数，缺省0（0=返回空，1=一级回复）"
 // @Param        max_count  query  int  false  "返回节点数上限，缺省0（按100处理）"
 // @Success      200  {object}  response.CommonResponse{data=model.CommentsListDTO}
-// @Router       /api/v1/item/{item_id}/comments/replies [get]
+// @Router       /api/v1/item/{itemID}/comments/replies [get]
 func (c *CommentHandlerGroup) GetChildHandler(g *gin.Context) {
 	qreq := model.GetChildrenRequest{}
 	if err := g.ShouldBindQuery(&qreq); err != nil {
