@@ -136,12 +136,12 @@
       `AutoCloseExpiredClaimsService`（扫描认领超时物品按确认语义自动关闭并发分，单批上限 200；
       由 `initialization.StartClaimAutoCloseScheduler` 每 5 分钟调用，`main.go` 启动）。
       关闭通知（2026-09-30 接入，经 `notifyClaimClosed` 走 notification 模块 `Create`，type=3 认领结果、
-      adminID=0、relatedID=物品ID，失败仅记日志不影响主流程）：超时自动关闭通知发帖者+认领者双方；
+      adminID=0，失败仅记日志不影响主流程）：超时自动关闭通知发帖者+认领者双方；
       手动确认关闭仅通知认领者（确认者=发帖者本人不自我通知）；文案按受益人身份区分积分发放说明；
       `notificationService` 为包内共享实例（user 模块 QQ 绑定也使用），直接依赖 service/advanced
       避免 basic↔service 循环引用。
       `CloseSelfService`（发帖者自行找回关闭，清认领不发分）：关闭前若存在进行中认领（status=1），
-      经 `notifySelfCloseToClaimer` 通知认领者（type=3，adminID=0，relatedID=物品ID，失败仅记日志）；
+      经 `notifySelfCloseToClaimer` 通知认领者（type=3，adminID=0，失败仅记日志）；
       status=0 直接关闭无认领，不通知。
     - `service/advanced/tag_service.go`、`location_service.go`（含 level 计算、链查询、删除双重引用
       检查、改父防环 `isDescendant`）。

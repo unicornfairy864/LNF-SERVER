@@ -219,7 +219,7 @@ const docTemplate = `{
         },
         "/api/v1/admin/notifications": {
             "post": {
-                "description": "发送通知，支持发给全体用户或指定用户，异步执行，admin_id 从登录态提取",
+                "description": "发送通知，支持发给全体用户或指定用户（显式 user_ids 单次上限 1000），异步执行，admin_id 从登录态提取",
                 "consumes": [
                     "application/json"
                 ],
@@ -2151,7 +2151,7 @@ const docTemplate = `{
         },
         "/api/v1/notifications": {
             "get": {
-                "description": "获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页\n分页可能出现重复返回问题，出现问题优先注意这里，解决方法参照公告模块",
+                "description": "获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页\n按 created_at DESC, id DESC 稳定排序，分页不会重复/丢行；limit 上限 100（缺省 10）",
                 "consumes": [
                     "application/json"
                 ],
@@ -2165,7 +2165,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "每页数量",
+                        "description": "每页数量，缺省10，上限100",
                         "name": "limit",
                         "in": "query"
                     },
@@ -2225,7 +2225,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "批量软删除指定通知，跳过自己发给自己的记录，只返回返回码",
+                "description": "批量软删除指定通知，单次最多 200 条，跳过自己发给自己的记录，只返回返回码",
                 "consumes": [
                     "application/json"
                 ],
@@ -2265,7 +2265,7 @@ const docTemplate = `{
         },
         "/api/v1/notifications/read": {
             "put": {
-                "description": "批量将指定通知标记为已读，不限制条数，不返回条数",
+                "description": "批量将指定通知标记为已读，单次最多 200 条，不返回条数",
                 "consumes": [
                     "application/json"
                 ],
@@ -4126,17 +4126,12 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "is_deleted": {
-                    "type": "integer"
-                },
                 "is_read": {
                     "type": "integer"
                 },
                 "read_at": {
+                    "description": "read_at 未读时为 NULL：omitempty → 未读时整个键缺失（前端必须按可选处理）",
                     "type": "string"
-                },
-                "related_id": {
-                    "type": "integer"
                 },
                 "title": {
                     "type": "string"
@@ -4160,8 +4155,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "ids": {
-                    "description": "目标记录ID列表",
+                    "description": "目标记录ID列表，单次 1-200 条",
                     "type": "array",
+                    "maxItems": 200,
                     "minItems": 1,
                     "items": {
                         "type": "integer"
@@ -4204,10 +4200,6 @@ const docTemplate = `{
                     "description": "通知内容",
                     "type": "string"
                 },
-                "related_id": {
-                    "description": "关联ID，可选",
-                    "type": "integer"
-                },
                 "send_to_all": {
                     "description": "是否发给全体用户",
                     "type": "boolean"
@@ -4218,11 +4210,20 @@ const docTemplate = `{
                     "maxLength": 100
                 },
                 "type": {
-                    "description": "通知类型；0（系统通知）是合法值，指针 required：缺字段→1，0 正常读入",
-                    "type": "integer"
+                    "description": "通知类型 0-6；指针 required：缺字段→1，0 正常读入",
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                    ]
                 },
                 "user_ids": {
-                    "description": "目标用户ID列表",
+                    "description": "目标用户ID列表，service 侧上限 1000；send_to_all=true 时必须为空",
                     "type": "array",
                     "items": {
                         "type": "integer"

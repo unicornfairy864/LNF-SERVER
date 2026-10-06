@@ -178,7 +178,7 @@ RedeemGoodsService(userID, goodsID):
    content `你已用 {价格} 积分兑换「{商品名}」（订单号 {订单号}），领取奖励请联系管理员～`
    （引导语与 chensong 群消息口径一致）
 
-- 两条均 relatedID=订单ID、adminID=0；事务提交后同步发送，失败仅记日志不影响兑换结果与响应。
+- 两条均 adminID=0；事务提交后同步发送，失败仅记日志不影响兑换结果与响应。
 - 通知不进兑换事务：`Create` 走全局 DB 连接，且通知失败不应回滚兑换。
 - 群内 at 提醒仍由 chensong 异步发送（`notifyRedeem`）。
 - `model/advanced/notification.go` 与 `notifications.sql` 的 type 注释已补 `6商品兑换`（纯注释，无 DDL）；

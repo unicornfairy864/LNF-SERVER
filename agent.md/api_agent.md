@@ -119,14 +119,19 @@
 // 列表项 NotificationItem
 {"id": 1, "admin_id": 0, "type": 3, "title": "认领已确认", "is_read": 0, "created_at": "..."}
 
-// 详情 Notification
+// 详情 Notification（已读示例）
 {"id": 1, "admin_id": 0, "user_id": 2, "type": 3, "title": "...", "content": "...",
- "related_id": 10, "is_read": 1, "read_at": "...", "created_at": "...", "updated_at": "..."}
+ "is_read": 1, "read_at": "...", "created_at": "...", "updated_at": "..."}
+
+// 详情 Notification（未读示例：read_at 整个键缺失，不是 null）
+{"id": 2, "admin_id": 0, "user_id": 2, "type": 5, "title": "...", "content": "...",
+ "is_read": 0, "created_at": "...", "updated_at": "..."}
 ```
 
 - `type`：`0` 系统通知 / `1` 物品匹配 / `2` 认领申请 / `3` 认领结果 / `4` 评论回复 / `5` 积分变动 / `6` 商品兑换。
-- `related_id` 可空：关联实体 ID（物品 ID / 订单 ID 等），可据此跳转。
 - `admin_id=0` 表示系统触发（QQ 绑定、认领关闭、兑换等自动通知）。
+- `read_at` 带 `omitempty`：**未读时整个键缺失**（不是 `null`）；「未读→自动已读」的那一次详情响应也可能仍缺失（内存副本未回填），判断已读一律用 `is_read`，类型声明用可选。
+- `is_deleted` **不返回**（内部逻辑删除位，`json:"-"`，与 item/user/good/announcement 惯例一致）：列表与详情均无该键，前端无需声明。
 
 ### Good / GoodListResponse（shop）
 
@@ -542,14 +547,14 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 
 | Query | 类型 | 说明 |
 |---|---|---|
-| limit | int | 每页条数，缺省 10（≤0 归位 10） |
+| limit | int | 每页条数，缺省 10（≤0 归位 10；**上限 100**，超出按 100） |
 | offset | int | 偏移量，缺省 0（负数归位 0） |
 | type | int? | 按类型筛选 |
 | is_read | int? | 0 未读 / 1 已读 |
 | admin_id | int64? | 按发布者筛选 |
 
-- 筛选参数不筛就**省略**：`type`/`is_read`/`admin_id` 传 `0` 或空串（如 `type=`）都会被读成 0 并实际参与筛选（不报错），例：`type=0` 只查系统通知。
-- `data` = NotificationItem[]，`created_at DESC`。错误：`60004`。
+- 筛选参数不筛就**省略**：`type`/`is_read`/`admin_id` 传 `0` 或空串（如 `type=`）都会被读成 0 并实际参与筛选（不报错），例：`type=0` 只查系统通知；`type` 超出 0-6、`is_read` 超出 0-1 → `1`（此前越界仅恒空不报错，现为参数错误）。
+- `data` = NotificationItem[]，`created_at DESC, id DESC` 稳定排序（同秒记录翻页不重复/丢行）。错误：`60004`、`1`（枚举越界）。
 
 #### GET `/notifications/unread-count`（private）未读数
 
@@ -557,18 +562,18 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 
 #### GET `/notifications/:id`（private）详情（自动已读）
 
-- `data` = Notification；未读则自动标记已读（响应中 `is_read=1`）并清未读数缓存。
+- `data` = Notification；未读则自动标记已读（响应中 `is_read=1`）并清未读数缓存；若本次是「未读→已读」，响应里 `read_at` 可能仍缺失（下一次请求即为实际时间）。响应不含 `is_deleted`。
 - 错误：`60001` 不存在/非本人、`60006` 标记已读失败、`1` 路径 id 非法。
 
 #### PUT `/notifications/read`（private）批量已读
 
-请求体：`{"ids": [1,2,3]}`（必填且非空）。
+请求体：`{"ids": [1,2,3]}`（必填非空，单次 **1-200 条**，超出 → `1`）。
 
 - 只操作自己的未读记录，静默跳过无关 id；不返回条数。错误：`60006`。
 
 #### DELETE `/notifications`（private）批量删除
 
-请求体：`{"ids": [...]}`（必填且非空）。
+请求体：`{"ids": [...]}`（必填非空，单次 **1-200 条**，超出 → `1`）。
 
 - 软删除自己的通知；**跳过"自己发给自己的记录"**（user_id=admin_id，管理端群发给自己的那条不可删）。错误：`60007`。
 
@@ -578,10 +583,10 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 
 ```json
 {"user_ids": [1,2], "send_to_all": false, "type": 0,
- "title": "string ≤100", "content": "string", "related_id": null}
+ "title": "string ≤100", "content": "string"}
 ```
 
-- `user_ids` 与 `send_to_all` 二选一：同传 → `1`；`send_to_all=false` 且 `user_ids` 空/全无效 → `1`。
+- `user_ids` 与 `send_to_all` 二选一：同传 → `1`；`send_to_all=false` 且 `user_ids` 空/全无效 → `1`；`user_ids` 单次 **>1000** → `1`。
 - `type` 必填，**`0`（系统通知）是合法值**（缺字段才报 `1`，0 不触发参数错误）。
 - 异步执行：**接口立即返回成功，实际写入失败仅记后端日志**（无 `60008` 返回路径）。
 - 错误：`1`（参数）、`2`（role 不足）。
@@ -636,7 +641,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 2. **响应拦截器必须捕获响应头 Authorization 并覆盖 token**（续期机制）。
 3. 图片 URL 相对路径：展示处统一 `imgSrc = BASE_URL + url`；`avatar` 同理。
 4. `/user/batch` 结果**无序**且未命中时 `data: null` → 需按 id 建映射并兜底空数组。
-5. `omitempty` 字段（contact/location_detail/claim_user_id/claim_time/color/address/description/image_url/related_id/read_at/published_at）**可能整个键缺失**，类型定义全部用可选。
+5. `omitempty` 字段（contact/location_detail/claim_user_id/claim_time/color/address/description/image_url/read_at/published_at）**可能整个键缺失**，类型定义全部用可选。
 6. `/item/list`、`/item/mine`、`/item/search` 不传 status 返回 0+1；"已关闭"标签页必须显式 `status=2`；`/item/search` 的 status 必传且禁 2。
 7. item 三接口 `page_size` 51-100 不报错但静默按 10 返回（响应回显你传的值，以 items 长度为准）；`/shop` 两接口上限 100 正常生效。统一传 ≤50 最稳。
 8. item `tag_ids` 是指针语义：编辑表单若允许清空标签，必须**显式传 `[]`**，不能省略字段。
@@ -652,11 +657,11 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 18. confirm 与 close 的区别：confirm 发积分、close 不发；发布者"我找回来了（没人认领）"用 close，"他认领并且真的还我了"用 confirm。
 19. `/admin/add-credit` 的 `operator_id` 由前端显式传入并做身份校验：必须传当前登录管理员的用户 id（可从 `/user/me` 的 `id` 取），传别人或随意值 → `2` 且不执行。
 20. `/item/search` 的条件总数是"剔除计"：不存在/非 level3 的 ID 不计入，`min_match` 超过有效条件总数 → `1`。
-21. 通知相关：`admin_id=0` 的通知是系统触发；批量删除会跳过"管理端群发给自己的那条"，前端勿把它做成可勾选。
+21. 通知相关：`admin_id=0` 的通知是系统触发；批量删除会跳过"管理端群发给自己的那条"，前端勿把它做成可勾选；列表 `limit` 缺省 10、**上限 100**（超出按 100 静默，不报错），`ids` 单次 **1-200**（超出 → `1`），发通知 `user_ids` 单次 **≤1000**（超出 → `1`）。
 22. QQ 绑定验证码会话 3 分钟内最多 3 次比对机会，但**第 4 次提交仍会比对、第 5 次才报 `10011`**；`get-code` 对同一 QQ 的限制以 QQ 号维度判重（`10007`）。
 23. 公告分页与 item 不同：`/announcement`、`/admin/announcement` 的 `page_size` binding 1-100 **上限正常生效**（>100 或负数 → `1`，无 51-100 静默按 10 的坑）；0/缺省 → 10。
 24. 公告 create 的 `type`、`is_top` **必填且 0 也要显式传**（缺字段 → `1`）；update 为指针增量，`{"id": n}` 空增量静默成功；update 的 `status` 仅 1/2（传 0/3 → `90003`，与列表 query 的 `status=0` 含义不同）。
-25. 数值筛选参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` 查历史废弃行）；不筛就省略参数。`POST /admin/notifications` 的 `type=0`（系统通知）合法，缺字段才报 `1`。
+25. 数值筛选参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` 查历史废弃行）；不筛就省略参数。**例外**：notification 的 `type`（仅 0-6）与 `is_read`（仅 0-1）自 2026-10-07 起加了枚举校验，**越界值 → `1`**（此前越界只是恒空、不报错）。`POST /admin/notifications` 的 `type=0`（系统通知）合法、仅接受 0-6，缺字段才报 `1`。
 
 ---
 

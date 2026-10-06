@@ -48,7 +48,7 @@
 | items 索引 | **`FULLTEXT (title,description) WITH PARSER ngram`**（中文召回可用）+ `idx_items_home(is_deleted,type,status,lost_found_time)` |
 | tags | 66 条固定词表（含颜色 12、特征 4）；粒度粗（只有「水杯」无「保温杯」） |
 | locations | 139 条 4 层树：L1 学校 → L2 校区(3) → L3 建筑(84) → L4 宿舍楼号(51)；检索计分只认 L3；**DB 另有 id=140「其他地点」(level=2, parent_id=1)，SQL 文件未收录** |
-| notification | `type=1 物品匹配` 已定义、全项目未使用（原计划用于反向匹配推送，**该功能已于 2026-10-04 取消**，目前无使用方）；`NotificationService.Create(adminID,userID,type,title,content,relatedID)` |
+| notification | `type=1 物品匹配` 已定义、全项目未使用（原计划用于反向匹配推送，**该功能已于 2026-10-04 取消**，目前无使用方）；`NotificationService.Create(adminID,userID,type,title,content)` |
 | 图片 | 本地 `/uploads`，公网 `http://111.229.234.32:8080` |
 | QQ | `chensong` 包；入口 `POST /api/v1/chensong/receive`（HMAC-SHA1）；现有唯一业务=emoji 谐音翻译；client 具备 SendGroupMessage/SendPrivateMessage/GetGroupMemberList |
 | QQ 身份 | `users.qq`（唯一）→ `dao.UserDao.GetUserByQQ` |
@@ -413,10 +413,10 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 | 事件 | 渠道 | 类型 | 文案 |
 |---|---|---|---|
-| **agent 建帖成功** | 站内通知（QQ + API 均写） | `type=0 系统通知` | 智能助手已为你发布信息：「你的<失物/招领>信息「X」已发布，可在“我的发布”中查看或修改。」related_id=物品ID |
-| **agent 匹配到候选** | 站内通知（**仅 QQ**） | `type=1 物品匹配`（此前无使用方） | 「共 N 条，最相关的是「X」。」related_id=首条物品ID |
+| **agent 建帖成功** | 站内通知（QQ + API 均写） | `type=0 系统通知` | 智能助手已为你发布信息：「你的<失物/招领>信息「X」已发布，可在“我的发布”中查看或修改。」 |
+| **agent 匹配到候选** | 站内通知（**仅 QQ**） | `type=1 物品匹配`（此前无使用方） | 「共 N 条，最相关的是「X」。」 |
 
-- 实现：`agent/orchestrator/notify.go` 暴露注入点 `NotifyFn`，由 `initialization/router.go` 绑定 `service.NotificationService.Create(0, userID, ntype, title, content, relatedID)`（与 `CreateItemFn` 同理，避开循环依赖）；未注入或写库失败只记日志，不影响主流程
+- 实现：`agent/orchestrator/notify.go` 暴露注入点 `NotifyFn`，由 `initialization/router.go` 绑定 `service.NotificationService.Create(0, userID, ntype, title, content)`（与 `CreateItemFn` 同理，避开循环依赖）；未注入或写库失败只记日志，不影响主流程
 - **API 侧匹配不写通知**（同一次响应已返回结果，避免重复打扰）；若要改成“全端都写”，改一行判断即可
 - QQ 群内仍以群回复呈现（关键信息 @ 用户 + 昵称），站内通知作为网页端留痕
 
@@ -424,7 +424,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 | 环节 | 位置 | 通知现状 |
 |---|---|---|
-| 申请认领（claim） | `ClaimService` | ✅ **本轮新增**：通知发帖人「有人认领了你的物品」（type=3，related_id=物品ID） |
+| 申请认领（claim） | `ClaimService` | ✅ **本轮新增**：通知发帖人「有人认领了你的物品」（type=3） |
 | 撤回认领（withdraw） | `WithdrawClaimService` | ✅ **本轮新增**：通知另一方（认领者撤回→发帖人；发帖者撤回→认领者）「认领已撤回」 |
 | 确认认领（confirm） | `ConfirmClaimService` | ✅ 既有：通知认领者（失物帖受益人带积分说明） |
 | 发帖者自行关闭（close） | `CloseSelfService` | ✅ 既有：status=1 时通知认领者「认领已结束」 |
@@ -588,3 +588,4 @@ chensong:
 | 2026-10-04 | **通知覆盖补充（用户指令）**：① `ClaimService` 新增通知发帖人；② `WithdrawClaimService` 新增通知另一方；③ `ChangeUserRoleService` 新增角色变更通知（type=0）；既有 confirm/close/auto-close 已有通知（§10.2）；其他候选位置已列出待用户确认（未改动） | 已实现 |
 | 2026-10-04 | **#2 认领超时提醒 + #6 积分变动统一（用户指定）**：① 新增 `RemindExpiringClaimsService`（挂入既有定时任务，超时前 2h 提醒发帖人，Redis 去重，新 DAO 文件）；② `ChangeUserCreditRequest` 与认领奖励发分均补 type=5 积分变动通知（含余额）；商城兑换既有已覆盖；**评论通知按用户要求忽略**（§10.3） | 已实现 |
 | 2026-10-04 | **批次 5 完成（文档同步）**：① `api_guide.md` 新增 **第十三节 Agent 智能助手模块**（人类阅读版，含应用场景表、接口清单、两步确认、会话严格模式、12xxxx、建议测试用例 10 条、注意事项）；② `api_agent.md` 新增 **§7 agent 模块**（机读版：7.1 应用场景 / 7.2 数据模型 / 7.3 接口明细 / 7.4 枚举速查 / 7.5 陷阱清单 10 条）；两份文档行尾已统一为 CRLF；顶部“本次新增”已更新 | 已完成 |
+| 2026-10-07 | **notification 模块整改（用户批准的 8 步方案）**：① **P0** `Notification.Content` 的 json tag 误写为 `related_id` → 修正为 `content`（此前详情接口该字段名错误）；② **P2** 列表排序 `created_at DESC` → `created_at DESC, id DESC`（DATETIME 秒级精度下 OFFSET 翻页重复/丢行）；③ `dao.BatchCreate` 包单事务（修复分批 INSERT 各自提交的“半程投递”）；④ `sendAsync` 加 `recover`（异步段 panic 不再打崩进程），原“并发有风险，炸了优先查这里”占位注释改写为 5 条明细（fire-and-forget / 无界 goroutine / 原子性 / recover / 接受的 Redis 陈旧竞态）；⑤ **Plan B 移除 `related_id`**（`NotificationSendRequest.RelatedID`、`Create` 第 6 参、item/shop/user/agent 全部调用方与 5 份文档）；⑥ 参数硬化：list `limit` 上限 100、`ids` 1-200、`user_ids` ≤1000、`type`/`is_read` 枚举校验；删除死代码 `ToNotificationResponse`/`NotificationIDsResponse`；⑦ **响应字段瘦身**：`Notification.ReadAt` 加 `omitempty`（未读时键缺失，非 `null`）、`IsDeleted` 改 `json:"-"`（内部字段不返回，与 item/user/good/announcement 惯例一致），两份 API 文档同步 | 代码与文档已改完；待用户执行 `go build ./...`、`go vet ./...`、`swag init`（刷新 `docs/`）与手工回归 |

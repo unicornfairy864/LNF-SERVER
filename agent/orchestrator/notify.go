@@ -17,18 +17,17 @@ const (
 )
 
 // NotifyFn 站内通知注入点：由 initialization 在启动时绑定为
-// service.NotificationService.Create(0, userID, ntype, title, content, relatedID)。
+// service.NotificationService.Create(0, userID, ntype, title, content)。
 // 说明：本包不直接 import service/*（会与 chensong 形成循环依赖）。
-var NotifyFn func(userID int64, ntype int8, title, content string, relatedID *int64) error
+var NotifyFn func(userID int64, ntype int8, title, content string) error
 
 // notifyItemCreated 建帖成功后给发帖人写一条站内通知
 func notifyItemCreated(userID int64, draft *model.AgentDraft, itemID int64) {
 	if draft == nil || itemID <= 0 {
 		return
 	}
-	rid := itemID
 	notify(userID, NotifyTypeSystem, "智能助手已为你发布信息",
-		"你的"+typeLabel(draft.Type)+"信息「"+truncateRunes(draft.Title, 40)+"」已发布，可在“我的发布”中查看或修改。", &rid)
+		"你的"+typeLabel(draft.Type)+"信息「"+truncateRunes(draft.Title, 40)+"」已发布，可在“我的发布”中查看或修改。")
 }
 
 // notifyItemMatched 匹配到候选后写一条站内通知
@@ -37,18 +36,17 @@ func notifyItemMatched(userID int64, matches []model.AgentMatchBrief) {
 	if len(matches) == 0 {
 		return
 	}
-	rid := matches[0].ItemID
 	notify(userID, NotifyTypeItemMatch, "为你匹配到可能相关的帖子",
-		"共 "+strconv.Itoa(len(matches))+" 条，最相关的是「"+truncateRunes(matches[0].Item.Title, 40)+"」。", &rid)
+		"共 "+strconv.Itoa(len(matches))+" 条，最相关的是「"+truncateRunes(matches[0].Item.Title, 40)+"」。")
 }
 
 // notify 统一写入：未注入或失败仅记日志，不影响主流程
-func notify(userID int64, ntype int8, title, content string, relatedID *int64) {
+func notify(userID int64, ntype int8, title, content string) {
 	if NotifyFn == nil {
 		log.Printf("[agent] 站内通知未注入，跳过 user_id=%d type=%d", userID, ntype)
 		return
 	}
-	if err := NotifyFn(userID, ntype, title, content, relatedID); err != nil {
+	if err := NotifyFn(userID, ntype, title, content); err != nil {
 		log.Printf("[agent] 站内通知写入失败 user_id=%d type=%d: %v", userID, ntype, err)
 	}
 }

@@ -417,7 +417,7 @@ func claimBeneficiary(item *model.Item) int64 {
 	return 0
 }
 
-// notifyClaimClosed 认领关闭结果通知（type=3 认领结果，系统触发 adminID=0，relatedID=物品ID）。
+// notifyClaimClosed 认领关闭结果通知（type=3 认领结果，系统触发 adminID=0）。
 // auto 区分超时自动关闭与发布者手动确认；isBeneficiary 为接收者是否积分受益人
 // （拾物帖受益人=发帖者，失物帖受益人=认领者）；发送失败仅记日志，不影响关闭/发分主流程
 func notifyClaimClosed(receiverID int64, item *model.Item, credit int64, isBeneficiary bool, auto bool) {
@@ -438,41 +438,38 @@ func notifyClaimClosed(receiverID int64, item *model.Item, credit int64, isBenef
 	} else {
 		content += "。"
 	}
-	relatedID := item.ID
-	if err := notificationService.Create(0, receiverID, notificationTypeClaimResult, title, content, &relatedID); err != nil {
+	if err := notificationService.Create(0, receiverID, notificationTypeClaimResult, title, content); err != nil {
 		log.Printf("[item] 认领关闭通知发送失败 item_id=%d receiver_id=%d: %v", item.ID, receiverID, err)
 	}
 }
 
 // notifySelfCloseToClaimer 发帖者自行找回关闭物品时，通知仍在认领中的认领者
-// （type=3 认领结果，系统触发 adminID=0，relatedID=物品ID；该路径不发积分，
+// （type=3 认领结果，系统触发 adminID=0；该路径不发积分，
 // 与 notifyClaimClosed 的确认/超时语义区分）；发送失败仅记日志，不影响关闭主流程
 func notifySelfCloseToClaimer(claimUserID int64, item *model.Item) {
 	if claimUserID == 0 {
 		return
 	}
 	content := fmt.Sprintf("你认领的物品「%s」已被发布者自行找回并关闭，本次认领结束。", item.Title)
-	relatedID := item.ID
 	if err := notificationService.Create(0, claimUserID, notificationTypeClaimResult,
-		"认领已结束", content, &relatedID); err != nil {
+		"认领已结束", content); err != nil {
 		log.Printf("[item] 自行关闭认领中止通知发送失败 item_id=%d claim_user_id=%d: %v", item.ID, claimUserID, err)
 	}
 }
 
-// notifyClaimApplied 有人认领物品时通知发帖人（type=3 认领结果，系统触发 adminID=0，relatedID=物品ID；
+// notifyClaimApplied 有人认领物品时通知发帖人（type=3 认领结果，系统触发 adminID=0；
 // 发送失败仅记日志，不影响认领主流程）
 func notifyClaimApplied(posterID int64, item *model.Item) {
 	if posterID == 0 {
 		return
 	}
-	relatedID := item.ID
 	content := fmt.Sprintf("你发布的物品「%s」已被其他同学认领，请尽快核实；确认找回请在“我的发布”中确认，若信息不符可撤回该认领。", item.Title)
-	if err := notificationService.Create(0, posterID, notificationTypeClaimResult, "有人认领了你的物品", content, &relatedID); err != nil {
+	if err := notificationService.Create(0, posterID, notificationTypeClaimResult, "有人认领了你的物品", content); err != nil {
 		log.Printf("[item] 认领申请通知发送失败 item_id=%d poster_id=%d: %v", item.ID, posterID, err)
 	}
 }
 
-// notifyClaimWithdrawn 撤回认领后通知另一方（type=3 认领结果，系统触发 adminID=0，relatedID=物品ID）。
+// notifyClaimWithdrawn 撤回认领后通知另一方（type=3 认领结果，系统触发 adminID=0）。
 // actorID 为撤回者：认领者撤回 → 通知发帖人；发帖者撤回 → 通知认领者；发送失败仅记日志
 func notifyClaimWithdrawn(item *model.Item, actorID int64, claimUserID int64) {
 	receiverID := item.UserID
@@ -488,9 +485,8 @@ func notifyClaimWithdrawn(item *model.Item, actorID int64, claimUserID int64) {
 	if receiverIsPoster {
 		role = "你发布的物品"
 	}
-	relatedID := item.ID
 	content := fmt.Sprintf("%s「%s」的认领已被撤回，物品恢复为“已发布”状态，可再次被认领。", role, item.Title)
-	if err := notificationService.Create(0, receiverID, notificationTypeClaimResult, "认领已撤回", content, &relatedID); err != nil {
+	if err := notificationService.Create(0, receiverID, notificationTypeClaimResult, "认领已撤回", content); err != nil {
 		log.Printf("[item] 认领撤回通知发送失败 item_id=%d receiver_id=%d: %v", item.ID, receiverID, err)
 	}
 }
@@ -498,7 +494,7 @@ func notifyClaimWithdrawn(item *model.Item, actorID int64, claimUserID int64) {
 // claimRemindMarkTTL 超时提醒去重 key 存活时间（每个物品只提醒一次）
 const claimRemindMarkTTL = 24 * time.Hour
 
-// notifyCreditReward 认领奖励积分变动通知（type=5 积分变动，系统触发 adminID=0，relatedID=物品ID）。
+// notifyCreditReward 认领奖励积分变动通知（type=5 积分变动，系统触发 adminID=0）。
 // 与 type=3 的认领结果通知并存：前者叙述事件，本条记录积分变动（与商城兑换的双通知风格一致）；
 // 发送失败仅记日志，不影响关闭/发分主流程
 func notifyCreditReward(beneficiaryID int64, credit int64, item *model.Item, auto bool) {
@@ -510,9 +506,8 @@ func notifyCreditReward(beneficiaryID int64, credit int64, item *model.Item, aut
 		reason = "认领超时自动关闭奖励"
 	}
 	balance := dao.UserDao.GetUserByID(beneficiaryID).Credit
-	relatedID := item.ID
 	content := fmt.Sprintf("你的积分增加 %d 分（%s），当前余额 %d 分。", credit, reason, balance)
-	if err := notificationService.Create(0, beneficiaryID, notificationTypeCreditChange, "积分变动", content, &relatedID); err != nil {
+	if err := notificationService.Create(0, beneficiaryID, notificationTypeCreditChange, "积分变动", content); err != nil {
 		log.Printf("[item] 积分变动通知发送失败 item_id=%d user_id=%d: %v", item.ID, beneficiaryID, err)
 	}
 }
@@ -522,10 +517,9 @@ func notifyClaimTimeoutReminder(item *model.Item, remindBefore time.Duration) {
 	if item.UserID == 0 {
 		return
 	}
-	relatedID := item.ID
 	content := fmt.Sprintf("你发布的物品「%s」已被认领；若 %s 内未处理，系统将按“确认由他人找回”自动关闭并发分，请尽快在“我的发布”中确认或撤回认领。",
 		item.Title, humanDuration(remindBefore))
-	if err := notificationService.Create(0, item.UserID, notificationTypeClaimResult, "认领即将超时", content, &relatedID); err != nil {
+	if err := notificationService.Create(0, item.UserID, notificationTypeClaimResult, "认领即将超时", content); err != nil {
 		log.Printf("[item] 认领超时提醒发送失败 item_id=%d poster_id=%d: %v", item.ID, item.UserID, err)
 	}
 }

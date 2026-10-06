@@ -317,22 +317,19 @@ func (shopService *ShopServiceGroup) RedeemGoodsService(userID int64, goodID int
 // notifyRedeemNotifications 兑换成功站内通知（事务提交后同步调用，先 A 后 B，失败仅记日志不影响兑换结果）：
 // A. type=5 积分变动：含变动金额与事务后余额（与响应 credit 同源）；
 // B. type=6 商品兑换：发货提醒，引导语与 chensong 群消息口径一致。
-// 两条均 adminID=0 系统触发、relatedID=订单ID（前端可跳“我的兑换”）
+// 两条均 adminID=0 系统触发
 func notifyRedeemNotifications(order *model.Order, balance int64) {
-	relatedID := order.ID
 	if err := notificationService.Create(0, order.UserID, notificationTypeCreditChange,
 		"积分变动提醒",
 		fmt.Sprintf("你在积分商城兑换商品「%s」，积分 -%d，当前余额 %d 分。",
-			order.GoodsName, order.Price, balance),
-		&relatedID); err != nil {
+			order.GoodsName, order.Price, balance)); err != nil {
 		log.Printf("[shop] 兑换积分变动通知发送失败 order_no=%s user_id=%d: %v",
 			order.OrderNo, order.UserID, err)
 	}
 	if err := notificationService.Create(0, order.UserID, notificationTypeGoodsRedeem,
 		"商品兑换成功",
 		fmt.Sprintf("你已用 %d 积分兑换「%s」（订单号 %s），领取奖励请联系管理员～",
-			order.Price, order.GoodsName, order.OrderNo),
-		&relatedID); err != nil {
+			order.Price, order.GoodsName, order.OrderNo)); err != nil {
 		log.Printf("[shop] 商品兑换通知发送失败 order_no=%s user_id=%d: %v",
 			order.OrderNo, order.UserID, err)
 	}

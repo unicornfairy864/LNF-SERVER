@@ -299,21 +299,22 @@ Query 参数（均可选）：
 ## 七、notification 模块（站内通知）
 
 - 通知类型 `type`：`0` 系统通知 / `1` 物品匹配 / `2` 认领申请 / `3` 认领结果 / `4` 评论回复 / `5` 积分变动 / `6` 商品兑换。
-- `admin_id=0` 表示系统自动触发；`related_id` 为关联实体（物品/订单），可做点击跳转。
+- `admin_id=0` 表示系统自动触发（QQ 绑定、认领关闭、兑换等）。
+- 详情响应字段：`read_at` **未读时整个键缺失**（不是 `null`，前端按可选处理，判断已读用 `is_read`）；内部字段 `is_deleted` **不返回**（列表/详情均无该键）。
 
 ### 用户侧（需登录）
 
 | 接口 | 说明 |
 |---|---|
-| `GET /notifications?limit=10&offset=0` | 我的通知列表（`created_at` 倒序；limit 缺省 10）。`type`/`is_read`/`admin_id` 不筛就**省略**——传 0 或空串（如 `type=`）都会按 0 参与筛选且不报错（`type=0` 只看系统通知） |
+| `GET /notifications?limit=10&offset=0` | 我的通知列表（`created_at DESC, id DESC` 稳定排序；limit 缺省 10、**上限 100**）。`type`/`is_read`/`admin_id` 不筛就**省略**——传 0 或空串（如 `type=`）都会按 0 参与筛选且不报错（`type=0` 只看系统通知）；`type` 超出 0-6、`is_read` 超出 0-1 → `1` |
 | `GET /notifications/unread-count` | 未读数量（int64；有 5 分钟 Redis 缓存，已读/删除后立刻刷新） |
 | `GET /notifications/:id` | 通知详情，**未读会自动标记已读**；不存在/非本人 → `60001` |
-| `PUT /notifications/read` | 批量已读，请求体 `{"ids": [1,2]}`（必填非空）；只操作自己的未读记录 |
-| `DELETE /notifications` | 批量删除（软删），请求体 `{"ids": [...]}`；**"管理端群发给自己的那条"会被跳过不可删** |
+| `PUT /notifications/read` | 批量已读，请求体 `{"ids": [1,2]}`（必填非空，单次 **1-200 条**，超出 → `1`）；只操作自己的未读记录 |
+| `DELETE /notifications` | 批量删除（软删），请求体 `{"ids": [...]}`（单次 **1-200 条**）；**"管理端群发给自己的那条"会被跳过不可删** |
 
 ### 管理侧（role≥1）
 
-- `POST /admin/notifications`：请求体 `{"user_ids": [1,2], "send_to_all": false, "type": 0, "title": "≤100字", "content": "...", "related_id": null}`。
+- `POST /admin/notifications`：请求体 `{"user_ids": [1,2], "send_to_all": false, "type": 0, "title": "≤100字", "content": "..."}`（`user_ids` 单次 **≤1000**，超出 → `1`）。
 - `user_ids` 与 `send_to_all` 二选一（同传、全空或全部为无效 id → `1`）；**`type` 必填，`0`（系统通知）是合法值**；**异步发送，接口立即返回成功**（写入失败只记后端日志，不报错给前端）。
 
 ---
@@ -421,7 +422,7 @@ Query 参数（均可选）：
 7. 用户名/昵称/密码长度限制按**字节**计算（1 汉字=3 字节），前端校验规则需与后端一致；item 标题 ≤100、location_detail ≤200、contact ≤100 同理。
 8. 认领超 24h 自动关闭并发分（每 5 分钟扫描），状态可能无操作自行变化。
 9. item 系接口 page_size 传 51-100 会静默按 10 返回（不报错）；shop、announcement 接口无此问题（上限 100 正常生效）。统一传 ≤50 最稳。
-10. 数值筛选 query 参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` = 查历史废弃行，清理后为空）；不筛请直接省略参数。发通知 `type=0`（系统通知）是合法值，缺字段才报 `1`；注意 update 请求体的 `status=0` 另当别论（`90003`）。
+10. 数值筛选 query 参数（notification `type/is_read/admin_id`、item `type/status`、公告管理列表 `status`）传 `0` 或空串一律按 0 参与筛选且**不报错**（公告 `status=0` = 查历史废弃行，清理后为空）；不筛请直接省略参数。**例外**：notification 的 `type` 只接受 0-6、`is_read` 只接受 0-1，**越界 → `1`**（2026-10-07 起）。发通知 `type=0`（系统通知）是合法值，缺字段才报 `1`；注意 update 请求体的 `status=0` 另当别论（`90003`）。
 
 ---
 
