@@ -7,6 +7,7 @@ import (
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	model "github.com/unicornfairy864/LNF-SERVER/model/basic"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UserGroup struct{}
@@ -65,9 +66,11 @@ func (userGroup *UserGroup) AddUserCreditTx(db *gorm.DB, id int64, delta int64, 
 	}
 
 	return db.Transaction(func(tx *gorm.DB) error {
-		// 加行锁读取当前用户积分，防止并发丢失更新
+		// 加行锁读取当前用户积分，防止并发丢失更新。
+		// 注意：Set("gorm:query_option", "FOR UPDATE") 是 GORM v1 写法，v2 已移除该语义且会静默忽略
+		// （即修复前行锁从未生效）；v2 必须用 clause.Locking，且须在事务内执行才真正加锁。
 		var user model.User
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").
+		if err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
 			Where(ConditionIDNotDeleted, id).
 			First(&user).Error; err != nil {
 			return err
