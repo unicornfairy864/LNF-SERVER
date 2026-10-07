@@ -23,6 +23,11 @@ import (
 // 会与本包形成循环依赖，批次 3 的 QQ 侧将无法复用本包。
 var CreateItemFn func(userID int64, req *model.CreateItemRequest) response.Code
 
+// SetItemImagesFn 物品图片绑定注入点：由 initialization 在启动时绑定为
+// service.ItemService.SetImagesService（与 CreateItemFn 同理，避免循环依赖）。
+// 用途（2026-10-07）：API 侧前端在会话中携带的图片，建帖成功后自动绑定到新物品。
+var SetItemImagesFn func(userID int64, itemID int64, req *model.SetItemImagesRequest) response.Code
+
 // ==================== 抽取（LLM #1：判类 + 信息抽取） ====================
 
 // extractOutcome 抽取结果 + 词表快照（保证校验与后续渲染使用同一份词表）
@@ -490,6 +495,29 @@ func createItemFromDraft(userID int64, d *model.AgentDraft, st config.AgentSetti
 		return 0, code
 	}
 	return locateCreatedItem(userID, title), response.CodeSuccess
+}
+
+// bindItemImages 把会话携带的图片绑定到新建物品（覆盖式，复用 SetImagesService 的全部校验：
+// 归属 / 数量≤3 / 顺序 1..3 / URL 非空≤500）。绑定失败仅记日志，不影响建帖结果。
+func bindItemImages(userID, itemID int64, paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+	if itemID <= 0 {
+		log.Printf("[agent] 未能定位新建物品 ID，图片未绑定 user_id=%d paths=%v", userID, paths)
+		return
+	}
+	if SetItemImagesFn == nil {
+		log.Printf("[agent] 图片绑定函数未注入，跳过绑定 item_id=%d", itemID)
+		return
+	}
+	images := make([]model.ItemImageInput, 0, len(paths))
+	for i, p := range paths {
+		images = append(images, model.ItemImageInput{ImageURL: p, SortOrder: int8(i + 1)})
+	}
+	if code := SetItemImagesFn(userID, itemID, &model.SetItemImagesRequest{Images: images}); code != response.CodeSuccess {
+		log.Printf("[agent] 图片绑定失败 user_id=%d item_id=%d code=%d paths=%v", userID, itemID, code, paths)
+	}
 }
 
 // locateCreatedItem 定位刚创建的物品 ID（CreateService 不返回 ID；

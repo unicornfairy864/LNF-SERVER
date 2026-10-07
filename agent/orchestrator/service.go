@@ -178,6 +178,11 @@ func (s *ServiceGroup) chat(sc sessionScope, userID int64, req *model.AgentChatR
 		sess = &sessionState{SessionID: newSessionID()}
 		saveSession(sc, sess, st.SessionTTL)
 	}
+	// 图片继承（2026-10-07 用户裁定）：请求携带的图片（≤3）逐轮并入会话，
+	// 建帖成功后绑定到新物品；QQ 侧不携带图片 → 恒为空。
+	if imgs := itemImagePaths(req.ImageURLs); len(imgs) > 0 {
+		sess.Images = mergeImagePaths(sess.Images, imgs)
+	}
 
 	// 显式动作优先
 	switch action {
@@ -339,9 +344,13 @@ func (s *ServiceGroup) finishCreate(sc sessionScope, userID int64, sess *session
 		saveSession(sc, sess, st.SessionTTL)
 		return nil, code
 	}
+	// 图片绑定（2026-10-07 用户裁定）：会话携带的图片绑定到新物品（复用 SetImagesService 校验）；
+	// 绑定失败仅记日志，不阻断建帖
+	bindItemImages(userID, itemID, sess.Images)
 	sess.Stage = model.AgentStageCreated
 	sess.CreatedItemID = itemID
 	sess.Draft = nil
+	sess.Images = nil
 	saveSession(sc, sess, st.SessionTTL)
 	resp := &model.AgentChatResponse{
 		SessionID: sess.SessionID,
@@ -391,6 +400,50 @@ func prepareInput(text string, imageURLs []string, st config.AgentSettings) (str
 		}
 	}
 	return t, images, response.CodeSuccess
+}
+
+// itemImagePaths 提取「可绑定到物品」的图片路径（保留原值：相对路径 /uploads/... 或 http(s) URL）。
+// 与 prepareInput 的差异：不做公网前缀拼接（绑定入库用原值）；校验口径一致（≤500、≤3、去重）。
+func itemImagePaths(raw []string) []string {
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]string, 0, 3)
+	for _, r := range raw {
+		u := strings.TrimSpace(r)
+		if u == "" || len(u) > 500 {
+			continue
+		}
+		if !strings.HasPrefix(u, "/") && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+			continue
+		}
+		if _, dup := seen[u]; dup {
+			continue
+		}
+		seen[u] = struct{}{}
+		out = append(out, u)
+		if len(out) >= 3 {
+			break
+		}
+	}
+	return out
+}
+
+// mergeImagePaths 会话图片合并（去重、保序、上限 3）：用于多轮对话中图片的继承
+func mergeImagePaths(existing, add []string) []string {
+	merged := make([]string, 0, 3)
+	seen := make(map[string]struct{}, 3)
+	for _, group := range [][]string{existing, add} {
+		for _, u := range group {
+			if _, dup := seen[u]; dup {
+				continue
+			}
+			seen[u] = struct{}{}
+			merged = append(merged, u)
+			if len(merged) >= 3 {
+				return merged
+			}
+		}
+	}
+	return merged
 }
 
 // ==================== 回复动作判定（快速词表，命中即不调用 LLM） ====================

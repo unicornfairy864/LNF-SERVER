@@ -33,6 +33,8 @@ func InitRouter() (r *gin.Engine) {
 
 		// Agent 编排层依赖注入：建帖复用 ItemService.CreateService（避免 orchestrator 直接 import service 造成循环依赖）
 		orchestrator.CreateItemFn = service.ItemService.CreateService
+		// 图片绑定注入：API 侧会话携带的图片在建帖成功后绑定到新物品（复用 SetImagesService 的校验）
+		orchestrator.SetItemImagesFn = service.ItemService.SetImagesService
 		// Agent 站内通知注入：NotificationService.Create(adminID=0, ...)——建帖成功(type=0) / 匹配成功(type=1)
 		orchestrator.NotifyFn = func(userID int64, ntype int8, title, content string) error {
 			return service.NotificationService.Create(0, userID, ntype, title, content)

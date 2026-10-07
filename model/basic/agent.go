@@ -25,7 +25,7 @@ const (
 type AgentChatRequest struct {
 	SessionID string   `json:"session_id,omitempty"` // 空 = 新会话；否则续会话
 	Text      string   `json:"text" binding:"required"`
-	ImageURLs []string `json:"image_urls,omitempty"` // 可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url
+	ImageURLs []string `json:"image_urls,omitempty"` // 可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url 供多模态；建帖成功时自动绑定为物品图片
 	Action    string   `json:"action,omitempty"`     // auto | confirm | cancel
 }
 

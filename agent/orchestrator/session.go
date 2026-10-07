@@ -46,6 +46,7 @@ type sessionState struct {
 	Stage         string            `json:"stage"`
 	Intent        string            `json:"intent"`
 	Draft         *model.AgentDraft `json:"draft,omitempty"`
+	Images        []string          `json:"images,omitempty"` // 会话携带的图片（原值：/uploads/... 或 http(s)；建帖成功时绑定，≤3；QQ 侧恒空）
 	Rounds        int               `json:"rounds"`
 	CreatedItemID int64             `json:"created_item_id,omitempty"`
 	UpdatedAt     time.Time         `json:"updated_at"`

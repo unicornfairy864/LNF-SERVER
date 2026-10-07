@@ -951,7 +951,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 ### 7.3 接口明细
 
 #### POST `/agent/chat`（需登录）主入口
-请求：`session_id`(可选) · `text`(必填，≤500 字符) · `image_urls`(可选 ≤3；`/` 开头自动拼公网前缀，也接受公网 URL) · `action`(`auto`|`confirm`|`cancel`)
+请求：`session_id`(可选) · `text`(必填，≤500 字符) · `image_urls`(可选 ≤3；`/` 开头自动拼公网前缀，也接受公网 URL；**建帖成功时自动绑定为物品图片**) · `action`(`auto`|`confirm`|`cancel`)
 
 **会话与两步确认（状态机，必须按此实现）**
 1. 首轮（不带 `session_id`）→ `stage=need_confirm` + `draft` + `reply`（文案已含缺失项与发布规则）

@@ -368,6 +368,9 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 | `description` | LLM 依据原文复述，禁止脑补 |
 
 **建帖归属与落点**：复用 `service.ItemService.CreateService(userID, req)`（保留全部既有校验）；API 用 JWT 用户，QQ 用 `users.qq` 命中的用户。
+
+**图片绑定（2026-10-07 用户裁定）**：API 侧请求携带的 `image_urls`（≤3、去重、保留原值）**逐轮并入会话**（`sessionState.Images`），**建帖成功后自动绑定为物品图片**（新增注入点 `orchestrator.SetItemImagesFn` → `service.ItemService.SetImagesService`，复用归属/数量≤3/顺序 1..3/URL 非空≤500 全部校验；绑定失败仅记日志，不阻断建帖）；QQ 侧不携带图片（恒为空）。
+
 **建帖后**：返回 `created_item_id`；QQ 侧回复文案含物品 id/链接；站内通知按需（建帖成功通知本人，属批次 4 范围）。
 
 ---
@@ -591,3 +594,4 @@ chensong:
 | 2026-10-07 | **notification 模块整改（用户批准的 8 步方案）**：① **P0** `Notification.Content` 的 json tag 误写为 `related_id` → 修正为 `content`（此前详情接口该字段名错误）；② **P2** 列表排序 `created_at DESC` → `created_at DESC, id DESC`（DATETIME 秒级精度下 OFFSET 翻页重复/丢行）；③ `dao.BatchCreate` 包单事务（修复分批 INSERT 各自提交的“半程投递”）；④ `sendAsync` 加 `recover`（异步段 panic 不再打崩进程），原“并发有风险，炸了优先查这里”占位注释改写为 5 条明细（fire-and-forget / 无界 goroutine / 原子性 / recover / 接受的 Redis 陈旧竞态）；⑤ **Plan B 移除 `related_id`**（`NotificationSendRequest.RelatedID`、`Create` 第 6 参、item/shop/user/agent 全部调用方与 5 份文档）；⑥ 参数硬化：list `limit` 上限 100、`ids` 1-200、`user_ids` ≤1000、`type`/`is_read` 枚举校验；删除死代码 `ToNotificationResponse`/`NotificationIDsResponse`；⑦ **响应字段瘦身**：`Notification.ReadAt` 加 `omitempty`（未读时键缺失，非 `null`）、`IsDeleted` 改 `json:"-"`（内部字段不返回，与 item/user/good/announcement 惯例一致），两份 API 文档同步 | 代码与文档已改完；待用户执行 `go build ./...`、`go vet ./...`、`swag init`（刷新 `docs/`）与手工回归 |
 | 2026-10-07 | **召回门槛取消（用户裁定）**：删除「tag+location 契合度 ≥ `agent_match_min_score`(2)」硬性规定——原「严格/模糊」双模式合一，所有查询统一为**无分数门槛**口径（仅要求标签/地点命中或全文命中至少其一，排序后交 LLM 精排）；`config/openai_config.go` 移除 `AgentMatchMinScore` 字段/缺省值/归一化，`dao/agent_recall_dao.go` 删除 `MinScore`/`Fuzzy` 参数与严格分支，`agent/orchestrator/pipeline.go`（runMatch/recallSimilar）与 `similar.go` 三处调用点同步；§7、§12 已更新（config.yaml 中该行待用户手动删除，旧键残留不报错）；`go build ./...` + `go vet ./...` 通过 | 已实现 |
 | 2026-10-07 | **召回兜底（用户裁定：方案 B）**：主召回（相反类型）为空 → **同类型兜底召回**（复用相似区逻辑：同条件、≤2 条、不精排），结果放 `similar`；no_match 文案改为「未找到匹配，但找到 N 条相关帖子」。改动：`agent/orchestrator/pipeline.go`（runMatch 早退处）、`reply.go`（+`renderNoMatchWithRelated`）、`service.go`（按 `similar` 是否非空选文案）、`handler/advanced/agent_handler.go`（swag 注释，待用户 `swag init`）；§4/§7 已同步；`go build ./...` + `go vet ./...` 通过。**排查背景**：QQ 提问「有没有关于丢一个“精小弘”的帖子」必然 no_match——失物帖 id=22 不在主候选池（主召回只搜招领帖）、且唯一相关招领帖 id=20 因 `status=2`（已关闭）被状态过滤；**另发现**：QQ 侧 matched/no_match 回复只有文案、不带帖子列表（文档 §6「物品 id、链接」设计未实现，既有缺口，待用户裁定是否补） | 已实现 |
+| 2026-10-07 | **图片绑定（用户裁定）**：API 侧请求携带的 `image_urls`（≤3）逐轮并入会话（新字段 `sessionState.Images`，去重保序），**建帖成功后自动绑定为物品图片**（新增注入点 `orchestrator.SetItemImagesFn` → `service.ItemService.SetImagesService`，复用归属/数量/顺序/URL 长度全部校验；失败仅记日志不阻断建帖；QQ 侧恒为空）。改动：`agent/orchestrator/{pipeline,service,session}.go`、`initialization/router.go`、`model/basic/agent.go`（注释）、`handler/advanced/agent_handler.go`（swag 注释，待 `swag init`）；§8 与两份 API 文档已同步；`go build ./...` + `go vet ./...` 通过 | 已实现 |
