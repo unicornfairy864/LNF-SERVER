@@ -9,7 +9,7 @@
 | Q1 | `items.status` 三态：`0已发布（默认，创建即免审核） 1已认领 2已关闭`；同步修正 `items.sql` 过时索引注释                                                  |
 | Q2 | Item↔Tag 关联：创建/更新 item 时传 `tag_ids` 数组（方案 A）                                                                                              |
 | Q3 | 图片：独立接口 `POST /item/:itemID/images` 覆盖式设置（方案 A），与 item 提交分离                                                                        |
-| Q4 | 不设 admin 的 item 状态接口；`ChangeItemStatusRequest` 已由用户删除                                                                                      |
+| Q4 | **已于 2026-10-07 变更**：新增管理员强制撤回认领接口（role≥1，`POST /api/v1/admin/item/:itemID/reset`，status=1→0 并通知双方，见 §七）；`ChangeItemStatusRequest` 仍不恢复                                                                                      |
 | Q5 | `ServiceAdminAuthMiddleware` 读取 `jwt:role` 的 bug 已由用户修复（role≥1 放行）                                                                          |
 | Q6 | `CreateLocationRequest` 放宽 binding：允许 `parent_id=0`（根节点）、`sort_order=0`；`level` 由 service 计算                                              |
 | Q7 | 删除策略：表无 `is_deleted` 则硬删除；location 删除检查 **items.location_id 引用 + 子元素**；tag 删除检查 **item_tags 引用**；`agent.md/item.txt` 已删除 |
@@ -136,21 +136,21 @@
       `AutoCloseExpiredClaimsService`（扫描认领超时物品按确认语义自动关闭并发分，单批上限 200；
       由 `initialization.StartClaimAutoCloseScheduler` 每 5 分钟调用，`main.go` 启动）。
       关闭通知（2026-09-30 接入，经 `notifyClaimClosed` 走 notification 模块 `Create`，type=3 认领结果、
-      adminID=0、relatedID=物品ID，失败仅记日志不影响主流程）：超时自动关闭通知发帖者+认领者双方；
+      adminID=0，失败仅记日志不影响主流程）：超时自动关闭通知发帖者+认领者双方；
       手动确认关闭仅通知认领者（确认者=发帖者本人不自我通知）；文案按受益人身份区分积分发放说明；
       `notificationService` 为包内共享实例（user 模块 QQ 绑定也使用），直接依赖 service/advanced
       避免 basic↔service 循环引用。
       `CloseSelfService`（发帖者自行找回关闭，清认领不发分）：关闭前若存在进行中认领（status=1），
-      经 `notifySelfCloseToClaimer` 通知认领者（type=3，adminID=0，relatedID=物品ID，失败仅记日志）；
+      经 `notifySelfCloseToClaimer` 通知认领者（type=3，adminID=0，失败仅记日志）；
       status=0 直接关闭无认领，不通知。
     - `service/advanced/tag_service.go`、`location_service.go`（含 level 计算、链查询、删除双重引用
       检查、改父防环 `isDescendant`）。
     - `service/enter.go` 注册 `ItemService/TagService/LocationService`。
-6. **handler**：`basic/item_handler.go`（含认领/关闭 4 个 handler）、`advanced/location_handler.go`、
+6. **handler**：`basic/item_handler.go`（含认领/关闭 4 个 + 管理员撤回 1 个 handler）、`advanced/location_handler.go`、
    `advanced/tag_handler.go`；**每个 handler 上方完整 swagger 注释**（@Summary/@Tags/@Accept/@Produce/
    @Param/@Success/@Router，路径含 `/api/v1` 前缀）；`handler/enter.go` 注册 `TagHandler`。
 7. **router**
-    - `basic/item_router.go`：按总表注册（public/private；admin 组保留空壳待 audit 模块）。
+    - `basic/item_router.go`：按总表注册（public/private）；admin 组已启用，注册管理员强制撤回认领接口（见 §七）。
     - `advanced/location_router.go`：分组与 `:itemID` 已修正。
     - `advanced/tag_router.go`。
     - `router/enter.go`、`initialization/router.go` 注册 `ItemRouter/TagRouter`。
@@ -217,3 +217,50 @@
 - `handler/basic/item_handler.go`：`SearchItemHandler`（含 swagger 注释）。
 - `router/basic/item_router.go`：public 组注册 `GET /item/search`（静态路径与 `/:itemID` 并存无冲突）。
 - 验证：`go build ./...`、`go vet ./...` 通过；swagger 文档需重新 `swag init`（待用户批准）。
+
+## 七、管理员强制撤回认领（2026-10-07 新增）
+
+> 变更说明：原 Q4「不设 admin 的 item 状态接口」的决定**已作废**，本次新增唯一的管理员 item 状态接口。
+> `router/basic/item_router.go` 的 `/admin` 组（JWT + `ServiceAdminAuthMiddleware`）此前为空壳，本次启用。
+
+### 接口
+
+| 方法 | 路径 | Handler | 权限 |
+|---|---|---|---|
+| POST | `/api/v1/admin/item/:itemID/reset` | `ItemHandler.AdminResetClaimedHandler` | JWT + `ServiceAdminAuthMiddleware`（role≥1，服务管理员与系统管理员均可） |
+
+- 无请求体；仅路径参数 `itemID`（须为正整数，否则 `1`）。
+- 语义：`items.status` 由 `1`（已认领）强制改为 `0`（已发布），条件更新
+  `WHERE id=? AND status=1 AND is_deleted=0`，同一语句清空 `claim_user_id`、`claim_time` 并刷新 `updated_at`
+  （与用户自助撤回 `WithdrawClaim` 一致）。
+- 成功响应：HTTP 200、`code=0`、`data={}`。
+
+### 错误映射
+
+| 场景 | code |
+|---|---|
+| `itemID` 非正整数 | `1` |
+| 未登录 / role=0 | `2` |
+| 物品不存在或 `is_deleted=1` | `20001` |
+| `status=2`（已关闭） | `20002` |
+| `status=0`（本就已发布，无需回退） | `20011` |
+| 并发致 `RowsAffected=0` | 重查后按上述三态归位；仍无法判断则 `6` |
+| 其他数据库异常 | `6` |
+
+> `20011 CodeItemAlreadyPublished`（“物品已发布”）原为预留码，本次首次启用，**未新增错误码**。
+
+### 通知
+
+- 状态回退成功后向**发布者**与**认领者**各发一条站内通知：`type=3`（认领结果）、`admin_id=0`（系统触发）。
+- 认领者为空时跳过；认领者==发布者时去重，仅发一条。
+- 写入失败仅记日志（`log.Printf`），**不阻塞/不回滚**状态回退（沿用 item 模块既有约定）。
+
+### 实现落点
+
+- `dao/item_dao.go`：`AdminResetClaimedItem`。
+- `service/basic/item_service.go`：`AdminResetClaimedService`、`notifyAdminResetToParties`。
+- `handler/basic/item_handler.go`：`AdminResetClaimedHandler`（含 swagger 注释）。
+- `router/basic/item_router.go`：admin 组注册路由。
+- `model/basic/item.go`、`response/response_code.go`、`model/mysql/**`：**无改动**。
+- Swagger 需由用户重新执行 `swag init`；`docs/`、`api_agent.md`、`api_guide.md`、`common_response_code.md`
+  的同步由用户手工完成（未改动）。

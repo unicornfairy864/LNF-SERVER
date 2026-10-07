@@ -24,6 +24,12 @@ type UserServiceGroup struct{}
 // （3 认领结果 / 5 积分变动 见 item_service.go 的常量块，同包共享）
 const notificationTypeSystem int8 = 0
 
+// 积分流水列表分页缺省值（上限 100 由 model.CreditLogListQuery 的 binding max=100 拦截）
+const (
+	creditLogDefaultPage     = 1
+	creditLogDefaultPageSize = 10
+)
+
 func (userService *UserServiceGroup) Create(req *model.CreateUserRequest) (*model.User, response.Code) {
 	// 判断表单是否符合要求
 	if req.Username == "" || req.Nickname == "" || req.Password == "" ||
@@ -242,7 +248,7 @@ func (userService *UserServiceGroup) QQBind(id int64, jti, reqQQ, reqCode string
 	// 数据落库成功：发送绑定成功通知（type=0 系统通知，系统触发 adminID=0，无关联实体）；
 	// 发送失败仅记日志，不影响绑定主流程。notificationService 为包内共享实例（见 item_service.go）
 	if nerr := notificationService.Create(0, id, notificationTypeSystem,
-		"QQ绑定成功", fmt.Sprintf("你已成功绑定QQ号 %s，现在可以使用积分商城的兑换功能。", reqQQ), nil); nerr != nil {
+		"QQ绑定成功", fmt.Sprintf("你已成功绑定QQ号 %s，现在可以使用积分商城的兑换功能。", reqQQ)); nerr != nil {
 		log.Printf("[user] QQ绑定成功通知发送失败 user_id=%d qq=%s: %v", id, reqQQ, nerr)
 	}
 	return response.CodeSuccess
@@ -275,7 +281,7 @@ func (userService *UserServiceGroup) ChangeUserRoleService(req *model.ChangeUser
 	// 角色变更通知（type=0 系统通知，系统触发 adminID=0，无关联实体；失败仅记日志）
 	if before.ID != 0 && before.Role != *req.Role {
 		if nerr := notificationService.Create(0, req.ID, notificationTypeSystem, "账号角色已变更",
-			fmt.Sprintf("你的账号角色已由「%s」变更为「%s」。", roleLabel(before.Role), roleLabel(*req.Role)), nil); nerr != nil {
+			fmt.Sprintf("你的账号角色已由「%s」变更为「%s」。", roleLabel(before.Role), roleLabel(*req.Role))); nerr != nil {
 			log.Printf("[user] 角色变更通知发送失败 user_id=%d: %v", req.ID, nerr)
 		}
 	}
@@ -327,7 +333,7 @@ func (userService *UserServiceGroup) ChangeUserCreditRequest(req *model.AddUserC
 	if credit != 0 {
 		if user := dao.UserDao.GetUserByID(req.ID); user.ID != 0 {
 			if nerr := notificationService.Create(0, req.ID, notificationTypeCreditChange, "积分变动",
-				fmt.Sprintf("你的积分%s %d 分（%s），当前余额 %d 分。", creditDeltaWord(credit), absInt64(credit), creditLogLabel(logType), user.Credit), nil); nerr != nil {
+				fmt.Sprintf("你的积分%s %d 分（%s），当前余额 %d 分。", creditDeltaWord(credit), absInt64(credit), creditLogLabel(logType), user.Credit)); nerr != nil {
 				log.Printf("[user] 积分变动通知发送失败 user_id=%d: %v", req.ID, nerr)
 			}
 		}
@@ -367,4 +373,39 @@ func creditLogLabel(logType int64) string {
 	default:
 		return "系统调整"
 	}
+}
+
+// ListCreditLogsService 我的积分流水分页查询（仅本人；type 可选筛选；空列表返回空数组而非 null）。
+// page/page_size 缺省归一化为 1/10；type_label 复用同包 creditLogLabel
+func (userService *UserServiceGroup) ListCreditLogsService(userID int64, q *model.CreditLogListQuery) (*model.CreditLogListResponse, response.Code) {
+	if q.Page <= 0 {
+		q.Page = creditLogDefaultPage
+	}
+	if q.PageSize <= 0 {
+		q.PageSize = creditLogDefaultPageSize
+	}
+	logs, total, err := dao.UserDao.GetCreditLogsByUserID(userID, q)
+	if err != nil {
+		return nil, response.CodeDatabaseError
+	}
+	items := make([]model.CreditLogItem, 0, len(logs))
+	for i := range logs {
+		l := &logs[i]
+		items = append(items, model.CreditLogItem{
+			ID:           l.ID,
+			ChangeAmount: l.ChangeAmount,
+			BeforeAmount: l.BeforeAmount,
+			AfterAmount:  l.AfterAmount,
+			Type:         l.Type,
+			TypeLabel:    creditLogLabel(l.Type),
+			Description:  l.Description,
+			CreatedAt:    l.CreatedAt,
+		})
+	}
+	return &model.CreditLogListResponse{
+		Total:    total,
+		Page:     q.Page,
+		PageSize: q.PageSize,
+		Logs:     items,
+	}, response.CodeSuccess
 }

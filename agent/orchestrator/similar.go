@@ -13,7 +13,7 @@ import (
 //
 // 规则（沿用召回口径，见 agent.md/agent.md §7）：
 //   - 候选：is_deleted=0 且 status ∈ {0 已发布, 1 已认领}
-//   - 计分：location 全链命中(0/1，忽略楼号) + 标签命中数；标签≥2 走严格门槛，否则模糊模式
+//   - 计分：location 全链命中(0/1，忽略楼号) + 标签命中数（仅用于排序；2026-10-07 起不设契合度门槛）
 //   - 排序：ngram 全文相关度 → 基础分 → lost_found_time 倒序
 //   - 类型：**同类型优先**（先同 type 召回），不足时用相反 type 补齐
 func (s *ServiceGroup) SimilarItems(itemID int64, limit int) ([]model.ItemResponse, response.Code) {
@@ -39,8 +39,6 @@ func (s *ServiceGroup) SimilarItems(itemID int64, limit int) ([]model.ItemRespon
 	if item.LocationID != nil {
 		locationIDs = vocab.Shared().LocationScopeIDs([]int64{*item.LocationID})
 	}
-	fuzzy := len(tagIDs) < 2
-
 	out := make([]model.ItemResponse, 0, limit)
 	seen := map[int64]bool{itemID: true}
 	// 第一轮：同类型；第二轮：相反类型补齐
@@ -53,8 +51,6 @@ func (s *ServiceGroup) SimilarItems(itemID int64, limit int) ([]model.ItemRespon
 			Statuses:    []int8{0, 1},
 			LocationIDs: locationIDs,
 			TagIDs:      tagIDs,
-			MinScore:    2,
-			Fuzzy:       fuzzy,
 			Keywords:    tagNames,
 			Limit:       (limit - len(out)) + 4,
 		})

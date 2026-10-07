@@ -10,14 +10,17 @@ type Notification struct {
 	// 通知类型触发点（2026-09-30 shop 兑换已接入，占位注释移除）：
 	//  5 积分变动：shop 兑换扣分成功后写入（service/advanced/shop_service.go）
 	//  6 商品兑换：兑换成功后写入发货提醒（同上）
-	Type      int8       `gorm:"column:type;not null"                                      json:"type"       comment:"类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换"`
-	Title     string     `gorm:"column:title;type:varchar(100);not null"                   json:"title"      comment:"通知标题"`
-	Content   string     `gorm:"column:content;type:text"                                     json:"related_id" comment:"关联ID（物品ID/认领ID/评论ID等）"`
-	IsRead    int8       `gorm:"column:is_read;not null;default:0"                         json:"is_read"    comment:"是否已读: 0未读 1已读"`
-	ReadAt    *time.Time `gorm:"column:read_at"                                            json:"read_at"    comment:"阅读时间"`
+	Type    int8   `gorm:"column:type;not null"                                      json:"type"       comment:"类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换"`
+	Title   string `gorm:"column:title;type:varchar(100);not null"                   json:"title"      comment:"通知标题"`
+	Content string `gorm:"column:content;type:text"                                     json:"content"   comment:"通知内容（支持markdown格式）"`
+	IsRead  int8   `gorm:"column:is_read;not null;default:0"                         json:"is_read"    comment:"是否已读: 0未读 1已读"`
+	// read_at 未读时为 NULL：omitempty → 未读时整个键缺失（前端必须按可选处理）
+	ReadAt    *time.Time `gorm:"column:read_at"                                            json:"read_at,omitempty" comment:"阅读时间（未读时键缺失）"`
 	CreatedAt time.Time  `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP"      json:"created_at" comment:"创建时间"`
 	UpdatedAt time.Time  `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP;autoUpdateTime" json:"updated_at" comment:"更新时间"`
-	IsDeleted int8       `gorm:"column:is_deleted;not null;default:0"                      json:"is_deleted" comment:"逻辑删除: 0否 1是"`
+	// is_deleted 为内部逻辑删除位（查询恒过滤 =0）：沿用项目惯例 json:"-" 彻底不返回
+	// （item/user/good/announcement 同款；不用 omitempty 是为了逻辑删除位=1 时也不外泄）
+	IsDeleted int8 `gorm:"column:is_deleted;not null;default:0"                      json:"-"          comment:"逻辑删除: 0否 1是"`
 }
 
 func (Notification) TableName() string {
@@ -26,32 +29,25 @@ func (Notification) TableName() string {
 
 // NotificationListRequest 列表查询参数
 type NotificationListRequest struct {
-	Limit   int    `form:"limit"      json:"limit"`    // 每次取多少条
-	Offset  int    `form:"offset"     json:"offset"`   // 忽略条数
-	Type    *int8  `form:"type"       json:"type"`     // 按类型筛选，nil 不筛
-	IsRead  *int8  `form:"is_read"    json:"is_read"`  // 按已读筛选，nil 不筛
-	AdminID *int64 `form:"admin_id"   json:"admin_id"` // 按发布者筛选（区分我收到的/我发出的）
+	Limit   int    `form:"limit"      json:"limit"`                                              // 每次取多少条，缺省 10，上限 100（service 侧兜底）
+	Offset  int    `form:"offset"     json:"offset"`                                             // 忽略条数
+	Type    *int8  `form:"type"       json:"type"       binding:"omitempty,oneof=0 1 2 3 4 5 6"` // 按类型筛选，nil 不筛
+	IsRead  *int8  `form:"is_read"    json:"is_read"    binding:"omitempty,oneof=0 1"`           // 按已读筛选，nil 不筛
+	AdminID *int64 `form:"admin_id"   json:"admin_id"`                                           // 按发布者筛选（区分我收到的/我发出的）
 }
 
 // NotificationSendRequest 发送通知请求
 type NotificationSendRequest struct {
-	UserIDs   []int64 `json:"user_ids"    binding:"required_without=SendToAll"` // 目标用户ID列表
-	SendToAll bool    `json:"send_to_all"`                                      // 是否发给全体用户
-	Type      *int8   `json:"type"        binding:"required"`                   // 通知类型；0（系统通知）是合法值，指针 required：缺字段→1，0 正常读入
-	Title     string  `json:"title"       binding:"required,max=100"`           // 通知标题
-	Content   string  `json:"content"     binding:"required"`                   // 通知内容
-	RelatedID *int64  `json:"related_id"`                                       // 关联ID，可选
+	UserIDs   []int64 `json:"user_ids"    binding:"required_without=SendToAll"`   // 目标用户ID列表，service 侧上限 1000；send_to_all=true 时必须为空
+	SendToAll bool    `json:"send_to_all"`                                        // 是否发给全体用户
+	Type      *int8   `json:"type"        binding:"required,oneof=0 1 2 3 4 5 6"` // 通知类型 0-6；指针 required：缺字段→1，0 正常读入
+	Title     string  `json:"title"       binding:"required,max=100"`             // 通知标题
+	Content   string  `json:"content"     binding:"required"`                     // 通知内容
 }
 
 // NotificationIDsRequest 批量已读/删除请求
 type NotificationIDsRequest struct {
-	IDs []int64 `json:"ids" binding:"required,min=1"` // 目标记录ID列表
-}
-
-// NotificationIDsResponse 批量操作结果
-type NotificationIDsResponse struct {
-	Affected int `json:"affected"` // 实际影响条数
-	Skipped  int `json:"skipped"`  // 跳过条数（如群发记录）
+	IDs []int64 `json:"ids" binding:"required,min=1,max=200"` // 目标记录ID列表，单次 1-200 条
 }
 
 // NotificationItem 列表项（仅列表所需字段）
@@ -72,20 +68,6 @@ func ToNotification(r *NotificationSendRequest, adminID, userID int64) *Notifica
 		Type:    *r.Type, // binding required 保证非 nil（0 是合法值）
 		Title:   r.Title,
 		Content: r.Content,
-	}
-}
-
-// ToNotificationResponse 模型转响应（隐藏敏感字段）
-func ToNotificationResponse(n *Notification) map[string]any {
-	return map[string]any{
-		"id":         n.ID,
-		"admin_id":   n.AdminID,
-		"type":       n.Type,
-		"title":      n.Title,
-		"content":    n.Content,
-		"is_read":    n.IsRead,
-		"read_at":    n.ReadAt,
-		"created_at": n.CreatedAt,
 	}
 }
 

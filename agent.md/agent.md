@@ -48,7 +48,7 @@
 | items 索引 | **`FULLTEXT (title,description) WITH PARSER ngram`**（中文召回可用）+ `idx_items_home(is_deleted,type,status,lost_found_time)` |
 | tags | 66 条固定词表（含颜色 12、特征 4）；粒度粗（只有「水杯」无「保温杯」） |
 | locations | 139 条 4 层树：L1 学校 → L2 校区(3) → L3 建筑(84) → L4 宿舍楼号(51)；检索计分只认 L3；**DB 另有 id=140「其他地点」(level=2, parent_id=1)，SQL 文件未收录** |
-| notification | `type=1 物品匹配` 已定义、全项目未使用（原计划用于反向匹配推送，**该功能已于 2026-10-04 取消**，目前无使用方）；`NotificationService.Create(adminID,userID,type,title,content,relatedID)` |
+| notification | `type=1 物品匹配` 已定义、全项目未使用（原计划用于反向匹配推送，**该功能已于 2026-10-04 取消**，目前无使用方）；`NotificationService.Create(adminID,userID,type,title,content)` |
 | 图片 | 本地 `/uploads`，公网 `http://111.229.234.32:8080` |
 | QQ | `chensong` 包；入口 `POST /api/v1/chensong/receive`（HMAC-SHA1）；现有唯一业务=emoji 谐音翻译；client 具备 SendGroupMessage/SendPrivateMessage/GetGroupMemberList |
 | QQ 身份 | `users.qq`（唯一）→ `dao.UserDao.GetUserByQQ` |
@@ -152,7 +152,7 @@ Step3 精排（LLM #2，仅当候选非空；候选=0 直接跳 Step4）
 Step4 分支（代码 if/else，读 verdict）
   · strong_match → 展示 top3（API 返回数组 / QQ 模板文案）
   · ambiguous    → 追问（**全局仅 1 轮**，见 §8）
-  · no_match     → 提示「暂未找到」+ 引导建帖
+  · no_match     → 主召回为空时先做**同类型兜底**（结果放 `similar` 并提示「N 条相关帖」）；兜底也空 → 提示「暂未找到」+ 引导建帖
 Step5 建帖（仅 1 轮：**不含取消/拒绝语义即发布**，见 §8）
 Step6 收尾（会话落状态/关闭）
 ```
@@ -321,14 +321,15 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 **候选集**：`is_deleted=0 AND status IN (0,1)`；主结果 `type = 相反`；相似帖区 `type = 相同`（≤2 条，Q14 按建议）。
 
-**软计分（纯代码）**：`score = location_hit(0|1) + tag_hit_count`
+**软计分（纯代码）**：`score = location_hit(0|1) + tag_hit_count`（**仅用于排序**；2026-10-07 起不再作为门槛）
 - `location_hit`：**全链搜索**——用户地点与 item 地点比较「到 L3 层级」（**忽略楼号 L4**，Q17），任一方是另一方的祖先/后代即命中 1。
 - `tag_hit_count`：item 的 tags ∩ LLM 给出的 tag 集合（含 item_tag / color_tag / feature_tags）的个数。
 
-**门槛（Q16）**：
-- LLM 给出的 tag 数 **≥ 2** → **严格模式**：仅保留 `score ≥ agent_match_min_score`（暂定 2）的 item。
-- LLM 给出的 tag 数 **< 2**（粒度不足/信息少）→ **模糊模式**：不设分数门槛，改用「地点命中优先 + ngram 全文检索相关度 + 时间接近度」排序取 top。
-- **两种模式在通过门槛后，都用 `MATCH(title,description) AGAINST(<keywords> IN BOOLEAN MODE)` 做二次过滤或排序**；全文检索无命中时退回时间倒序。
+**门槛（2026-10-07 用户裁定修订：原 Q16 严格模式已删除）**：
+- **不再规定「tag+location 契合度 ≥ `agent_match_min_score`(2)」**：原「tag 数 ≥ 2 → 严格模式（`score ≥ 2`）」规则取消；配置项 `agent_match_min_score` 从代码中移除（config.yaml 中该行由用户手动删除，旧键残留不会报错）。
+- 所有查询统一走原「模糊模式」口径：**不设分数门槛**，候选仅需「标签/地点计分 > 0」或 `MATCH(title,description) AGAINST(<keywords> IN BOOLEAN MODE)` 全文命中至少其一（仅排除完全无信号的行）；随后按「全文相关度 → 地点/标签计分 → 时间接近度」排序取 `agent_top_k`，相关性交由 LLM 精排判定。
+
+**同类型兜底（2026-10-07 用户裁定：方案 B）**：主召回（相反类型）**为空**时，用**同类型**再召回一次（条件相同：关键词/标签/地点/时间窗；≤2 条、纯 SQL 不精排），结果放入 `similar`，no_match 文案改为「未找到匹配，但找到 N 条相关帖子」；主召回非空时 `similar` 保持原语义（同类型补充推荐 ≤2 条）。兜底也为空 → 维持纯 no_match。
 
 **时间窗（Q12 建议）**：`[用户所述丢失时间 − 1 天, now]`，上限 30 天（配置）。
 
@@ -413,10 +414,10 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 | 事件 | 渠道 | 类型 | 文案 |
 |---|---|---|---|
-| **agent 建帖成功** | 站内通知（QQ + API 均写） | `type=0 系统通知` | 智能助手已为你发布信息：「你的<失物/招领>信息「X」已发布，可在“我的发布”中查看或修改。」related_id=物品ID |
-| **agent 匹配到候选** | 站内通知（**仅 QQ**） | `type=1 物品匹配`（此前无使用方） | 「共 N 条，最相关的是「X」。」related_id=首条物品ID |
+| **agent 建帖成功** | 站内通知（QQ + API 均写） | `type=0 系统通知` | 智能助手已为你发布信息：「你的<失物/招领>信息「X」已发布，可在“我的发布”中查看或修改。」 |
+| **agent 匹配到候选** | 站内通知（**仅 QQ**） | `type=1 物品匹配`（此前无使用方） | 「共 N 条，最相关的是「X」。」 |
 
-- 实现：`agent/orchestrator/notify.go` 暴露注入点 `NotifyFn`，由 `initialization/router.go` 绑定 `service.NotificationService.Create(0, userID, ntype, title, content, relatedID)`（与 `CreateItemFn` 同理，避开循环依赖）；未注入或写库失败只记日志，不影响主流程
+- 实现：`agent/orchestrator/notify.go` 暴露注入点 `NotifyFn`，由 `initialization/router.go` 绑定 `service.NotificationService.Create(0, userID, ntype, title, content)`（与 `CreateItemFn` 同理，避开循环依赖）；未注入或写库失败只记日志，不影响主流程
 - **API 侧匹配不写通知**（同一次响应已返回结果，避免重复打扰）；若要改成“全端都写”，改一行判断即可
 - QQ 群内仍以群回复呈现（关键信息 @ 用户 + 昵称），站内通知作为网页端留痕
 
@@ -424,7 +425,7 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 | 环节 | 位置 | 通知现状 |
 |---|---|---|
-| 申请认领（claim） | `ClaimService` | ✅ **本轮新增**：通知发帖人「有人认领了你的物品」（type=3，related_id=物品ID） |
+| 申请认领（claim） | `ClaimService` | ✅ **本轮新增**：通知发帖人「有人认领了你的物品」（type=3） |
 | 撤回认领（withdraw） | `WithdrawClaimService` | ✅ **本轮新增**：通知另一方（认领者撤回→发帖人；发帖者撤回→认领者）「认领已撤回」 |
 | 确认认领（confirm） | `ConfirmClaimService` | ✅ 既有：通知认领者（失物帖受益人带积分说明） |
 | 发帖者自行关闭（close） | `CloseSelfService` | ✅ 既有：status=1 时通知认领者「认领已结束」 |
@@ -485,7 +486,6 @@ openai:
   agent_followup_max_rounds: 1
   agent_rate_limit_per_minute: 10                 # 每个用户每分钟调用上限（用户定稿：保持 10）
   agent_rate_limit_total_per_minute: 30           # 全系统每分钟调用上限（所有用户合计）
-  agent_match_min_score: 2
   agent_match_time_before_days: 1
   agent_match_time_window_days: 30
   agent_default_location_id: 140
@@ -588,3 +588,6 @@ chensong:
 | 2026-10-04 | **通知覆盖补充（用户指令）**：① `ClaimService` 新增通知发帖人；② `WithdrawClaimService` 新增通知另一方；③ `ChangeUserRoleService` 新增角色变更通知（type=0）；既有 confirm/close/auto-close 已有通知（§10.2）；其他候选位置已列出待用户确认（未改动） | 已实现 |
 | 2026-10-04 | **#2 认领超时提醒 + #6 积分变动统一（用户指定）**：① 新增 `RemindExpiringClaimsService`（挂入既有定时任务，超时前 2h 提醒发帖人，Redis 去重，新 DAO 文件）；② `ChangeUserCreditRequest` 与认领奖励发分均补 type=5 积分变动通知（含余额）；商城兑换既有已覆盖；**评论通知按用户要求忽略**（§10.3） | 已实现 |
 | 2026-10-04 | **批次 5 完成（文档同步）**：① `api_guide.md` 新增 **第十三节 Agent 智能助手模块**（人类阅读版，含应用场景表、接口清单、两步确认、会话严格模式、12xxxx、建议测试用例 10 条、注意事项）；② `api_agent.md` 新增 **§7 agent 模块**（机读版：7.1 应用场景 / 7.2 数据模型 / 7.3 接口明细 / 7.4 枚举速查 / 7.5 陷阱清单 10 条）；两份文档行尾已统一为 CRLF；顶部“本次新增”已更新 | 已完成 |
+| 2026-10-07 | **notification 模块整改（用户批准的 8 步方案）**：① **P0** `Notification.Content` 的 json tag 误写为 `related_id` → 修正为 `content`（此前详情接口该字段名错误）；② **P2** 列表排序 `created_at DESC` → `created_at DESC, id DESC`（DATETIME 秒级精度下 OFFSET 翻页重复/丢行）；③ `dao.BatchCreate` 包单事务（修复分批 INSERT 各自提交的“半程投递”）；④ `sendAsync` 加 `recover`（异步段 panic 不再打崩进程），原“并发有风险，炸了优先查这里”占位注释改写为 5 条明细（fire-and-forget / 无界 goroutine / 原子性 / recover / 接受的 Redis 陈旧竞态）；⑤ **Plan B 移除 `related_id`**（`NotificationSendRequest.RelatedID`、`Create` 第 6 参、item/shop/user/agent 全部调用方与 5 份文档）；⑥ 参数硬化：list `limit` 上限 100、`ids` 1-200、`user_ids` ≤1000、`type`/`is_read` 枚举校验；删除死代码 `ToNotificationResponse`/`NotificationIDsResponse`；⑦ **响应字段瘦身**：`Notification.ReadAt` 加 `omitempty`（未读时键缺失，非 `null`）、`IsDeleted` 改 `json:"-"`（内部字段不返回，与 item/user/good/announcement 惯例一致），两份 API 文档同步 | 代码与文档已改完；待用户执行 `go build ./...`、`go vet ./...`、`swag init`（刷新 `docs/`）与手工回归 |
+| 2026-10-07 | **召回门槛取消（用户裁定）**：删除「tag+location 契合度 ≥ `agent_match_min_score`(2)」硬性规定——原「严格/模糊」双模式合一，所有查询统一为**无分数门槛**口径（仅要求标签/地点命中或全文命中至少其一，排序后交 LLM 精排）；`config/openai_config.go` 移除 `AgentMatchMinScore` 字段/缺省值/归一化，`dao/agent_recall_dao.go` 删除 `MinScore`/`Fuzzy` 参数与严格分支，`agent/orchestrator/pipeline.go`（runMatch/recallSimilar）与 `similar.go` 三处调用点同步；§7、§12 已更新（config.yaml 中该行待用户手动删除，旧键残留不报错）；`go build ./...` + `go vet ./...` 通过 | 已实现 |
+| 2026-10-07 | **召回兜底（用户裁定：方案 B）**：主召回（相反类型）为空 → **同类型兜底召回**（复用相似区逻辑：同条件、≤2 条、不精排），结果放 `similar`；no_match 文案改为「未找到匹配，但找到 N 条相关帖子」。改动：`agent/orchestrator/pipeline.go`（runMatch 早退处）、`reply.go`（+`renderNoMatchWithRelated`）、`service.go`（按 `similar` 是否非空选文案）、`handler/advanced/agent_handler.go`（swag 注释，待用户 `swag init`）；§4/§7 已同步；`go build ./...` + `go vet ./...` 通过。**排查背景**：QQ 提问「有没有关于丢一个“精小弘”的帖子」必然 no_match——失物帖 id=22 不在主候选池（主召回只搜招领帖）、且唯一相关招领帖 id=20 因 `status=2`（已关闭）被状态过滤；**另发现**：QQ 侧 matched/no_match 回复只有文案、不带帖子列表（文档 §6「物品 id、链接」设计未实现，既有缺口，待用户裁定是否补） | 已实现 |

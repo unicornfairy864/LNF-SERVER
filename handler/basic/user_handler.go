@@ -281,3 +281,28 @@ func (userHandler *UserHandlerGroup) AddUserCreditHandler(c *gin.Context) {
 	}
 	response.Success(c)
 }
+
+// ListCreditLogsHandler 登录用户查询我的积分流水
+// @Summary      查询我的积分流水
+// @Description  需登录（JWT）；仅返回本人（user_id 取登录态）的积分变动记录，过滤 is_deleted=0；<br />type 可选，取值 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换，越界返回 1（不筛请省略该参数）；<br />分页 page 默认1、page_size 默认10（上限100，越界返回1）；排序 created_at 降序、id 降序；<br />空数据返回 logs=[] 与 total=0；数据库错误返回 6
+// @Tags         user
+// @Produce      json
+// @Param        Authorization  header  string  true   "Bearer JWT"
+// @Param        type       query   int     false  "积分变动类型: 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换（不筛请省略）"
+// @Param        page       query   int     false  "页码，默认1"
+// @Param        page_size  query   int     false  "每页数量，默认10，最大100"
+// @Success      200  {object}  response.CommonResponse{data=model.CreditLogListResponse}
+// @Router       /api/v1/user/credit-logs [get]
+func (userHandler *UserHandlerGroup) ListCreditLogsHandler(c *gin.Context) {
+	req := model.CreditLogListQuery{}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailWithCode(c, response.CodeParamError)
+		return
+	}
+	res, code := service.UserService.ListCreditLogsService(c.GetInt64(middleware.ContextID), &req)
+	if code != response.CodeSuccess {
+		response.FailWithCode(c, code)
+		return
+	}
+	response.SuccessWithData(c, res)
+}

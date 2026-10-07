@@ -5,6 +5,7 @@ import (
 
 	"github.com/unicornfairy864/LNF-SERVER/global"
 	model "github.com/unicornfairy864/LNF-SERVER/model/advanced"
+	"gorm.io/gorm"
 )
 
 // NotificationGroup 通知表数据访问
@@ -15,12 +16,16 @@ func (g *NotificationGroup) Create(n *model.Notification) error {
 	return global.LNF_DB.Create(n).Error
 }
 
-// BatchCreate 批量插入，分批写入防止 SQL 过长
+// BatchCreate 批量插入，分批写入防止 SQL 过长；整体单事务：
+// 中途任一批次失败则全部回滚，避免群发“半程投递”（代价：SendToAll 会形成
+// 覆盖全部收件人的大事务，校园规模下可接受）
 func (g *NotificationGroup) BatchCreate(list []*model.Notification) error {
 	if len(list) == 0 {
 		return nil
 	}
-	return global.LNF_DB.CreateInBatches(list, 500).Error
+	return global.LNF_DB.Transaction(func(tx *gorm.DB) error {
+		return tx.CreateInBatches(list, 500).Error
+	})
 }
 
 // GetByID 按 id + user_id 查询，防止越权
@@ -49,7 +54,9 @@ func (g *NotificationGroup) List(userID int64, req *model.NotificationListReques
 	if req.AdminID != nil {
 		db = db.Where("admin_id = ?", *req.AdminID)
 	}
-	err := db.Order("created_at DESC").
+	// created_at 为秒级 DATETIME，群发记录同秒时间戳多，必须以 id 兜底保证排序稳定，
+	// 否则 OFFSET 翻页会出现重复/丢行（与 item/good/order 模块一致）
+	err := db.Order("created_at DESC, id DESC").
 		Limit(req.Limit).
 		Offset(req.Offset).
 		Find(&list).Error

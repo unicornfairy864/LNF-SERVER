@@ -178,7 +178,7 @@ RedeemGoodsService(userID, goodsID):
    content `你已用 {价格} 积分兑换「{商品名}」（订单号 {订单号}），领取奖励请联系管理员～`
    （引导语与 chensong 群消息口径一致）
 
-- 两条均 relatedID=订单ID、adminID=0；事务提交后同步发送，失败仅记日志不影响兑换结果与响应。
+- 两条均 adminID=0；事务提交后同步发送，失败仅记日志不影响兑换结果与响应。
 - 通知不进兑换事务：`Create` 走全局 DB 连接，且通知失败不应回滚兑换。
 - 群内 at 提醒仍由 chensong 异步发送（`notifyRedeem`）。
 - `model/advanced/notification.go` 与 `notifications.sql` 的 type 注释已补 `6商品兑换`（纯注释，无 DDL）；
@@ -233,3 +233,52 @@ RedeemGoodsService(userID, goodsID):
 - 兑换：库存不足/并发扣减失败 → `11002`；积分不足 → `50001`；未绑 QQ → `11005`
 - 用户不存在/禁用 → `10006`；群消息发送失败 → 不影响兑换结果，仅记日志
 - 其余 DB 异常 → `CodeDatabaseError(6)`
+
+## 九、我的积分流水查询（2026-10-07 新增）
+
+> 归属说明：积分流水的**写入**分布在 shop 兑换（type=4）与 item 认领奖励（type=1）等处，
+> 本次**读取**接口挂在 user 模块（积分属用户账户属性，`/user/me` 已返回 `credit`），
+> 为便于与商城页面对接，在此统一登记。
+
+### 接口
+
+| 分级 | 方法 | 路径 | Handler | 说明 |
+|---|---|---|---|---|
+| Private | GET | `/user/credit-logs` | `ListCreditLogsHandler` | JWT；仅返回本人（`user_id = JWT.id`）流水；query: `type,page,page_size` |
+
+- `type` 可选，取值 **0-4**（0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换），越界 → `1`；
+  **不筛请省略该参数**；传空串 `?type=` 会因指针解析失败返回 `1`（与 shop/announcement 的 binding 风格一致，
+  不适用 api_guide 中“数值 query 传空串按 0 处理”的旧行为）。
+- `page` 缺省 1；`page_size` 缺省 10、上限 100（`>100` → `1`）。
+- 过滤：`user_id = ? AND is_deleted = 0 [AND type = ?]`；排序 `created_at DESC, id DESC`
+  （`created_at` 为秒级 DATETIME，同秒多行需 `id` 兜底以保证翻页稳定）。
+- 索引：命中既有 `idx_user_created (user_id, created_at)`，**不新增索引、不改表结构**
+  （项目无 AutoMigrate，model tag 变更对 DDL 无影响）。
+
+### 响应
+
+```json
+{ "code": 0, "message": "操作成功", "data": {
+    "total": 37, "page": 1, "page_size": 10,
+    "logs": [
+      { "id": 123, "change_amount": -50, "before_amount": 120, "after_amount": 70,
+        "type": 4, "type_label": "积分兑换", "description": "积分兑换:文具套装",
+        "created_at": "2026-10-07T12:00:00+08:00" }
+    ] } }
+```
+
+- 字段白名单：`id, change_amount, before_amount, after_amount, type, type_label, description, created_at`；
+  **不含** `operator_id` / `related_id` / `is_deleted`（DAO 层用显式列白名单，同时规避 `operator_id` 的 NULL 扫描风险）。
+- 空数据 → `logs: []`（非 null）、`total: 0`。
+- 错误码：仅复用 `1`（参数）/ `2`（未登录）/ `6`（数据库），**不新增错误码**。
+
+### 实现落点
+
+- `model/basic/user.go`：补齐 `CreditLog`（加 `ID` 主键、`RelatedID *int64`、`IsDeleted`、gorm tag、`TableName()`；
+  `OperatorID` 保持 `int64` 不变以兼容写入路径）；新增 `CreditLogListQuery`、`CreditLogItem`、`CreditLogListResponse`。
+- `dao/user_dao.go`：新增 `GetCreditLogsByUserID`（挂在既有 `UserGroup`，**未改 `dao/enter.go`**）。
+- `service/basic/user_service.go`：新增 `ListCreditLogsService`（分页归一化；`type_label` 复用既有 `creditLogLabel`）。
+- `handler/basic/user_handler.go`：新增 `ListCreditLogsHandler`（含 swagger 注释）。
+- `router/basic/user_router.go`：private 组注册。
+- `related_id` 现有写入路径未填充（历史数据恒 NULL），本次**不回填**；不做积分收支汇总。
+- Swagger：待用户执行 `swag init`。

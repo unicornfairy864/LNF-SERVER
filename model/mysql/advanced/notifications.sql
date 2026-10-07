@@ -15,8 +15,10 @@ CREATE TABLE `notifications` (
     PRIMARY KEY (`id`),
 -- UnreadCount: WHERE user_id=? AND is_read=0 AND is_deleted=0
     KEY `idx_user_id_read` (`user_id`, `is_read`),
--- List: WHERE user_id=? AND is_deleted=0 [AND is_read/type/admin_id] ORDER BY created_at DESC
+-- List: WHERE user_id=? AND is_deleted=0 [AND is_read/type/admin_id] ORDER BY created_at DESC, id DESC
 -- （type/admin_id 恒与 user_id 复合出现，不设独立索引；管理端独立列表接口落地时再补 admin_id 前缀索引）
+-- （2026-10-07 排序补 id 兜底：InnoDB 二级索引条目隐含主键，(user_id, created_at, id) 反向扫描即
+--   精确的 created_at DESC, id DESC，本索引无需变更）
     KEY `idx_user_id_created` (`user_id`, `created_at`)
 ) ENGINE = InnoDB
 DEFAULT CHARSET = utf8mb4

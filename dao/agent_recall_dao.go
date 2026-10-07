@@ -17,9 +17,7 @@ type AgentRecallParams struct {
 	Type        int8       // 主结果类型：与用户物品相反（用户失物→招领帖；用户拾物→失物帖）
 	Statuses    []int8     // 参与召回的状态（0 已发布 / 1 已认领）
 	LocationIDs []int64    // 检索用地点集合（全链展开、已忽略楼号）
-	TagIDs      []int64    // 标签集合（用于计分）
-	MinScore    int        // 严格模式最低分（location 0/1 + tag 命中数）；Fuzzy=true 时忽略
-	Fuzzy       bool       // 模糊模式：不设分数门槛，但要求「标签命中 或 全文命中」至少一个
+	TagIDs      []int64    // 标签集合（仅用于计分/排序，不设门槛）
 	Keywords    []string   // 全文检索关键词（ngram FULLTEXT，BOOLEAN MODE）
 	TimeFrom    *time.Time // items.lost_found_time 下界（含）
 	TimeTo      *time.Time // items.lost_found_time 上界（含）
@@ -72,7 +70,9 @@ func (g *AgentRecallGroup) TagsByItemIDs(itemIDs []int64) (map[int64][]modeladv.
 // agentRecallDefaultLimit 未指定 limit 时的兜底
 const agentRecallDefaultLimit = 50
 
-// RecallItems 召回候选：标签/地点计分为主，ngram 全文相关度用于过滤与排序
+// RecallItems 召回候选：标签/地点计分与 ngram 全文相关度仅用于排序，不设「契合度 ≥ N」门槛
+// （2026-10-07 用户裁定：删除原严格模式 `score ≥ agent_match_min_score`；候选只需
+// 「标签/地点计分 > 0」或「全文命中」至少其一，相关性交由 LLM 精排判定）
 // 全部条件参数化，无字符串拼接进 SQL 值
 func (g *AgentRecallGroup) RecallItems(p *AgentRecallParams) ([]AgentRecallRow, error) {
 	scoreExpr, scoreArgs := agentScoreExpr(p.LocationIDs, p.TagIDs)
@@ -105,21 +105,15 @@ func (g *AgentRecallGroup) RecallItems(p *AgentRecallParams) ([]AgentRecallRow, 
 		sql.WriteString(" AND items.lost_found_time <= ?")
 		args = append(args, *p.TimeTo)
 	}
-	if p.Fuzzy {
-		sql.WriteString(" AND ((")
-		sql.WriteString(scoreExpr)
-		sql.WriteString(") > 0 OR (")
-		sql.WriteString(ftExpr)
-		sql.WriteString(") > 0)")
-		args = append(args, scoreArgs...)
-		args = append(args, ftArgs...)
-	} else if p.MinScore > 0 {
-		sql.WriteString(" AND (")
-		sql.WriteString(scoreExpr)
-		sql.WriteString(") >= ?")
-		args = append(args, scoreArgs...)
-		args = append(args, p.MinScore)
-	}
+	// 信号门槛：至少命中「标签/地点计分」或「全文检索」之一（原「模糊模式」口径；
+	// 2026-10-07 用户裁定删除 score 硬性门槛后，所有查询统一走此口径）
+	sql.WriteString(" AND ((")
+	sql.WriteString(scoreExpr)
+	sql.WriteString(") > 0 OR (")
+	sql.WriteString(ftExpr)
+	sql.WriteString(") > 0)")
+	args = append(args, scoreArgs...)
+	args = append(args, ftArgs...)
 
 	// 排序：全文相关度 → 基础分 → 时间新→旧
 	sql.WriteString(" ORDER BY ft_score DESC, base_score DESC, items.lost_found_time DESC, items.id DESC LIMIT ?")

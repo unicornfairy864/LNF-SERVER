@@ -16,10 +16,10 @@ type NotificationHandlerGroup struct{}
 // @Tags Notification
 // @Summary 获取通知列表
 // @Description 获取当前用户的通知列表，支持类型/已读状态/管理员筛选与分页
-// @Description 分页可能出现重复返回问题，出现问题优先注意这里，解决方法参照公告模块
+// @Description 按 created_at DESC, id DESC 稳定排序，分页不会重复/丢行；limit 上限 100（缺省 10）
 // @Accept json
 // @Produce json
-// @Param limit query int false "每页数量"
+// @Param limit query int false "每页数量，缺省10，上限100"
 // @Param offset query int false "偏移量"
 // @Param type query int false "类型: 0系统通知 1物品匹配 2认领申请 3认领结果 4评论回复 5积分变动 6商品兑换"
 // @Param is_read query int false "是否已读: 0未读 1已读"
@@ -91,7 +91,7 @@ func (h *NotificationHandlerGroup) GetAndRead(c *gin.Context) {
 // BatchMarkRead 批量已读
 // @Tags Notification
 // @Summary 批量标记通知已读
-// @Description 批量将指定通知标记为已读，不限制条数，不返回条数
+// @Description 批量将指定通知标记为已读，单次最多 200 条，不返回条数
 // @Accept json
 // @Produce json
 // @Param body body model.NotificationIDsRequest true "通知ID列表"
@@ -116,7 +116,7 @@ func (h *NotificationHandlerGroup) BatchMarkRead(c *gin.Context) {
 // BatchDelete 批量删除
 // @Tags Notification
 // @Summary 批量删除通知
-// @Description 批量软删除指定通知，跳过自己发给自己的记录，只返回返回码
+// @Description 批量软删除指定通知，单次最多 200 条，跳过自己发给自己的记录，只返回返回码
 // @Accept json
 // @Produce json
 // @Param body body model.NotificationIDsRequest true "通知ID列表"
@@ -141,7 +141,7 @@ func (h *NotificationHandlerGroup) BatchDelete(c *gin.Context) {
 // Send 管理侧发送通知
 // @Tags Notification
 // @Summary 发送通知（管理侧）
-// @Description 发送通知，支持发给全体用户或指定用户，异步执行，admin_id 从登录态提取
+// @Description 发送通知，支持发给全体用户或指定用户（显式 user_ids 单次上限 1000），异步执行，admin_id 从登录态提取
 // @Accept json
 // @Produce json
 // @Param body body model.NotificationSendRequest true "发送通知请求"
