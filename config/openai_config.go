@@ -21,7 +21,6 @@ type OpenAIConfig struct {
 	AgentFollowupMaxRounds   int           `mapstructure:"agent_followup_max_rounds"`         // 追问/确认轮数上限
 	AgentRateLimitTotalMin   int           `mapstructure:"agent_rate_limit_total_per_minute"` // 全系统每分钟调用上限（所有用户合计）
 	AgentRateLimitPerMinute  int           `mapstructure:"agent_rate_limit_per_minute"`       // 每个用户每分钟调用上限
-	AgentMatchMinScore       int           `mapstructure:"agent_match_min_score"`             // 召回严格模式最低分（location 0/1 + tag 命中数）
 	AgentMatchTimeBeforeDays int           `mapstructure:"agent_match_time_before_days"`      // 时间窗向前容差（天）
 	AgentMatchTimeWindowDays int           `mapstructure:"agent_match_time_window_days"`      // 时间窗总跨度上限（天）
 	AgentDefaultLocationID   int64         `mapstructure:"agent_default_location_id"`         // 缺地点时默认地点 ID（「其他地点」，DB 中为 140）
@@ -29,7 +28,8 @@ type OpenAIConfig struct {
 	// AgentFillContact 是否把「用户明确给出的」联系方式写入 items.contact（不编造、不推断）。
 	// 指针类型：缺省（未配置）视为 true，显式 false 关闭。
 	AgentFillContact *bool `mapstructure:"agent_fill_contact"`
-	// 注：原 agent_reverse_match_*（反向匹配推送）配置已随功能取消而移除（2026-10-04）
+	// 注：原 agent_reverse_match_*（反向匹配推送）配置已随功能取消而移除（2026-10-04）；
+	// 原 agent_match_min_score（召回严格模式最低分）已随硬性门槛取消而移除（2026-10-07）
 }
 
 // Agent 配置缺省值（字段缺省/非法时回退，见 AgentValues）
@@ -43,7 +43,6 @@ const (
 	AgentDefaultFollowupMaxRounds   = 1
 	AgentDefaultRateLimitPerMinute  = 10
 	AgentDefaultRateLimitTotalMin   = 30
-	AgentDefaultMatchMinScore       = 2
 	AgentDefaultMatchTimeBeforeDays = 1
 	AgentDefaultMatchTimeWindowDays = 30
 	AgentDefaultLocationID          = int64(140)
@@ -62,7 +61,6 @@ type AgentSettings struct {
 	FollowupMaxRounds   int
 	RateLimitPerMinute  int
 	RateLimitTotalMin   int
-	MatchMinScore       int
 	MatchTimeBeforeDays int
 	MatchTimeWindowDays int
 	DefaultLocationID   int64
@@ -83,7 +81,6 @@ func (c OpenAIConfig) AgentValues() AgentSettings {
 		FollowupMaxRounds:   c.AgentFollowupMaxRounds,
 		RateLimitPerMinute:  c.AgentRateLimitPerMinute,
 		RateLimitTotalMin:   c.AgentRateLimitTotalMin,
-		MatchMinScore:       c.AgentMatchMinScore,
 		MatchTimeBeforeDays: c.AgentMatchTimeBeforeDays,
 		MatchTimeWindowDays: c.AgentMatchTimeWindowDays,
 		DefaultLocationID:   c.AgentDefaultLocationID,
@@ -116,9 +113,6 @@ func (c OpenAIConfig) AgentValues() AgentSettings {
 	}
 	if s.RateLimitTotalMin <= 0 {
 		s.RateLimitTotalMin = AgentDefaultRateLimitTotalMin
-	}
-	if s.MatchMinScore <= 0 {
-		s.MatchMinScore = AgentDefaultMatchMinScore
 	}
 	if s.MatchTimeBeforeDays < 0 {
 		s.MatchTimeBeforeDays = AgentDefaultMatchTimeBeforeDays

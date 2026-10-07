@@ -64,7 +64,6 @@ openai:
   agent_ambiguous_threshold: 0.50
   agent_followup_max_rounds: 1
   agent_rate_limit_per_minute: 10
-  agent_match_min_score: 2
   agent_match_time_before_days: 1
   agent_match_time_window_days: 30
   agent_default_location_id: 140

@@ -321,14 +321,13 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 
 **候选集**：`is_deleted=0 AND status IN (0,1)`；主结果 `type = 相反`；相似帖区 `type = 相同`（≤2 条，Q14 按建议）。
 
-**软计分（纯代码）**：`score = location_hit(0|1) + tag_hit_count`
+**软计分（纯代码）**：`score = location_hit(0|1) + tag_hit_count`（**仅用于排序**；2026-10-07 起不再作为门槛）
 - `location_hit`：**全链搜索**——用户地点与 item 地点比较「到 L3 层级」（**忽略楼号 L4**，Q17），任一方是另一方的祖先/后代即命中 1。
 - `tag_hit_count`：item 的 tags ∩ LLM 给出的 tag 集合（含 item_tag / color_tag / feature_tags）的个数。
 
-**门槛（Q16）**：
-- LLM 给出的 tag 数 **≥ 2** → **严格模式**：仅保留 `score ≥ agent_match_min_score`（暂定 2）的 item。
-- LLM 给出的 tag 数 **< 2**（粒度不足/信息少）→ **模糊模式**：不设分数门槛，改用「地点命中优先 + ngram 全文检索相关度 + 时间接近度」排序取 top。
-- **两种模式在通过门槛后，都用 `MATCH(title,description) AGAINST(<keywords> IN BOOLEAN MODE)` 做二次过滤或排序**；全文检索无命中时退回时间倒序。
+**门槛（2026-10-07 用户裁定修订：原 Q16 严格模式已删除）**：
+- **不再规定「tag+location 契合度 ≥ `agent_match_min_score`(2)」**：原「tag 数 ≥ 2 → 严格模式（`score ≥ 2`）」规则取消；配置项 `agent_match_min_score` 从代码中移除（config.yaml 中该行由用户手动删除，旧键残留不会报错）。
+- 所有查询统一走原「模糊模式」口径：**不设分数门槛**，候选仅需「标签/地点计分 > 0」或 `MATCH(title,description) AGAINST(<keywords> IN BOOLEAN MODE)` 全文命中至少其一（仅排除完全无信号的行）；随后按「全文相关度 → 地点/标签计分 → 时间接近度」排序取 `agent_top_k`，相关性交由 LLM 精排判定。
 
 **时间窗（Q12 建议）**：`[用户所述丢失时间 − 1 天, now]`，上限 30 天（配置）。
 
@@ -485,7 +484,6 @@ openai:
   agent_followup_max_rounds: 1
   agent_rate_limit_per_minute: 10                 # 每个用户每分钟调用上限（用户定稿：保持 10）
   agent_rate_limit_total_per_minute: 30           # 全系统每分钟调用上限（所有用户合计）
-  agent_match_min_score: 2
   agent_match_time_before_days: 1
   agent_match_time_window_days: 30
   agent_default_location_id: 140
@@ -589,3 +587,4 @@ chensong:
 | 2026-10-04 | **#2 认领超时提醒 + #6 积分变动统一（用户指定）**：① 新增 `RemindExpiringClaimsService`（挂入既有定时任务，超时前 2h 提醒发帖人，Redis 去重，新 DAO 文件）；② `ChangeUserCreditRequest` 与认领奖励发分均补 type=5 积分变动通知（含余额）；商城兑换既有已覆盖；**评论通知按用户要求忽略**（§10.3） | 已实现 |
 | 2026-10-04 | **批次 5 完成（文档同步）**：① `api_guide.md` 新增 **第十三节 Agent 智能助手模块**（人类阅读版，含应用场景表、接口清单、两步确认、会话严格模式、12xxxx、建议测试用例 10 条、注意事项）；② `api_agent.md` 新增 **§7 agent 模块**（机读版：7.1 应用场景 / 7.2 数据模型 / 7.3 接口明细 / 7.4 枚举速查 / 7.5 陷阱清单 10 条）；两份文档行尾已统一为 CRLF；顶部“本次新增”已更新 | 已完成 |
 | 2026-10-07 | **notification 模块整改（用户批准的 8 步方案）**：① **P0** `Notification.Content` 的 json tag 误写为 `related_id` → 修正为 `content`（此前详情接口该字段名错误）；② **P2** 列表排序 `created_at DESC` → `created_at DESC, id DESC`（DATETIME 秒级精度下 OFFSET 翻页重复/丢行）；③ `dao.BatchCreate` 包单事务（修复分批 INSERT 各自提交的“半程投递”）；④ `sendAsync` 加 `recover`（异步段 panic 不再打崩进程），原“并发有风险，炸了优先查这里”占位注释改写为 5 条明细（fire-and-forget / 无界 goroutine / 原子性 / recover / 接受的 Redis 陈旧竞态）；⑤ **Plan B 移除 `related_id`**（`NotificationSendRequest.RelatedID`、`Create` 第 6 参、item/shop/user/agent 全部调用方与 5 份文档）；⑥ 参数硬化：list `limit` 上限 100、`ids` 1-200、`user_ids` ≤1000、`type`/`is_read` 枚举校验；删除死代码 `ToNotificationResponse`/`NotificationIDsResponse`；⑦ **响应字段瘦身**：`Notification.ReadAt` 加 `omitempty`（未读时键缺失，非 `null`）、`IsDeleted` 改 `json:"-"`（内部字段不返回，与 item/user/good/announcement 惯例一致），两份 API 文档同步 | 代码与文档已改完；待用户执行 `go build ./...`、`go vet ./...`、`swag init`（刷新 `docs/`）与手工回归 |
+| 2026-10-07 | **召回门槛取消（用户裁定）**：删除「tag+location 契合度 ≥ `agent_match_min_score`(2)」硬性规定——原「严格/模糊」双模式合一，所有查询统一为**无分数门槛**口径（仅要求标签/地点命中或全文命中至少其一，排序后交 LLM 精排）；`config/openai_config.go` 移除 `AgentMatchMinScore` 字段/缺省值/归一化，`dao/agent_recall_dao.go` 删除 `MinScore`/`Fuzzy` 参数与严格分支，`agent/orchestrator/pipeline.go`（runMatch/recallSimilar）与 `similar.go` 三处调用点同步；§7、§12 已更新（config.yaml 中该行待用户手动删除，旧键残留不报错）；`go build ./...` + `go vet ./...` 通过 | 已实现 |

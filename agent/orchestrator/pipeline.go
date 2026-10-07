@@ -202,8 +202,8 @@ func matchTimeWindow(it *schema.ExtractItem, itemType int8, st config.AgentSetti
 // runMatch 召回 + 精排（主结果=相反 type；相似区=同 type 最多 2 条）
 func runMatch(it *schema.ExtractItem, itemType int8, text string, locSet schema.LocationSet, st config.AgentSettings, topN int) (*matchOutcome, response.Code) {
 	tagIDs := collectTagIDs(it)
-	// 用户定稿：tag 粒度不足/数量 < 门槛 → 模糊模式（不设分数门槛）
-	fuzzy := len(tagIDs) < st.MatchMinScore
+	// 2026-10-07 用户裁定：删除「tag+location 契合度 ≥ agent_match_min_score」硬性门槛（原严格模式），
+	// 所有查询统一走无分数门槛口径（标签/地点命中或全文命中至少其一，排序后交 LLM 精排）
 	var locationIDs []int64
 	if it.LocationID != nil {
 		locationIDs = vocab.Shared().LocationScopeIDs([]int64{*it.LocationID})
@@ -215,8 +215,6 @@ func runMatch(it *schema.ExtractItem, itemType int8, text string, locSet schema.
 		Statuses:    []int8{0, 1},
 		LocationIDs: locationIDs,
 		TagIDs:      tagIDs,
-		MinScore:    st.MatchMinScore,
-		Fuzzy:       fuzzy,
 		Keywords:    it.Keywords,
 		TimeFrom:    timeFrom,
 		TimeTo:      timeTo,
@@ -357,8 +355,6 @@ func recallSimilar(it *schema.ExtractItem, itemType int8, st config.AgentSetting
 		Statuses:    []int8{0, 1},
 		LocationIDs: locationIDs,
 		TagIDs:      tagIDs,
-		MinScore:    st.MatchMinScore,
-		Fuzzy:       len(tagIDs) < st.MatchMinScore,
 		Keywords:    it.Keywords,
 		TimeFrom:    &windowStart,
 		TimeTo:      &now,
