@@ -23,7 +23,7 @@ definitions:
         description: auto | confirm | cancel
         type: string
       image_urls:
-        description: 可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url
+        description: 可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url 供多模态；建帖成功时自动绑定为物品图片
         items:
           type: string
         type: array
@@ -420,6 +420,38 @@ definitions:
     - nickname
     - password
     - username
+    type: object
+  model.CreditLogItem:
+    properties:
+      after_amount:
+        type: integer
+      before_amount:
+        type: integer
+      change_amount:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      type:
+        type: integer
+      type_label:
+        type: string
+    type: object
+  model.CreditLogListResponse:
+    properties:
+      logs:
+        items:
+          $ref: '#/definitions/model.CreditLogItem'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
     type: object
   model.DeleteGoodRequest:
     properties:
@@ -1685,6 +1717,32 @@ paths:
       summary: 系统管理员改变用户状态(禁用)
       tags:
       - user
+  /api/v1/admin/item/{itemID}/reset:
+    post:
+      description: 需 serviceAdmin 及以上角色（role>=1）登录，服务管理员与系统管理员均可；<br />仅可将 status=1（已认领）的物品强制改为
+        status=0（已发布），同时清空认领人字段，并向发布者与认领者发送通知；<br />物品不存在或已删除返回 20001，已关闭返回 20002，本就已发布返回
+        20011，物品ID非法返回 1，数据库错误返回 6；成功 data 为 {}
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 物品ID
+        in: path
+        name: itemID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.CommonResponse'
+      summary: 管理员强制撤回物品认领状态
+      tags:
+      - item
   /api/v1/admin/notifications:
     post:
       consumes:
@@ -2093,10 +2151,11 @@ paths:
         普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。<br />
         首轮：自动判类 + 抽取，分为三种走向：<br />
         1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；<br />
-        2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；<br />
+        2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match（主召回为空时做同类型兜底，相关帖放 similar）；<br />
         3) 闲聊/无关 → chitchat 固定话术。<br />
         确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。<br />
         用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。<br />
+        请求携带的 image_urls（≤3）在会话内继承，建帖成功后自动绑定为物品图片（复用 /item/:itemID/images 的全部校验）。<br />
         建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。<br />
         action=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。<br />
         错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用
@@ -2157,9 +2216,9 @@ paths:
       consumes:
       - application/json
       description: |-
-        按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条。<br />
+        按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条；主召回为空时同类型兜底（结果放 similar）。<br />
         返回 entities 为抽取到的结构（前端可用于回显），matches[].item 为完整 ItemResponse（与详情接口口径一致）。<br />
-        verdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组）。
+        verdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组；no_match 时 similar 可能非空——同类型相关帖兜底）。
       parameters:
       - description: 匹配请求体
         in: body
@@ -3449,6 +3508,45 @@ paths:
                   $ref: '#/definitions/model.UserResponse'
               type: object
       summary: 创建用户
+      tags:
+      - user
+  /api/v1/user/credit-logs:
+    get:
+      description: 需登录（JWT）；仅返回本人（user_id 取登录态）的积分变动记录，过滤 is_deleted=0；<br />type
+        可选，取值 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换，越界返回 1（不筛请省略该参数）；<br />分页 page 默认1、page_size
+        默认10（上限100，越界返回1）；排序 created_at 降序、id 降序；<br />空数据返回 logs=[] 与 total=0；数据库错误返回
+        6
+      parameters:
+      - description: Bearer JWT
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: '积分变动类型: 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换（不筛请省略）'
+        in: query
+        name: type
+        type: integer
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10，最大100
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.CommonResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.CreditLogListResponse'
+              type: object
+      summary: 查询我的积分流水
       tags:
       - user
   /api/v1/user/login:

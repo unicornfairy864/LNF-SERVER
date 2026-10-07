@@ -206,6 +206,42 @@
                 }
             }
         },
+        "/api/v1/admin/item/{itemID}/reset": {
+            "post": {
+                "description": "需 serviceAdmin 及以上角色（role\u003e=1）登录，服务管理员与系统管理员均可；\u003cbr /\u003e仅可将 status=1（已认领）的物品强制改为 status=0（已发布），同时清空认领人字段，并向发布者与认领者发送通知；\u003cbr /\u003e物品不存在或已删除返回 20001，已关闭返回 20002，本就已发布返回 20011，物品ID非法返回 1，数据库错误返回 6；成功 data 为 {}",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "item"
+                ],
+                "summary": "管理员强制撤回物品认领状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "物品ID",
+                        "name": "itemID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.CommonResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/notifications": {
             "post": {
                 "description": "发送通知，支持发给全体用户或指定用户（显式 user_ids 单次上限 1000），异步执行，admin_id 从登录态提取",
@@ -846,7 +882,7 @@
         },
         "/api/v1/agent/chat": {
             "post": {
-                "description": "普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。\u003cbr /\u003e\n首轮：自动判类 + 抽取，分为三种走向：\u003cbr /\u003e\n1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；\u003cbr /\u003e\n2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；\u003cbr /\u003e\n3) 闲聊/无关 → chitchat 固定话术。\u003cbr /\u003e\n确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。\u003cbr /\u003e\n用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。\u003cbr /\u003e\n建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。\u003cbr /\u003e\naction=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。\u003cbr /\u003e\n错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用",
+                "description": "普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。\u003cbr /\u003e\n首轮：自动判类 + 抽取，分为三种走向：\u003cbr /\u003e\n1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；\u003cbr /\u003e\n2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match（主召回为空时做同类型兜底，相关帖放 similar）；\u003cbr /\u003e\n3) 闲聊/无关 → chitchat 固定话术。\u003cbr /\u003e\n确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。\u003cbr /\u003e\n用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。\u003cbr /\u003e\n请求携带的 image_urls（≤3）在会话内继承，建帖成功后自动绑定为物品图片（复用 /item/:itemID/images 的全部校验）。\u003cbr /\u003e\n建帖复用 POST /item/create 的全部校验；响应 created_item_id 为新建物品 ID。\u003cbr /\u003e\naction=confirm/cancel 可显式确认或放弃；重复确认幂等（返回同一 created_item_id）。\u003cbr /\u003e\n错误码：120003 输入非法、120004 频率超限、120005 会话状态不允许该操作、120006 功能未开启、120001 会话不存在、120002 智能服务不可用",
                 "consumes": [
                     "application/json"
                 ],
@@ -938,7 +974,7 @@
         },
         "/api/v1/agent/match": {
             "post": {
-                "description": "按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条。\u003cbr /\u003e\n返回 entities 为抽取到的结构（前端可用于回显），matches[].item 为完整 ItemResponse（与详情接口口径一致）。\u003cbr /\u003e\nverdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组）。",
+                "description": "按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条；主召回为空时同类型兜底（结果放 similar）。\u003cbr /\u003e\n返回 entities 为抽取到的结构（前端可用于回显），matches[].item 为完整 ItemResponse（与详情接口口径一致）。\u003cbr /\u003e\nverdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组；no_match 时 similar 可能非空——同类型相关帖兜底）。",
                 "consumes": [
                     "application/json"
                 ],
@@ -2955,6 +2991,65 @@
                 }
             }
         },
+        "/api/v1/user/credit-logs": {
+            "get": {
+                "description": "需登录（JWT）；仅返回本人（user_id 取登录态）的积分变动记录，过滤 is_deleted=0；\u003cbr /\u003etype 可选，取值 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换，越界返回 1（不筛请省略该参数）；\u003cbr /\u003e分页 page 默认1、page_size 默认10（上限100，越界返回1）；排序 created_at 降序、id 降序；\u003cbr /\u003e空数据返回 logs=[] 与 total=0；数据库错误返回 6",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "查询我的积分流水",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer JWT",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "积分变动类型: 0拾金不昧奖励 1认领成功奖励 2违规扣分 3系统调整 4积分兑换（不筛请省略）",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认10，最大100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.CommonResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.CreditLogListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/login": {
             "post": {
                 "description": "用户使用用户名和密码登录，验证通过后返回用户信息并在响应体 Header 设置 Authorization : Token",
@@ -3199,7 +3294,7 @@
                     "type": "string"
                 },
                 "image_urls": {
-                    "description": "可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url",
+                    "description": "可选 ≤3；相对路径（以 / 开头）由后端拼 agent_public_base_url 供多模态；建帖成功时自动绑定为物品图片",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3787,6 +3882,55 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "model.CreditLogItem": {
+            "type": "object",
+            "properties": {
+                "after_amount": {
+                    "type": "integer"
+                },
+                "before_amount": {
+                    "type": "integer"
+                },
+                "change_amount": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                },
+                "type_label": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CreditLogListResponse": {
+            "type": "object",
+            "properties": {
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CreditLogItem"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
