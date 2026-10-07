@@ -89,6 +89,9 @@ func (c *CommentServiceGroup) GetList(cgrq *model.CommentGetlistRequestQuery, ii
 	if itemcheck.ID == 0 {
 		return nil, response.CodeItemNotFound
 	}
+	if cgrq.StartedID == 0 {
+		cgrq.StartedID = 999999
+	}
 	loop := int64(0)
 	coDTOs := []*model.CommentDTO{}
 	for {
