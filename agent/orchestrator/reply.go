@@ -177,6 +177,11 @@ func renderNoMatch() string {
 	return "暂时没有找到匹配的帖子。你可以把情况说给我，我帮你登记成失物帖，有线索时再来核对。"
 }
 
+// renderNoMatchWithRelated 无匹配但有同类相关帖子（方案 B：主召回为空时的同类型兜底，2026-10-07 用户裁定）
+func renderNoMatchWithRelated(n int) string {
+	return fmt.Sprintf("暂时没有找到匹配的帖子，不过为你找到 %d 条相关帖子，请核对下面的列表。也可以把情况说给我，我帮你登记成失物帖。", n)
+}
+
 // renderNoExplicitConfirm 确认轮收到无关内容（严格模式：不发布）
 func renderNoExplicitConfirm() string {
 	return "没有收到明确的补充信息或确认，本次未发布任何信息。需要发布时把情况再告诉我一次即可。"

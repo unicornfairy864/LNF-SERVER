@@ -266,7 +266,12 @@ func (s *ServiceGroup) handleNewRequest(sc sessionScope, userID int64, sess *ses
 			sess.Stage = model.AgentStageNoMatch
 			resp.Stage = model.AgentStageNoMatch
 			resp.Similar = mo.Similar
-			resp.Reply = renderNoMatch()
+			// 方案 B（2026-10-07 用户裁定）：主召回为空时的同类型兜底结果放 similar，有则文案一并提示
+			if len(mo.Similar) > 0 {
+				resp.Reply = renderNoMatchWithRelated(len(mo.Similar))
+			} else {
+				resp.Reply = renderNoMatch()
+			}
 			if mo.Question != "" {
 				resp.Questions = []string{mo.Question}
 			}

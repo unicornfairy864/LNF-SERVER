@@ -199,7 +199,7 @@ func matchTimeWindow(it *schema.ExtractItem, itemType int8, st config.AgentSetti
 	return &windowStart, &e
 }
 
-// runMatch 召回 + 精排（主结果=相反 type；相似区=同 type 最多 2 条）
+// runMatch 召回 + 精排（主结果=相反 type；相似区=同 type 最多 2 条；主召回为空时同类型兜底，方案 B）
 func runMatch(it *schema.ExtractItem, itemType int8, text string, locSet schema.LocationSet, st config.AgentSettings, topN int) (*matchOutcome, response.Code) {
 	tagIDs := collectTagIDs(it)
 	// 2026-10-07 用户裁定：删除「tag+location 契合度 ≥ agent_match_min_score」硬性门槛（原严格模式），
@@ -226,6 +226,10 @@ func runMatch(it *schema.ExtractItem, itemType int8, text string, locSet schema.
 	}
 	out := &matchOutcome{Verdict: schema.VerdictNoMatch, Matches: []model.AgentMatchBrief{}, Similar: []model.AgentMatchBrief{}}
 	if len(rows) == 0 {
+		// 2026-10-07 用户裁定（方案 B）：主召回（相反类型）为空时，用同类型兜底召回一次
+		//（条件与主召回相同：关键词/标签/地点/时间窗），结果放入 similar，由前端/文案提示「相关帖子」；
+		// 兜底也为空时保持纯 no_match。
+		out.Similar = recallSimilar(it, itemType, st, nil)
 		return out, response.CodeSuccess
 	}
 
@@ -337,7 +341,8 @@ func buildMatchBriefs(ranked []schema.RerankItem, rows []dao.AgentRecallRow) []m
 	return out
 }
 
-// recallSimilar 相似区（同 type，最多 2 条，纯 SQL 计分，不调用 LLM）
+// recallSimilar 相似区 / 同类型兜底召回（同 type，最多 2 条，纯 SQL 计分，不调用 LLM；
+// 主召回为空时以 mainRows=nil 调用，作为方案 B 的兜底）
 func recallSimilar(it *schema.ExtractItem, itemType int8, st config.AgentSettings, mainRows []dao.AgentRecallRow) []model.AgentMatchBrief {
 	exclude := make(map[int64]struct{}, len(mainRows))
 	for i := range mainRows {

@@ -659,7 +659,7 @@ Query 参数（均可选）：
 | `need_confirm` | 已生成草稿，等用户补充/确认 | 展示 `draft` 预览 + “确认发布”按钮（点了就带 `session_id` 再发 `{"text":"确认"}` 或 `{"action":"confirm"}`） |
 | `created` | **已建帖** | 用 `created_item_id` 跳详情页，提示可在“我的发布”修改 |
 | `matched` | 找到候选 | 渲染 `matches`（`item` 即标准 `ItemResponse`，可复用列表卡片）；`similar` 为同/异类型补充推荐 |
-| `no_match` | 没找到候选 | 展示 `reply`，引导用户走发帖（场景 A） |
+| `no_match` | 没找到候选 | 展示 `reply`，引导用户走发帖（场景 A）；`similar` 可能非空（主召回为空时的**同类型相关帖兜底**，2026-10-07 起），有则一并展示 |
 | `chitchat` | 闲聊/无关 | 展示 `reply`（固定话术），**不是错误** |
 | `cancelled` | 用户放弃 / 会话结束 | 清掉本地 `session_id` |
 
@@ -702,7 +702,7 @@ Query 参数（均可选）：
 
 ### 7. 只读辅助接口
 
-- **`POST /agent/match`**：请求 `{"text":"...","image_urls":[],"top_n":3}` → `{intent, entities, matches, similar, summary, verdict}`；`verdict` = `strong_match` / `ambiguous` / `no_match`；`top_n` 默认 3、最大 10。**不建会话、不建帖**。
+- **`POST /agent/match`**：请求 `{"text":"...","image_urls":[],"top_n":3}` → `{intent, entities, matches, similar, summary, verdict}`；`verdict` = `strong_match` / `ambiguous` / `no_match`；`top_n` 默认 3、最大 10。**不建会话、不建帖**。`no_match` 时 `similar` 可能非空（同类型相关帖兜底）。
 - **`POST /agent/extract`**：请求 `{"text":"...","image_urls":[]}` → `{intent, is_lnf_context, draft, missing_fields, questions}`，用于**表单智能填充**（把 `draft` 字段灌进发帖表单，最后仍走 `/item/create`）。
 - **`POST /agent/session/close`**：请求 `{"session_id":"..."}`（可空）→ 关闭该用户当前会话，幂等。
 

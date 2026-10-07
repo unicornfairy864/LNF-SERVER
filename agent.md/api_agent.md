@@ -907,7 +907,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 | 场景 | 触发方式 | 调用 | 关键返回 |
 |---|---|---|---|
 | **A 一句话发帖** | 用户输入自然语言（陈述句） | `POST /agent/chat` | `stage=need_confirm` + `draft`；下一轮确认/补充后 `stage=created` + `created_item_id` |
-| **B 找匹配** | 用户输入疑问句（「有人捡到…吗」「帮我找找」） | `POST /agent/chat`（或只读 `POST /agent/match`） | `stage=matched` + `matches[].item`；无命中 `stage=no_match` |
+| **B 找匹配** | 用户输入疑问句（「有人捡到…吗」「帮我找找」） | `POST /agent/chat`（或只读 `POST /agent/match`） | `stage=matched` + `matches[].item`；无命中 `stage=no_match`（`similar` 可能带同类型相关帖兜底） |
 | **C 详情页相似推荐** | 打开物品详情 | `GET /item/:itemID/similar` | `ItemResponse[]` |
 | **D 智能填充表单** | 用户点“智能填写” | `POST /agent/extract` | `draft` 字段灌表单，最后仍走 `/item/create` |
 
@@ -944,7 +944,7 @@ update 字段：`id` 必填（缺失或为 0 → `1`）；其余全部可选、�
 - `intent` 枚举：`create_lost` | `create_found` | `match` | `chitchat` | `other`
 
 **AgentMatchResponse**（`/agent/match`）：`{ intent, entities, matches, similar, summary, verdict }`
-- `verdict` 枚举：`strong_match` | `ambiguous` | `no_match`；未命中时 `matches=[]` 且仍为 `code=0`
+- `verdict` 枚举：`strong_match` | `ambiguous` | `no_match`；未命中时 `matches=[]` 且仍为 `code=0`（`no_match` 时 `similar` 可能非空：主召回为空时的同类型相关帖兜底，2026-10-07 起）
 
 **AgentExtractResponse**（`/agent/extract`）：`{ intent, is_lnf_context, draft, missing_fields, questions }`
 
@@ -994,7 +994,7 @@ Query `limit`（默认 5，最大 10）→ `data` 为 `ItemResponse[]`：同类�
 1. **不要假设“第二轮随便回一句就会发布”**：只有「补充信息」或「明确确认」才建帖，其他内容返回 `stage=cancelled`（不建帖）。
 2. **第二轮必须回传 `session_id`**：不带 = 新会话（覆盖旧会话、草稿丢失）；带错 = `120001`（不会自动新建）。
 3. 三个 `/agent/*` 共享每用户 10 次/分钟限流；`120004` 时不要重试轰炸，提示用户稍后。
-4. `stage=chitchat` 是正常业务态（非错误），`reply` 可直接展示；`stage=no_match` 也是 `code=0`，且 `similar` 可能非空。
+4. `stage=chitchat` 是正常业务态（非错误），`reply` 可直接展示；`stage=no_match` 也是 `code=0`，且 `similar` 可能非空（主召回为空时的同类型相关帖兜底，展示口径同 `matched` 的 `similar`）。
 5. `stage=cancelled` 同时用于“用户主动取消”与“确认轮收到无关内容”，可用 `reply` 文案区分语义。
 6. `matches[].item` 含 `contact`（与详情接口同源）；若产品要裁剪隐私，需在这里一并处理。
 7. `draft.location_id=null` 合法（建帖时补 `140「其他地点」`）；展示时 **地点全链 + location_detail**，不要重复拼接。

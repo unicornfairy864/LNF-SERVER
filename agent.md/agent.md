@@ -152,7 +152,7 @@ Step3 精排（LLM #2，仅当候选非空；候选=0 直接跳 Step4）
 Step4 分支（代码 if/else，读 verdict）
   · strong_match → 展示 top3（API 返回数组 / QQ 模板文案）
   · ambiguous    → 追问（**全局仅 1 轮**，见 §8）
-  · no_match     → 提示「暂未找到」+ 引导建帖
+  · no_match     → 主召回为空时先做**同类型兜底**（结果放 `similar` 并提示「N 条相关帖」）；兜底也空 → 提示「暂未找到」+ 引导建帖
 Step5 建帖（仅 1 轮：**不含取消/拒绝语义即发布**，见 §8）
 Step6 收尾（会话落状态/关闭）
 ```
@@ -328,6 +328,8 @@ SnowLuma → POST /api/v1/chensong/receive（HMAC 已实现，不改）
 **门槛（2026-10-07 用户裁定修订：原 Q16 严格模式已删除）**：
 - **不再规定「tag+location 契合度 ≥ `agent_match_min_score`(2)」**：原「tag 数 ≥ 2 → 严格模式（`score ≥ 2`）」规则取消；配置项 `agent_match_min_score` 从代码中移除（config.yaml 中该行由用户手动删除，旧键残留不会报错）。
 - 所有查询统一走原「模糊模式」口径：**不设分数门槛**，候选仅需「标签/地点计分 > 0」或 `MATCH(title,description) AGAINST(<keywords> IN BOOLEAN MODE)` 全文命中至少其一（仅排除完全无信号的行）；随后按「全文相关度 → 地点/标签计分 → 时间接近度」排序取 `agent_top_k`，相关性交由 LLM 精排判定。
+
+**同类型兜底（2026-10-07 用户裁定：方案 B）**：主召回（相反类型）**为空**时，用**同类型**再召回一次（条件相同：关键词/标签/地点/时间窗；≤2 条、纯 SQL 不精排），结果放入 `similar`，no_match 文案改为「未找到匹配，但找到 N 条相关帖子」；主召回非空时 `similar` 保持原语义（同类型补充推荐 ≤2 条）。兜底也为空 → 维持纯 no_match。
 
 **时间窗（Q12 建议）**：`[用户所述丢失时间 − 1 天, now]`，上限 30 天（配置）。
 
@@ -588,3 +590,4 @@ chensong:
 | 2026-10-04 | **批次 5 完成（文档同步）**：① `api_guide.md` 新增 **第十三节 Agent 智能助手模块**（人类阅读版，含应用场景表、接口清单、两步确认、会话严格模式、12xxxx、建议测试用例 10 条、注意事项）；② `api_agent.md` 新增 **§7 agent 模块**（机读版：7.1 应用场景 / 7.2 数据模型 / 7.3 接口明细 / 7.4 枚举速查 / 7.5 陷阱清单 10 条）；两份文档行尾已统一为 CRLF；顶部“本次新增”已更新 | 已完成 |
 | 2026-10-07 | **notification 模块整改（用户批准的 8 步方案）**：① **P0** `Notification.Content` 的 json tag 误写为 `related_id` → 修正为 `content`（此前详情接口该字段名错误）；② **P2** 列表排序 `created_at DESC` → `created_at DESC, id DESC`（DATETIME 秒级精度下 OFFSET 翻页重复/丢行）；③ `dao.BatchCreate` 包单事务（修复分批 INSERT 各自提交的“半程投递”）；④ `sendAsync` 加 `recover`（异步段 panic 不再打崩进程），原“并发有风险，炸了优先查这里”占位注释改写为 5 条明细（fire-and-forget / 无界 goroutine / 原子性 / recover / 接受的 Redis 陈旧竞态）；⑤ **Plan B 移除 `related_id`**（`NotificationSendRequest.RelatedID`、`Create` 第 6 参、item/shop/user/agent 全部调用方与 5 份文档）；⑥ 参数硬化：list `limit` 上限 100、`ids` 1-200、`user_ids` ≤1000、`type`/`is_read` 枚举校验；删除死代码 `ToNotificationResponse`/`NotificationIDsResponse`；⑦ **响应字段瘦身**：`Notification.ReadAt` 加 `omitempty`（未读时键缺失，非 `null`）、`IsDeleted` 改 `json:"-"`（内部字段不返回，与 item/user/good/announcement 惯例一致），两份 API 文档同步 | 代码与文档已改完；待用户执行 `go build ./...`、`go vet ./...`、`swag init`（刷新 `docs/`）与手工回归 |
 | 2026-10-07 | **召回门槛取消（用户裁定）**：删除「tag+location 契合度 ≥ `agent_match_min_score`(2)」硬性规定——原「严格/模糊」双模式合一，所有查询统一为**无分数门槛**口径（仅要求标签/地点命中或全文命中至少其一，排序后交 LLM 精排）；`config/openai_config.go` 移除 `AgentMatchMinScore` 字段/缺省值/归一化，`dao/agent_recall_dao.go` 删除 `MinScore`/`Fuzzy` 参数与严格分支，`agent/orchestrator/pipeline.go`（runMatch/recallSimilar）与 `similar.go` 三处调用点同步；§7、§12 已更新（config.yaml 中该行待用户手动删除，旧键残留不报错）；`go build ./...` + `go vet ./...` 通过 | 已实现 |
+| 2026-10-07 | **召回兜底（用户裁定：方案 B）**：主召回（相反类型）为空 → **同类型兜底召回**（复用相似区逻辑：同条件、≤2 条、不精排），结果放 `similar`；no_match 文案改为「未找到匹配，但找到 N 条相关帖子」。改动：`agent/orchestrator/pipeline.go`（runMatch 早退处）、`reply.go`（+`renderNoMatchWithRelated`）、`service.go`（按 `similar` 是否非空选文案）、`handler/advanced/agent_handler.go`（swag 注释，待用户 `swag init`）；§4/§7 已同步；`go build ./...` + `go vet ./...` 通过。**排查背景**：QQ 提问「有没有关于丢一个“精小弘”的帖子」必然 no_match——失物帖 id=22 不在主候选池（主召回只搜招领帖）、且唯一相关招领帖 id=20 因 `status=2`（已关闭）被状态过滤；**另发现**：QQ 侧 matched/no_match 回复只有文案、不带帖子列表（文档 §6「物品 id、链接」设计未实现，既有缺口，待用户裁定是否补） | 已实现 |

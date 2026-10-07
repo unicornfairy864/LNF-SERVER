@@ -15,7 +15,7 @@ type AgentHandlerGroup struct{}
 // @Description  普通用户（role=0）的自然语言入口，会话状态存 Redis（TTL 见 openai.agent_session_ttl，滑动续期）。<br />
 // @Description  首轮：自动判类 + 抽取，分为三种走向：<br />
 // @Description  1) 建帖（失物/招领）→ 返回 need_confirm 草稿，回复中同时给出缺失项与确认指引（**仅一次**）；<br />
-// @Description  2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match；<br />
+// @Description  2) 匹配 → 召回 + LLM 精排，返回 matched（含 score/reasons）或 no_match（主召回为空时做同类型兜底，相关帖放 similar）；<br />
 // @Description  3) 闲聊/无关 → chitchat 固定话术。<br />
 // @Description  确认轮（仅 1 轮，严格模式）：回复**补充信息** → 合并后建帖；回复**「确认」** → 直接建帖（缺地点自动填 agent_default_location_id）；含**取消/拒绝**语义 → 放弃；**其他内容与 LLM 故障 → 不建帖**。<br />
 // @Description  用户明确给出的联系方式会写入 contact（开关 openai.agent_fill_contact，缺省开启，不编造）。<br />
@@ -44,9 +44,9 @@ func (h *AgentHandlerGroup) AgentChatHandler(c *gin.Context) {
 
 // AgentMatchHandler 无状态匹配（只读）
 // @Summary      Agent 匹配帖子（只读，无会话）
-// @Description  按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条。<br />
+// @Description  按自然语言描述（可选图片）召回并精排相似帖子：主结果=相反类型（失物↔招领），相似区=同类型最多 2 条；主召回为空时同类型兜底（结果放 similar）。<br />
 // @Description  返回 entities 为抽取到的结构（前端可用于回显），matches[].item 为完整 ItemResponse（与详情接口口径一致）。<br />
-// @Description  verdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组）。
+// @Description  verdict：strong_match 强匹配 / ambiguous 模糊 / no_match 无匹配（无匹配时仍返回 code=0，matches 为空数组；no_match 时 similar 可能非空——同类型相关帖兜底）。
 // @Tags         agent
 // @Accept       json
 // @Produce      json
